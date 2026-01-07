@@ -1,0 +1,252 @@
+---
+title: 'Node SDK Quickstart'
+description: 'Build your first TinyCloud backend service in under 5 minutes'
+icon: 'server'
+---
+
+Get TinyCloud running in a Node.js environment and store your first piece of data.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- **Node.js 18+** installed
+- An **Ethereum private key** (32-byte hex string)
+
+<Warning>
+  Never hardcode private keys in your source code. Always use environment variables or a secrets manager.
+</Warning>
+
+## Installation
+
+Install the TinyCloud Node SDK:
+
+```bash npm
+npm install @tinycloudlabs/node-sdk
+```
+
+<Steps>
+
+### Configure Environment
+
+Set up your private key as an environment variable.
+
+```bash .env
+TINYCLOUD_PRIVATE_KEY=0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+<Tip>
+  For development, you can generate a test private key using: `node -e "console.log('0x' + require('crypto').randomBytes(32).toString('hex'))"`
+</Tip>
+
+### Initialize TinyCloud
+
+Create a TinyCloud instance with your configuration.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+
+    const tc = new TinyCloudNode({
+      privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
+      host: 'https://node.tinycloud.xyz',
+      prefix: 'myapp'
+    });
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+
+    const tc = new TinyCloudNode({
+      // Your Ethereum private key (from environment variable)
+      privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
+      // The TinyCloud node to connect to
+      host: 'https://node.tinycloud.xyz',
+      // Optional: prefix for all your keys (useful for multi-tenant apps)
+      prefix: 'myapp'
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Sign In
+
+Authenticate with the TinyCloud network.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    await tc.signIn();
+    console.log('Signed in successfully');
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    // signIn() authenticates using your private key:
+    // 1. Derives your Ethereum address from the private key
+    // 2. Signs a SIWE message to prove ownership
+    // 3. Establishes an authenticated session
+    await tc.signIn();
+
+    console.log('Signed in successfully');
+    ```
+  </Tab>
+</Tabs>
+
+### Store Data
+
+Save data to your namespace using the key-value store.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    await tc.kv.put('config', {
+      version: '1.0.0',
+      lastUpdated: new Date().toISOString()
+    });
+    console.log('Data saved!');
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    // Store a JSON object under the key 'config'
+    // Note: Node SDK uses tc.kv (not tc.storage like Web SDK)
+    await tc.kv.put('config', {
+      version: '1.0.0',
+      lastUpdated: new Date().toISOString()
+    });
+
+    console.log('Data saved!');
+    // Data is now stored in your namespace on TinyCloud
+    ```
+  </Tab>
+</Tabs>
+
+### Retrieve Data
+
+Read the data back from storage.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    const config = await tc.kv.get('config');
+    console.log('Retrieved:', config);
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    // Retrieve the data stored under 'config'
+    const config = await tc.kv.get('config');
+
+    // Returns the original object: { version: '1.0.0', lastUpdated: '...' }
+    console.log('Retrieved:', config);
+    ```
+  </Tab>
+</Tabs>
+
+</Steps>
+
+## Complete Example
+
+Here is the full working code:
+
+```typescript index.ts
+import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+
+async function main() {
+  // Initialize
+  const tc = new TinyCloudNode({
+    privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
+    host: 'https://node.tinycloud.xyz',
+    prefix: 'myapp'
+  });
+
+  // Sign in
+  await tc.signIn();
+  console.log('Signed in successfully');
+
+  // Store data
+  await tc.kv.put('config', {
+    version: '1.0.0',
+    lastUpdated: new Date().toISOString()
+  });
+  console.log('Data saved!');
+
+  // Retrieve data
+  const config = await tc.kv.get('config');
+  console.log('Retrieved:', config);
+}
+
+main().catch(console.error);
+```
+
+Run with:
+
+```bash
+TINYCLOUD_PRIVATE_KEY=0x... npx ts-node index.ts
+```
+
+## Session Persistence
+
+By default, sessions are stored in memory and lost when your process exits. For long-running services, use file-based session storage.
+
+<Tabs>
+  <Tab title="Memory (Default)">
+    ```typescript
+    import { TinyCloudNode, MemorySessionStorage } from '@tinycloudlabs/node-sdk';
+
+    const tc = new TinyCloudNode({
+      privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
+      host: 'https://node.tinycloud.xyz',
+      sessionStorage: new MemorySessionStorage()
+    });
+    ```
+  </Tab>
+  <Tab title="File Storage">
+    ```typescript
+    import { TinyCloudNode, FileSessionStorage } from '@tinycloudlabs/node-sdk';
+
+    const tc = new TinyCloudNode({
+      privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
+      host: 'https://node.tinycloud.xyz',
+      // Persists session to disk - survives restarts
+      sessionStorage: new FileSessionStorage('./.tinycloud-session')
+    });
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  File-based storage is recommended for production services to avoid re-authentication on every restart.
+</Note>
+
+## Expected Output
+
+When you run the code successfully, you should see:
+
+```
+Signed in successfully
+Data saved!
+Retrieved: { version: '1.0.0', lastUpdated: '2024-01-15T10:30:00.000Z' }
+```
+
+## Next Steps
+
+Now that you have the basics working, explore these guides:
+
+<CardGroup cols={2}>
+  <Card title="Storage Guide" icon="database" href="/guides/storage">
+    Learn about advanced storage operations and data types.
+  </Card>
+  <Card title="Delegation" icon="share-nodes" href="/guides/delegation">
+    Share data access with other users or services.
+  </Card>
+  <Card title="Concepts" icon="book" href="/concepts/namespaces">
+    Understand namespaces, capabilities, and the TinyCloud architecture.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Full API documentation for all SDK methods.
+  </Card>
+</CardGroup>

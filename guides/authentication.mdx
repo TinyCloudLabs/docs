@@ -1,0 +1,239 @@
+---
+title: 'Authentication'
+description: 'Sign in with Ethereum and manage sessions across Web and Node SDKs'
+icon: 'key'
+sidebarTitle: 'Authentication'
+---
+
+TinyCloud uses Sign-In with Ethereum (SIWE) for authentication. Users prove wallet ownership to establish sessions that authorize access to their namespace.
+
+## How SIWE Works
+
+<Steps>
+<Step title="Connect wallet">
+  The user connects their Ethereum wallet (MetaMask, WalletConnect, etc.)
+</Step>
+<Step title="Sign message">
+  The SDK constructs a SIWE message containing domain, address, and session parameters. The user signs this message with their wallet.
+</Step>
+<Step title="Session created">
+  TinyCloud verifies the signature and creates a session. The session key can perform operations on behalf of the user until expiry.
+</Step>
+</Steps>
+
+## Sign In
+
+<CodeGroup>
+```typescript Web SDK
+import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+
+const tc = new TinyCloudWeb({
+  host: 'https://api.tinycloud.xyz',
+  prefix: 'my-app',
+});
+
+// Triggers wallet popup for signature
+await tc.signIn();
+
+// Session is now active
+console.log('Signed in as:', tc.userAuthorization.getNamespaceId());
+```
+
+```typescript Node SDK
+import { TinyCloudNode, FileSessionStorage } from '@tinycloudlabs/node-sdk';
+
+const tc = new TinyCloudNode({
+  host: 'https://api.tinycloud.xyz',
+  prefix: 'my-app',
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  sessionStorage: new FileSessionStorage('./session.json'),
+});
+
+await tc.signIn();
+
+console.log('Signed in as:', tc.namespaceId);
+```
+</CodeGroup>
+
+## Session Persistence
+
+Sessions can be persisted to survive page reloads (Web) or process restarts (Node).
+
+<CodeGroup>
+```typescript Web SDK
+const tc = new TinyCloudWeb({
+  host: 'https://api.tinycloud.xyz',
+  prefix: 'my-app',
+  sessionConfig: {
+    // 'localStorage' persists across tabs/sessions
+    // 'sessionStorage' clears when tab closes
+    // 'memory' clears on page reload
+    storageType: 'localStorage',
+  },
+});
+```
+
+```typescript Node SDK
+import { FileSessionStorage, MemorySessionStorage } from '@tinycloudlabs/node-sdk';
+
+// Persist to file (survives restarts)
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  sessionStorage: new FileSessionStorage('./session.json'),
+});
+
+// Or keep in memory only
+const tcMemory = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  sessionStorage: new MemorySessionStorage(),
+});
+```
+</CodeGroup>
+
+## Resume Existing Session
+
+Check for and resume a persisted session without requiring a new signature.
+
+<CodeGroup>
+```typescript Web SDK
+const tc = new TinyCloudWeb({
+  host: 'https://api.tinycloud.xyz',
+  prefix: 'my-app',
+  sessionConfig: { storageType: 'localStorage' },
+});
+
+// Try to resume existing session
+const resumed = await tc.tryResumeSession();
+
+if (resumed) {
+  console.log('Session resumed');
+} else {
+  // No valid session, need fresh sign-in
+  await tc.signIn();
+}
+```
+
+```typescript Node SDK
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  sessionStorage: new FileSessionStorage('./session.json'),
+});
+
+const resumed = await tc.tryResumeSession();
+
+if (!resumed) {
+  await tc.signIn();
+}
+```
+</CodeGroup>
+
+## Node SDK Sign Strategies
+
+The Node SDK supports different strategies for signing the SIWE message.
+
+<Tabs>
+<Tab title="Auto-sign (default)">
+Signs automatically using the provided private key.
+
+```typescript
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  // signStrategy defaults to 'auto'
+});
+
+await tc.signIn(); // Signs immediately
+```
+</Tab>
+
+<Tab title="Callback">
+Provide a callback to handle signing, useful for custom signing flows.
+
+```typescript
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  signStrategy: 'callback',
+  onSignRequest: async (message) => {
+    console.log('Sign request received:', message);
+    // Custom logic here (e.g., user confirmation)
+    return true; // Return true to proceed with signing
+  },
+});
+
+await tc.signIn();
+```
+</Tab>
+
+<Tab title="Event Emitter">
+Use events for decoupled signing workflows.
+
+```typescript
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  signStrategy: 'event-emitter',
+});
+
+tc.on('signRequest', async (message, approve) => {
+  console.log('Sign request:', message);
+  // Perform any async checks
+  approve(); // Call to proceed
+});
+
+await tc.signIn();
+```
+</Tab>
+</Tabs>
+
+## Session Expiry
+
+Sessions have a limited lifetime. Handle expiry gracefully.
+
+<CodeGroup>
+```typescript Web SDK
+const tc = new TinyCloudWeb({
+  host: 'https://api.tinycloud.xyz',
+  prefix: 'my-app',
+  sessionConfig: {
+    storageType: 'localStorage',
+    expirationTime: '24h', // Session duration
+  },
+});
+
+// Check if session is still valid
+if (tc.isSessionExpired()) {
+  await tc.signIn(); // Re-authenticate
+}
+```
+
+```typescript Node SDK
+// Session expiry is checked automatically on operations
+// If expired, you'll receive an error
+
+try {
+  await tc.kv.get('key');
+} catch (error) {
+  if (error.code === 'SESSION_EXPIRED') {
+    await tc.signIn(); // Re-authenticate
+  }
+}
+```
+</CodeGroup>
+
+## Sign Out
+
+Clear the current session.
+
+<CodeGroup>
+```typescript Web SDK
+await tc.signOut();
+// Session cleared from storage
+```
+
+```typescript Node SDK
+await tc.signOut();
+// Session file removed
+```
+</CodeGroup>
+
+<Warning>
+After signing out, all operations will fail until a new `signIn()` is completed.
+</Warning>

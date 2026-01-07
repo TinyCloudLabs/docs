@@ -1,0 +1,274 @@
+---
+title: 'Key-Value Storage'
+description: 'Store and retrieve data with the TinyCloud KV API'
+icon: 'database'
+sidebarTitle: 'KV Storage'
+---
+
+TinyCloud provides a key-value storage API for persisting user data. All data is stored in the user's namespace and fully controlled by them.
+
+## Basic Operations
+
+### Put
+
+Store a value at a key.
+
+<CodeGroup>
+```typescript Web SDK
+await tc.storage.put('user/profile', {
+  name: 'Alice',
+  email: 'alice@example.com',
+});
+```
+
+```typescript Node SDK
+await tc.kv.put('user/profile', {
+  name: 'Alice',
+  email: 'alice@example.com',
+});
+```
+</CodeGroup>
+
+### Get
+
+Retrieve a value by key.
+
+<CodeGroup>
+```typescript Web SDK
+const profile = await tc.storage.get('user/profile');
+console.log(profile);
+// { name: 'Alice', email: 'alice@example.com' }
+```
+
+```typescript Node SDK
+const profile = await tc.kv.get('user/profile');
+console.log(profile);
+```
+</CodeGroup>
+
+### List
+
+List keys matching a prefix.
+
+<CodeGroup>
+```typescript Web SDK
+const keys = await tc.storage.list('user/');
+console.log(keys);
+// ['user/profile', 'user/settings', 'user/preferences']
+```
+
+```typescript Node SDK
+const keys = await tc.kv.list('user/');
+console.log(keys);
+```
+</CodeGroup>
+
+### Delete
+
+Remove a key and its value.
+
+<CodeGroup>
+```typescript Web SDK
+await tc.storage.delete('user/profile');
+```
+
+```typescript Node SDK
+await tc.kv.delete('user/profile');
+```
+</CodeGroup>
+
+## Data Types
+
+The KV API supports multiple data types.
+
+<Tabs>
+<Tab title="Strings">
+```typescript
+await tc.storage.put('greeting', 'Hello, World!');
+
+const greeting = await tc.storage.get('greeting');
+// "Hello, World!"
+```
+</Tab>
+
+<Tab title="JSON Objects">
+```typescript
+await tc.storage.put('config', {
+  theme: 'dark',
+  notifications: true,
+  language: 'en',
+});
+
+const config = await tc.storage.get('config');
+// { theme: 'dark', notifications: true, language: 'en' }
+```
+</Tab>
+
+<Tab title="Arrays">
+```typescript
+await tc.storage.put('tags', ['typescript', 'react', 'tinycloud']);
+
+const tags = await tc.storage.get('tags');
+// ['typescript', 'react', 'tinycloud']
+```
+</Tab>
+
+<Tab title="Binary Data">
+```typescript
+const imageBuffer = new Uint8Array([...]); // Binary data
+
+await tc.storage.put('avatar.png', imageBuffer, {
+  contentType: 'image/png',
+});
+
+const avatar = await tc.storage.get('avatar.png');
+```
+</Tab>
+</Tabs>
+
+## Organizing with Prefixes
+
+Use path-like keys to organize data logically.
+
+```typescript
+// User data
+await tc.storage.put('user/profile', { name: 'Alice' });
+await tc.storage.put('user/settings', { theme: 'dark' });
+
+// App data
+await tc.storage.put('app/cache/items', [...]);
+await tc.storage.put('app/state', { lastSync: Date.now() });
+
+// Documents
+await tc.storage.put('documents/2024/report.json', { ... });
+await tc.storage.put('documents/2024/summary.json', { ... });
+
+// List all documents from 2024
+const docs = await tc.storage.list('documents/2024/');
+```
+
+## Metadata
+
+Store and retrieve metadata alongside values.
+
+<CodeGroup>
+```typescript Web SDK
+// Put with metadata
+await tc.storage.put('document', content, {
+  metadata: {
+    author: 'Alice',
+    version: '1.0',
+    createdAt: new Date().toISOString(),
+  },
+});
+
+// Get metadata only (without fetching value)
+const meta = await tc.storage.getMetadata('document');
+console.log(meta);
+// { author: 'Alice', version: '1.0', createdAt: '2024-...' }
+```
+
+```typescript Node SDK
+await tc.kv.put('document', content, {
+  metadata: {
+    author: 'Alice',
+    version: '1.0',
+  },
+});
+
+const meta = await tc.kv.getMetadata('document');
+```
+</CodeGroup>
+
+## Error Handling
+
+Handle common error cases.
+
+<CodeGroup>
+```typescript Web SDK
+try {
+  const value = await tc.storage.get('nonexistent-key');
+} catch (error) {
+  if (error.code === 'NOT_FOUND') {
+    console.log('Key does not exist');
+  } else if (error.code === 'UNAUTHORIZED') {
+    console.log('Session expired or invalid');
+  } else {
+    console.error('Unexpected error:', error);
+  }
+}
+```
+
+```typescript Node SDK
+try {
+  const value = await tc.kv.get('nonexistent-key');
+} catch (error) {
+  if (error.code === 'NOT_FOUND') {
+    console.log('Key does not exist');
+  } else if (error.code === 'UNAUTHORIZED') {
+    console.log('Session expired or invalid');
+  } else {
+    throw error;
+  }
+}
+```
+</CodeGroup>
+
+## Practical Examples
+
+### User Preferences
+
+```typescript
+// Save preferences
+await tc.storage.put('preferences', {
+  theme: 'dark',
+  fontSize: 14,
+  notifications: {
+    email: true,
+    push: false,
+  },
+});
+
+// Load preferences with defaults
+const prefs = await tc.storage.get('preferences') ?? {
+  theme: 'light',
+  fontSize: 12,
+  notifications: { email: true, push: true },
+};
+```
+
+### Shopping Cart
+
+```typescript
+// Add item to cart
+async function addToCart(item) {
+  const cart = await tc.storage.get('cart') ?? [];
+  cart.push(item);
+  await tc.storage.put('cart', cart);
+}
+
+// Clear cart
+async function clearCart() {
+  await tc.storage.delete('cart');
+}
+```
+
+### Document History
+
+```typescript
+// Save document with version
+async function saveDocument(docId, content) {
+  const version = Date.now();
+
+  // Save current version
+  await tc.storage.put(`docs/${docId}/current`, content);
+
+  // Save to history
+  await tc.storage.put(`docs/${docId}/history/${version}`, content);
+}
+
+// List document history
+async function getDocumentHistory(docId) {
+  return await tc.storage.list(`docs/${docId}/history/`);
+}
+```

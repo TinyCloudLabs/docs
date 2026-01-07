@@ -1,0 +1,258 @@
+---
+title: 'Web SDK Quickstart'
+description: 'Build your first TinyCloud app in the browser in under 5 minutes'
+icon: 'browser'
+---
+
+Get TinyCloud running in your browser app and store your first piece of data.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- **Node.js 18+** installed
+- A **modern browser** (Chrome, Firefox, Safari, Edge)
+- A **wallet extension** like MetaMask installed in your browser
+
+<Note>
+  TinyCloud uses Sign-In with Ethereum (SIWE) for authentication. Your wallet signs a message to prove ownership of your address - no transaction or gas fees required.
+</Note>
+
+## Installation
+
+Install the TinyCloud Web SDK:
+
+```bash npm
+npm install @tinycloudlabs/web-sdk
+```
+
+<Steps>
+
+### Initialize TinyCloud
+
+Create a new TinyCloud instance in your application.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+
+    const tc = new TinyCloudWeb({
+      notifications: { popups: true },
+      persistence: { autoResumeSession: true }
+    });
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+
+    // Create a TinyCloud instance with configuration
+    const tc = new TinyCloudWeb({
+      // Show popup notifications for important events
+      notifications: { popups: true },
+      // Automatically restore previous sessions on page reload
+      persistence: { autoResumeSession: true }
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Sign In
+
+Authenticate the user by connecting their wallet and signing a message.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    const session = await tc.signIn();
+    console.log('Signed in as:', session.address);
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    // signIn() triggers the wallet connection flow:
+    // 1. Prompts user to connect their wallet (e.g., MetaMask)
+    // 2. Requests signature on a SIWE message
+    // 3. Establishes an authenticated session
+    const session = await tc.signIn();
+
+    // The session contains the user's Ethereum address
+    console.log('Signed in as:', session.address);
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  With `autoResumeSession: true`, returning users skip the sign-in prompt if their session is still valid.
+</Tip>
+
+### Store Data
+
+Save data to your user's personal namespace.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    await tc.storage.put('profile', {
+      name: 'Alice',
+      joined: new Date().toISOString()
+    });
+    console.log('Data saved!');
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    // Store a JSON object under the key 'profile'
+    // Data is encrypted and stored in the user's namespace
+    await tc.storage.put('profile', {
+      name: 'Alice',
+      joined: new Date().toISOString()
+    });
+
+    console.log('Data saved!');
+    // Data is now securely stored and only accessible
+    // by this user (or those they delegate access to)
+    ```
+  </Tab>
+</Tabs>
+
+### Retrieve Data
+
+Read the data back from storage.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    const profile = await tc.storage.get('profile');
+    console.log('Retrieved:', profile);
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    // Retrieve the data stored under 'profile'
+    const profile = await tc.storage.get('profile');
+
+    // Returns the original object: { name: 'Alice', joined: '...' }
+    console.log('Retrieved:', profile);
+    ```
+  </Tab>
+</Tabs>
+
+</Steps>
+
+## Complete Example
+
+Here is the full working code you can copy into your project:
+
+<CodeGroup>
+```typescript Vanilla JS
+import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+
+async function main() {
+  // Initialize
+  const tc = new TinyCloudWeb({
+    notifications: { popups: true },
+    persistence: { autoResumeSession: true }
+  });
+
+  // Sign in
+  const session = await tc.signIn();
+  console.log('Signed in as:', session.address);
+
+  // Store data
+  await tc.storage.put('profile', {
+    name: 'Alice',
+    joined: new Date().toISOString()
+  });
+  console.log('Data saved!');
+
+  // Retrieve data
+  const profile = await tc.storage.get('profile');
+  console.log('Retrieved:', profile);
+}
+
+main().catch(console.error);
+```
+
+```tsx React
+import { useState } from 'react';
+import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+
+const tc = new TinyCloudWeb({
+  notifications: { popups: true },
+  persistence: { autoResumeSession: true }
+});
+
+export default function App() {
+  const [profile, setProfile] = useState(null);
+  const [address, setAddress] = useState('');
+
+  async function handleSignIn() {
+    const session = await tc.signIn();
+    setAddress(session.address);
+  }
+
+  async function handleSave() {
+    await tc.storage.put('profile', {
+      name: 'Alice',
+      joined: new Date().toISOString()
+    });
+    alert('Saved!');
+  }
+
+  async function handleLoad() {
+    const data = await tc.storage.get('profile');
+    setProfile(data);
+  }
+
+  return (
+    <div>
+      {!address ? (
+        <button onClick={handleSignIn}>Sign In</button>
+      ) : (
+        <>
+          <p>Connected: {address}</p>
+          <button onClick={handleSave}>Save Profile</button>
+          <button onClick={handleLoad}>Load Profile</button>
+          {profile && <pre>{JSON.stringify(profile, null, 2)}</pre>}
+        </>
+      )}
+    </div>
+  );
+}
+```
+</CodeGroup>
+
+## Expected Output
+
+When you run the code successfully, you should see:
+
+```
+Signed in as: 0x1234...abcd
+Data saved!
+Retrieved: { name: 'Alice', joined: '2024-01-15T10:30:00.000Z' }
+```
+
+<Note>
+  The wallet popup will appear twice during first sign-in: once to connect, and once to sign the authentication message.
+</Note>
+
+## Next Steps
+
+Now that you have the basics working, explore these guides:
+
+<CardGroup cols={2}>
+  <Card title="Storage Guide" icon="database" href="/guides/storage">
+    Learn about advanced storage operations and data types.
+  </Card>
+  <Card title="Delegation" icon="share-nodes" href="/guides/delegation">
+    Share data access with other users securely.
+  </Card>
+  <Card title="Concepts" icon="book" href="/concepts/namespaces">
+    Understand namespaces, capabilities, and the TinyCloud architecture.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Full API documentation for all SDK methods.
+  </Card>
+</CardGroup>

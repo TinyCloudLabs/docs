@@ -1,97 +1,54 @@
 ---
 title: "Introduction"
-description: "Welcome to the new home for your documentation"
+description: "TinyCloud SDK - User-owned data storage with delegatable capabilities"
 ---
 
-## Setting up
+# Welcome to TinyCloud
 
-Get your documentation site up and running in minutes.
+TinyCloud provides decentralized, user-owned data storage with fine-grained access control through delegatable capabilities.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+## Key Features
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Web SDK" icon="browser" href="/quickstart/web-sdk">
+    Build browser applications with wallet-based authentication
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Node SDK" icon="server" href="/quickstart/node-sdk">
+    Build backend services with private key authentication
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Key-Value Storage" icon="database" href="/guides/kv-storage">
+    Simple, secure storage for your application data
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Delegations" icon="share" href="/guides/delegations">
+    Share access with fine-grained, revocable permissions
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Choose Your Path
 
-Everything you need to create world-class documentation.
+<Tabs>
+  <Tab title="Web Developers">
+    Building a browser-based app? Start with the [Web SDK Quickstart](/quickstart/web-sdk).
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+    You'll learn:
+    - Connect user wallets (MetaMask, WalletConnect)
+    - Sign in with Ethereum (SIWE)
+    - Store and retrieve user data
+  </Tab>
+  <Tab title="Backend Developers">
+    Building a server or CLI? Start with the [Node SDK Quickstart](/quickstart/node-sdk).
 
-## Need inspiration?
+    You'll learn:
+    - Authenticate with private keys
+    - Manage namespaces programmatically
+    - Create delegations for user access
+  </Tab>
+</Tabs>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## Core Concepts
+
+- **Namespaces**: Data ownership containers tied to user identity
+- **KV Storage**: Key-value storage within namespaces
+- **Delegations**: Shareable, scoped access permissions using UCAN
+
+Ready to start? Pick a [quickstart guide](/quickstart/web-sdk) above.

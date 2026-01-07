@@ -1,0 +1,203 @@
+---
+title: "Troubleshooting"
+description: "Solutions to common issues when integrating the TinyCloud SDK"
+icon: "wrench"
+---
+
+This guide covers the most common issues developers encounter when working with the TinyCloud SDK and how to resolve them.
+
+<AccordionGroup>
+  <Accordion title="Delegation failed: invalid delegatee">
+    **Symptom**: Creating a delegation fails with the error "Delegation failed: invalid delegatee" or similar validation error.
+
+    **Cause**: You are using the session DID (`.did`) instead of the PKH DID (`.pkhDid`) when specifying the delegatee.
+
+    **Solution**: Always use `.pkhDid` for user-to-user delegations:
+
+    ```typescript
+    // Wrong
+    await alice.createDelegation({ delegateDID: bob.did });
+
+    // Correct
+    await alice.createDelegation({ delegateDID: bob.pkhDid });
+    ```
+
+    See [DID Formats](/concepts/did-formats) for a detailed explanation.
+  </Accordion>
+
+  <Accordion title="Namespace does not exist">
+    **Symptom**: Operations fail with "namespace does not exist" or "namespace not found" errors.
+
+    **Cause**: The namespace has not been created, or `autoCreateNamespace` is not enabled.
+
+    **Solution**: Either enable auto-creation or explicitly create the namespace:
+
+    ```typescript
+    // Option 1: Enable auto-creation in session config
+    const session = await client.createSession({
+      autoCreateNamespace: true
+    });
+
+    // Option 2: Explicitly ensure the namespace exists
+    await session.ensureNamespaceExists();
+    ```
+  </Accordion>
+
+  <Accordion title="Session expired">
+    **Symptom**: Operations that previously worked now fail with authentication or session errors.
+
+    **Cause**: The session TTL has been exceeded. TinyCloud sessions have a limited lifetime for security.
+
+    **Solution**: Re-authenticate to obtain a new session:
+
+    ```typescript
+    // Check if session is still valid
+    if (session.isExpired()) {
+      // Re-authenticate
+      const newSession = await client.createSession();
+    }
+    ```
+
+    Consider implementing session refresh logic in your application to handle this gracefully.
+  </Accordion>
+
+  <Accordion title="WASM module not found">
+    **Symptom**: Import errors or runtime errors about missing WASM modules when using the SDK.
+
+    **Cause**: The WASM package (`@tinycloudlabs/sdk-rs`) was not built before the TypeScript wrappers.
+
+    **Solution**: Rebuild in the correct order:
+
+    ```bash
+    # In the web-sdk repository
+
+    # 1. Build WASM first
+    cd packages/sdk-rs
+    bun run build
+
+    # 2. Then build the wrappers
+    cd ../..
+    bun run build
+    ```
+
+    The build order must be:
+    1. `@tinycloudlabs/sdk-rs` (WASM artifacts)
+    2. `@tinycloudlabs/node-sdk-wasm` / `@tinycloudlabs/web-sdk-wasm` (TypeScript wrappers)
+  </Accordion>
+
+  <Accordion title="Invalid private key">
+    **Symptom**: Session creation fails with "invalid private key" or key parsing errors.
+
+    **Cause**: The private key is not in the expected format. It must be exactly 32 bytes (64 hexadecimal characters).
+
+    **Solution**: Ensure the key is properly formatted:
+
+    ```typescript
+    // Both formats are valid
+    const key1 = "0x1234..."; // 64 hex chars after 0x (66 total)
+    const key2 = "1234...";   // 64 hex chars without prefix
+
+    // Invalid examples
+    const bad1 = "0x123";     // Too short
+    const bad2 = "123abc";    // Not 64 characters
+    ```
+
+    If generating a key programmatically, ensure you are using a cryptographically secure random source and outputting exactly 32 bytes.
+  </Accordion>
+
+  <Accordion title="Sub-delegation rejected: path not within parent">
+    **Symptom**: Creating a sub-delegation fails with a path constraint error.
+
+    **Cause**: The path specified in the child delegation is not within the parent's path scope.
+
+    **Solution**: Ensure the child path is a sub-path of the parent:
+
+    ```typescript
+    // If parent has path: /users/alice/
+
+    // Valid child paths
+    "/users/alice/"         // Same path
+    "/users/alice/docs/"    // Sub-path
+    "/users/alice/docs/readme.txt"
+
+    // Invalid child paths
+    "/users/bob/"           // Different user
+    "/users/"               // Parent of the allowed path
+    "/admin/"               // Unrelated path
+    ```
+  </Accordion>
+
+  <Accordion title="Sub-delegation rejected: expiry exceeds parent">
+    **Symptom**: Creating a sub-delegation fails with an expiry constraint error.
+
+    **Cause**: The child delegation's expiry time is later than the parent's expiry.
+
+    **Solution**: Set the child expiry to be equal to or earlier than the parent:
+
+    ```typescript
+    // If parent expires at timestamp 1704067200 (Jan 1, 2024)
+
+    // Get parent expiry
+    const parentExpiry = parentCapability.expiry;
+
+    // Create child with same or earlier expiry
+    await alice.createDelegation({
+      delegateDID: bob.pkhDid,
+      expiry: parentExpiry, // Same as parent
+      // Or: expiry: parentExpiry - 3600 // 1 hour earlier
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Sign request timed out">
+    **Symptom**: Using the event-emitter signing strategy results in timeout errors.
+
+    **Cause**: The sign request was emitted but no handler responded with a signature.
+
+    **Solution**: Ensure you have a listener that handles sign requests:
+
+    ```typescript
+    client.on('signRequest', async (request) => {
+      // Present signing UI to user
+      const signature = await wallet.signMessage(request.message);
+
+      // IMPORTANT: Must call respond()
+      request.respond(signature);
+    });
+    ```
+
+    Common mistakes:
+    - Forgetting to call `request.respond()`
+    - Not awaiting the signature before responding
+    - Listener not registered before session creation
+  </Accordion>
+
+  <Accordion title="Old session invalid after update">
+    **Symptom**: Persisted sessions that worked before a TinyCloud update now fail to load or authenticate.
+
+    **Cause**: The terminology migration from "orbit" to "namespace" (December 2025) invalidated sessions stored with the old `orbitId` field.
+
+    **Solution**: Clear persisted sessions and re-authenticate:
+
+    ```typescript
+    // Clear stored session data
+    localStorage.removeItem('tinycloud_session');
+    // Or for your specific storage mechanism
+    await sessionStorage.clear();
+
+    // Re-authenticate to get a new session
+    const session = await client.createSession();
+    ```
+
+    This is a one-time migration. New sessions use the `namespaceId` field and will persist correctly.
+  </Accordion>
+</AccordionGroup>
+
+## Still Having Issues?
+
+If your issue is not covered here:
+
+1. Check the [Capabilities](/concepts/capabilities) and [DID Formats](/concepts/did-formats) concept pages for detailed explanations
+2. Verify your SDK version is up to date
+3. Review the server logs for more detailed error messages
+4. Ensure your wallet is connected to the expected network
