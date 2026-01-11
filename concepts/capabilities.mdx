@@ -53,12 +53,12 @@ tinycloud.{resource}/{action}
 | `tinycloud.kv/list` | List keys in the key-value store |
 | `tinycloud.kv/metadata` | Read metadata about stored values |
 
-### Namespace Operations
+### Space Operations
 
 | Ability | Description |
 |---------|-------------|
-| `tinycloud.namespace/host` | Access a namespace as a participant |
-| `tinycloud.namespace/admin` | Full administrative control over a namespace |
+| `tinycloud.space/host` | Access a space as a participant |
+| `tinycloud.space/admin` | Full administrative control over a space |
 
 ### Capability Operations
 
@@ -68,7 +68,7 @@ tinycloud.{resource}/{action}
 
 ### Path Scoping
 
-Abilities can be scoped to specific paths within a namespace:
+Abilities can be scoped to specific paths within a space:
 
 ```typescript
 // Full access to all keys
@@ -86,7 +86,7 @@ One of UCAN's most powerful features is the ability to delegate capabilities to 
 
 ```mermaid
 graph TD
-    A[Alice - Namespace Owner] -->|delegates| B[Bob - Editor]
+    A[Alice - Space Owner] -->|delegates| B[Bob - Editor]
     B -->|sub-delegates| C[Carol - Viewer]
     A -->|delegates| D[Dave - Admin]
 
@@ -205,6 +205,6 @@ Revocation propagates down the chain. If Alice revokes Bob's delegation, Carol's
 
 1. **Principle of least privilege**: Delegate only the minimum capabilities needed
 2. **Short expiry times**: Use shorter expiry periods for sensitive operations
-3. **Path scoping**: Limit access to specific paths rather than entire namespaces
+3. **Path scoping**: Limit access to specific paths rather than entire spaces
 4. **Disable sub-delegation**: When the recipient should not share access further
 5. **Use PKH DIDs**: Always use `.pkhDid` for the delegatee (see [DID Formats](/concepts/did-formats))

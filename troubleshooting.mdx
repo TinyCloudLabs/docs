@@ -25,21 +25,21 @@ This guide covers the most common issues developers encounter when working with 
     See [DID Formats](/concepts/did-formats) for a detailed explanation.
   </Accordion>
 
-  <Accordion title="Namespace does not exist">
-    **Symptom**: Operations fail with "namespace does not exist" or "namespace not found" errors.
+  <Accordion title="Space does not exist">
+    **Symptom**: Operations fail with "space does not exist" or "space not found" errors.
 
-    **Cause**: The namespace has not been created, or `autoCreateNamespace` is not enabled.
+    **Cause**: The space has not been created, or `autoCreateSpace` is not enabled.
 
-    **Solution**: Either enable auto-creation or explicitly create the namespace:
+    **Solution**: Either enable auto-creation or explicitly create the space:
 
     ```typescript
     // Option 1: Enable auto-creation in session config
     const session = await client.createSession({
-      autoCreateNamespace: true
+      autoCreateSpace: true
     });
 
-    // Option 2: Explicitly ensure the namespace exists
-    await session.ensureNamespaceExists();
+    // Option 2: Explicitly ensure the space exists
+    await session.ensureSpaceExists();
     ```
   </Accordion>
 
@@ -175,7 +175,7 @@ This guide covers the most common issues developers encounter when working with 
   <Accordion title="Old session invalid after update">
     **Symptom**: Persisted sessions that worked before a TinyCloud update now fail to load or authenticate.
 
-    **Cause**: The terminology migration from "orbit" to "namespace" (December 2025) invalidated sessions stored with the old `orbitId` field.
+    **Cause**: The terminology migrations from "orbit" to "namespace" (December 2025), then "namespace" to "space" (January 2026) invalidated sessions stored with the old `orbitId` or `namespaceId` fields.
 
     **Solution**: Clear persisted sessions and re-authenticate:
 
@@ -189,7 +189,7 @@ This guide covers the most common issues developers encounter when working with 
     const session = await client.createSession();
     ```
 
-    This is a one-time migration. New sessions use the `namespaceId` field and will persist correctly.
+    This is a one-time migration. New sessions use the `spaceId` field and will persist correctly.
   </Accordion>
 </AccordionGroup>
 

@@ -38,7 +38,7 @@
                 "group": "Guides",
                 "pages": [
                   "guides/authentication",
-                  "guides/namespaces",
+                  "guides/spaces",
                   "guides/kv-storage",
                   "guides/delegations"
                 ]

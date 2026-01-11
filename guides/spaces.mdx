@@ -1,15 +1,15 @@
 ---
-title: 'Namespaces'
+title: 'Spaces'
 description: 'Understanding data ownership containers in TinyCloud'
 icon: 'folder-tree'
-sidebarTitle: 'Namespaces'
+sidebarTitle: 'Spaces'
 ---
 
-A namespace is a data ownership container in TinyCloud. Each user has their own namespace where their data is stored and controlled.
+A space is a data ownership container in TinyCloud. Each user has their own space where their data is stored and controlled.
 
-## Namespace ID Format
+## Space ID Format
 
-Namespace IDs follow the format:
+Space IDs follow the format:
 
 ```
 {address}-{chainId}-{prefix}
@@ -21,25 +21,25 @@ Namespace IDs follow the format:
 | `chainId` | EIP-155 chain ID | `1` (mainnet), `11155111` (sepolia) |
 | `prefix` | Application identifier | `my-app` |
 
-Example namespace ID:
+Example space ID:
 ```
 0x1234567890abcdef1234567890abcdef12345678-1-my-app
 ```
 
 ## Auto-Creation vs Manual
 
-By default, namespaces are created automatically on first sign-in.
+By default, spaces are created automatically on first sign-in.
 
 <CodeGroup>
 ```typescript Web SDK
 const tc = new TinyCloudWeb({
   host: 'https://api.tinycloud.xyz',
   prefix: 'my-app',
-  // autoCreateNamespace: true (default)
+  // autoCreateSpace: true (default)
 });
 
 await tc.signIn();
-// Namespace created automatically if it doesn't exist
+// Space created automatically if it doesn't exist
 ```
 
 ```typescript Node SDK
@@ -47,7 +47,7 @@ const tc = new TinyCloudNode({
   host: 'https://api.tinycloud.xyz',
   prefix: 'my-app',
   privateKey: process.env.WALLET_PRIVATE_KEY,
-  autoCreateNamespace: true, // default
+  autoCreateSpace: true, // default
 });
 
 await tc.signIn();
@@ -61,11 +61,11 @@ To disable auto-creation:
 const tc = new TinyCloudWeb({
   host: 'https://api.tinycloud.xyz',
   prefix: 'my-app',
-  autoCreateNamespace: false,
+  autoCreateSpace: false,
 });
 
 await tc.signIn();
-// Throws error if namespace doesn't exist
+// Throws error if space doesn't exist
 ```
 
 ```typescript Node SDK
@@ -73,29 +73,29 @@ const tc = new TinyCloudNode({
   host: 'https://api.tinycloud.xyz',
   prefix: 'my-app',
   privateKey: process.env.WALLET_PRIVATE_KEY,
-  autoCreateNamespace: false,
+  autoCreateSpace: false,
 });
 ```
 </CodeGroup>
 
-## Getting Namespace ID
+## Getting Space ID
 
-After sign-in, retrieve the namespace ID for the current session.
+After sign-in, retrieve the space ID for the current session.
 
 <CodeGroup>
 ```typescript Web SDK
 await tc.signIn();
 
-const namespaceId = tc.userAuthorization.getNamespaceId();
-console.log('Namespace:', namespaceId);
+const spaceId = tc.userAuthorization.getSpaceId();
+console.log('Space:', spaceId);
 // "0x1234...abcd-1-my-app"
 ```
 
 ```typescript Node SDK
 await tc.signIn();
 
-const namespaceId = tc.namespaceId;
-console.log('Namespace:', namespaceId);
+const spaceId = tc.spaceId;
+console.log('Space:', spaceId);
 ```
 </CodeGroup>
 
@@ -110,17 +110,17 @@ const gameClient = new TinyCloudWeb({
   prefix: 'my-game',
 });
 
-// User's notes data (separate namespace)
+// User's notes data (separate space)
 const notesClient = new TinyCloudWeb({
   host: 'https://api.tinycloud.xyz',
   prefix: 'my-notes',
 });
 ```
 
-Same wallet, different namespaces:
+Same wallet, different spaces:
 - `0x1234...abcd-1-my-game`
 - `0x1234...abcd-1-my-notes`
 
 <Note>
-Data in one namespace is completely isolated from other namespaces, even for the same user.
+Data in one space is completely isolated from other spaces, even for the same user.
 </Note>
