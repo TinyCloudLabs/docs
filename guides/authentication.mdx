@@ -5,7 +5,7 @@ icon: 'key'
 sidebarTitle: 'Authentication'
 ---
 
-TinyCloud uses Sign-In with Ethereum (SIWE) for authentication. Users prove wallet ownership to establish sessions that authorize access to their namespace.
+TinyCloud uses Sign-In with Ethereum (SIWE) for authentication. Users prove wallet ownership to establish sessions that authorize access to their space.
 
 ## How SIWE Works
 
@@ -36,7 +36,7 @@ const tc = new TinyCloudWeb({
 await tc.signIn();
 
 // Session is now active
-console.log('Signed in as:', tc.userAuthorization.getNamespaceId());
+console.log('Signed in as:', tc.userAuthorization.getSpaceId());
 ```
 
 ```typescript Node SDK
@@ -51,7 +51,7 @@ const tc = new TinyCloudNode({
 
 await tc.signIn();
 
-console.log('Signed in as:', tc.namespaceId);
+console.log('Signed in as:', tc.spaceId);
 ```
 </CodeGroup>
 

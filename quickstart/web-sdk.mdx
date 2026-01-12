@@ -89,7 +89,7 @@ Authenticate the user by connecting their wallet and signing a message.
 
 ### Store Data
 
-Save data to your user's personal namespace.
+Save data to your user's personal space.
 
 <Tabs>
   <Tab title="Quick">
@@ -104,7 +104,7 @@ Save data to your user's personal namespace.
   <Tab title="Explained">
     ```typescript
     // Store a JSON object under the key 'profile'
-    // Data is encrypted and stored in the user's namespace
+    // Data is encrypted and stored in the user's space
     await tc.storage.put('profile', {
       name: 'Alice',
       joined: new Date().toISOString()
@@ -249,8 +249,8 @@ Now that you have the basics working, explore these guides:
   <Card title="Delegation" icon="share-nodes" href="/guides/delegation">
     Share data access with other users securely.
   </Card>
-  <Card title="Concepts" icon="book" href="/concepts/namespaces">
-    Understand namespaces, capabilities, and the TinyCloud architecture.
+  <Card title="Concepts" icon="book" href="/concepts/spaces">
+    Understand spaces, capabilities, and the TinyCloud architecture.
   </Card>
   <Card title="API Reference" icon="code" href="/api-reference/introduction">
     Full API documentation for all SDK methods.

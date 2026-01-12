@@ -1,22 +1,22 @@
 ---
 title: 'Delegations'
-description: 'Share access to your namespace with other users and services'
+description: 'Share access to your space with other users and services'
 icon: 'share-nodes'
 sidebarTitle: 'Delegations'
 ---
 
-Delegations allow you to grant other users or services access to your namespace. They enable secure, scoped, and time-limited sharing of data and capabilities.
+Delegations allow you to grant other users or services access to your space. They enable secure, scoped, and time-limited sharing of data and capabilities.
 
 ## What Delegations Enable
 
-- **Share data**: Let other users read or write to paths in your namespace
+- **Share data**: Let other users read or write to paths in your space
 - **Grant permissions**: Allow services to perform actions on your behalf
 - **Chain access**: Recipients can create sub-delegations to others
 - **Time-bound access**: Delegations automatically expire
 
 ## Creating a Delegation
 
-Grant another user access to your namespace.
+Grant another user access to your space.
 
 <Warning>
 **Critical**: Always use `pkhDid` (PKH DID format) for the `delegateDID` parameter, NOT the `did` property. Using the wrong DID format will cause server validation to fail.
@@ -89,7 +89,7 @@ const delegation = await tc.createDelegation({
 
 ## Using a Received Delegation
 
-When you receive a delegation, use it to access another user's namespace.
+When you receive a delegation, use it to access another user's space.
 
 <CodeGroup>
 ```typescript Web SDK
@@ -101,7 +101,7 @@ await tc.storage.useDelegation(portableDelegation);
 
 // Now Bob can access Alice's documents
 const docs = await tc.storage.list('documents/', {
-  namespace: aliceNamespaceId,
+  space: aliceSpaceId,
 });
 ```
 
@@ -112,9 +112,9 @@ const portableDelegation = /* received from Alice */;
 // Load the delegation
 await tc.useDelegation(portableDelegation);
 
-// Access Alice's namespace
+// Access Alice's space
 const doc = await tc.kv.get('documents/report.json', {
-  namespace: aliceNamespaceId,
+  space: aliceSpaceId,
 });
 ```
 </CodeGroup>
@@ -265,7 +265,7 @@ const received = await bob.useDelegation(aliceToBobPortable);
 
 // Bob can now read Alice's documents
 const files = await bob.kv.list('documents/', {
-  namespace: alice.namespaceId,
+  space: alice.spaceId,
 });
 ```
 </Step>
@@ -292,7 +292,7 @@ await carol.useDelegation(bobToCarolPortable);
 
 // Carol can read Alice's public documents
 const doc = await carol.kv.get('documents/public/readme.txt', {
-  namespace: alice.namespaceId,
+  space: alice.spaceId,
 });
 ```
 </Step>
