@@ -172,25 +172,6 @@ This guide covers the most common issues developers encounter when working with 
     - Listener not registered before session creation
   </Accordion>
 
-  <Accordion title="Old session invalid after update">
-    **Symptom**: Persisted sessions that worked before a TinyCloud update now fail to load or authenticate.
-
-    **Cause**: The terminology migrations from "orbit" to "namespace" (December 2025), then "namespace" to "space" (January 2026) invalidated sessions stored with the old `orbitId` or `namespaceId` fields.
-
-    **Solution**: Clear persisted sessions and re-authenticate:
-
-    ```typescript
-    // Clear stored session data
-    localStorage.removeItem('tinycloud_session');
-    // Or for your specific storage mechanism
-    await sessionStorage.clear();
-
-    // Re-authenticate to get a new session
-    const session = await client.createSession();
-    ```
-
-    This is a one-time migration. New sessions use the `spaceId` field and will persist correctly.
-  </Accordion>
 </AccordionGroup>
 
 ## Still Having Issues?
