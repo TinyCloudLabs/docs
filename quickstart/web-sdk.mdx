@@ -4,7 +4,7 @@ description: 'Build your first TinyCloud app in the browser in under 5 minutes'
 icon: 'browser'
 ---
 
-Get TinyCloud running in your browser app and store your first piece of data.
+Get TinyCloud running in your browser app and store your first piece of data. By the end of this guide you will have a working app that authenticates a user, writes data to their personal space, reads it back, and generates a share link.
 
 ## Prerequisites
 
@@ -15,16 +15,28 @@ Before you begin, make sure you have:
 - A **wallet extension** like MetaMask installed in your browser
 
 <Note>
-  TinyCloud uses Sign-In with Ethereum (SIWE) for authentication. Your wallet signs a message to prove ownership of your address - no transaction or gas fees required.
+  TinyCloud uses Sign-In with Ethereum (SIWE) for authentication. Your wallet signs a message to prove ownership of your address -- no transaction or gas fees required.
 </Note>
 
 ## Installation
 
-Install the TinyCloud Web SDK:
-
+<CodeGroup>
 ```bash npm
 npm install @tinycloudlabs/web-sdk
 ```
+
+```bash yarn
+yarn add @tinycloudlabs/web-sdk
+```
+
+```bash pnpm
+pnpm add @tinycloudlabs/web-sdk
+```
+
+```bash bun
+bun add @tinycloudlabs/web-sdk
+```
+</CodeGroup>
 
 <Steps>
 
@@ -37,10 +49,7 @@ Create a new TinyCloud instance in your application.
     ```typescript
     import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 
-    const tc = new TinyCloudWeb({
-      notifications: { popups: true },
-      persistence: { autoResumeSession: true }
-    });
+    const tc = new TinyCloudWeb();
     ```
   </Tab>
   <Tab title="Explained">
@@ -48,11 +57,22 @@ Create a new TinyCloud instance in your application.
     import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 
     // Create a TinyCloud instance with configuration
+    // All options are optional -- sensible defaults are used
     const tc = new TinyCloudWeb({
+      // TinyCloud node(s) to connect to
+      tinycloudHosts: ['https://node.tinycloud.xyz'],
+
+      // Prefix for your app's space name (helps avoid collisions)
+      spacePrefix: 'myapp',
+
+      // Automatically create a space on first sign-in (default: true)
+      autoCreateSpace: true,
+
+      // Prefix prepended to all KV keys your app writes
+      kvPrefix: 'myapp',
+
       // Show popup notifications for important events
       notifications: { popups: true },
-      // Automatically restore previous sessions on page reload
-      persistence: { autoResumeSession: true }
     });
     ```
   </Tab>
@@ -65,38 +85,39 @@ Authenticate the user by connecting their wallet and signing a message.
 <Tabs>
   <Tab title="Quick">
     ```typescript
-    const session = await tc.signIn();
-    console.log('Signed in as:', session.address);
+    await tc.signIn();
+    console.log('Address:', tc.address);
     ```
   </Tab>
   <Tab title="Explained">
     ```typescript
     // signIn() triggers the wallet connection flow:
-    // 1. Prompts user to connect their wallet (e.g., MetaMask)
-    // 2. Requests signature on a SIWE message
-    // 3. Establishes an authenticated session
-    const session = await tc.signIn();
+    // 1. Prompts user to connect their wallet (e.g. MetaMask)
+    // 2. Requests a SIWE signature to prove address ownership
+    // 3. Establishes an authenticated session with the TinyCloud node
+    // 4. Creates a space for the user if one does not exist
+    await tc.signIn();
 
-    // The session contains the user's Ethereum address
-    console.log('Signed in as:', session.address);
+    // After sign-in, the user's Ethereum address is available
+    console.log('Address:', tc.address);
     ```
   </Tab>
 </Tabs>
 
 <Tip>
-  With `autoResumeSession: true`, returning users skip the sign-in prompt if their session is still valid.
+  With `autoCreateSpace: true` (the default), the SDK automatically provisions a personal space for first-time users during sign-in.
 </Tip>
 
 ### Store Data
 
-Save data to your user's personal space.
+Save data to the user's personal space via `tc.storage`.
 
 <Tabs>
   <Tab title="Quick">
     ```typescript
     await tc.storage.put('profile', {
       name: 'Alice',
-      joined: new Date().toISOString()
+      joined: new Date().toISOString(),
     });
     console.log('Data saved!');
     ```
@@ -104,14 +125,14 @@ Save data to your user's personal space.
   <Tab title="Explained">
     ```typescript
     // Store a JSON object under the key 'profile'
-    // Data is encrypted and stored in the user's space
+    // Data is stored in the user's space on TinyCloud
     await tc.storage.put('profile', {
       name: 'Alice',
-      joined: new Date().toISOString()
+      joined: new Date().toISOString(),
     });
 
     console.log('Data saved!');
-    // Data is now securely stored and only accessible
+    // The data is now persisted and only accessible
     // by this user (or those they delegate access to)
     ```
   </Tab>
@@ -130,7 +151,7 @@ Read the data back from storage.
   </Tab>
   <Tab title="Explained">
     ```typescript
-    // Retrieve the data stored under 'profile'
+    // Retrieve the value stored under 'profile'
     const profile = await tc.storage.get('profile');
 
     // Returns the original object: { name: 'Alice', joined: '...' }
@@ -139,37 +160,124 @@ Read the data back from storage.
   </Tab>
 </Tabs>
 
+### List and Delete
+
+Browse keys and clean up data you no longer need.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    const keys = await tc.storage.list('');
+    console.log('All keys:', keys);
+
+    await tc.storage.delete('profile');
+    console.log('Deleted profile');
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    // List all keys matching a prefix
+    // Pass an empty string to list everything in the space
+    const keys = await tc.storage.list('');
+    console.log('All keys:', keys);
+
+    // Remove a key and its value
+    await tc.storage.delete('profile');
+    console.log('Deleted profile');
+    ```
+  </Tab>
+</Tabs>
+
+### Share Data
+
+Generate a share link so anyone can receive your data -- no account required on the receiving end.
+
+<Tabs>
+  <Tab title="Quick">
+    ```typescript
+    const shareLink = await tc.sharing.generate({
+      key: 'profile',
+      expiresIn: '7d',
+    });
+    console.log('Share link:', shareLink); // tc1:...
+    ```
+  </Tab>
+  <Tab title="Explained">
+    ```typescript
+    // Generate a time-limited share link for a specific key
+    // The link encodes a delegation that grants read access
+    const shareLink = await tc.sharing.generate({
+      key: 'profile',       // The key to share
+      expiresIn: '7d',       // Link expires in 7 days
+    });
+
+    // Share links use the tc1: prefix and can be sent
+    // over any channel -- chat, email, QR code, etc.
+    console.log('Share link:', shareLink); // tc1:...
+    ```
+  </Tab>
+</Tabs>
+
+To receive shared data on the other end:
+
+```typescript
+// Static method -- no authentication required
+const result = await TinyCloudWeb.receiveShare('tc1:...');
+
+if (result.ok) {
+  console.log('Shared data:', result.data.data);
+} else {
+  console.error('Share expired or invalid:', result.error);
+}
+```
+
+<Note>
+  `receiveShare` is a static method on `TinyCloudWeb`. The recipient does not need to sign in or have a wallet to view shared data.
+</Note>
+
 </Steps>
 
-## Complete Example
-
-Here is the full working code you can copy into your project:
+## Complete Examples
 
 <CodeGroup>
 ```typescript Vanilla JS
 import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 
 async function main() {
-  // Initialize
+  // 1. Initialize
   const tc = new TinyCloudWeb({
     notifications: { popups: true },
-    persistence: { autoResumeSession: true }
   });
 
-  // Sign in
-  const session = await tc.signIn();
-  console.log('Signed in as:', session.address);
+  // 2. Sign in
+  await tc.signIn();
+  console.log('Address:', tc.address);
 
-  // Store data
+  // 3. Store data
   await tc.storage.put('profile', {
     name: 'Alice',
-    joined: new Date().toISOString()
+    joined: new Date().toISOString(),
   });
   console.log('Data saved!');
 
-  // Retrieve data
+  // 4. Retrieve data
   const profile = await tc.storage.get('profile');
   console.log('Retrieved:', profile);
+
+  // 5. List keys
+  const keys = await tc.storage.list('');
+  console.log('Keys:', keys);
+
+  // 6. Share data
+  const shareLink = await tc.sharing.generate({
+    key: 'profile',
+    expiresIn: '7d',
+  });
+  console.log('Share link:', shareLink);
+
+  // 7. Clean up
+  await tc.storage.delete('profile');
+  console.log('Deleted profile');
 }
 
 main().catch(console.error);
@@ -181,22 +289,22 @@ import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
 
 const tc = new TinyCloudWeb({
   notifications: { popups: true },
-  persistence: { autoResumeSession: true }
 });
 
 export default function App() {
-  const [profile, setProfile] = useState(null);
   const [address, setAddress] = useState('');
+  const [profile, setProfile] = useState<Record<string, string> | null>(null);
+  const [shareLink, setShareLink] = useState('');
 
   async function handleSignIn() {
-    const session = await tc.signIn();
-    setAddress(session.address);
+    await tc.signIn();
+    setAddress(tc.address!);
   }
 
   async function handleSave() {
     await tc.storage.put('profile', {
       name: 'Alice',
-      joined: new Date().toISOString()
+      joined: new Date().toISOString(),
     });
     alert('Saved!');
   }
@@ -206,16 +314,26 @@ export default function App() {
     setProfile(data);
   }
 
+  async function handleShare() {
+    const link = await tc.sharing.generate({
+      key: 'profile',
+      expiresIn: '7d',
+    });
+    setShareLink(link);
+  }
+
   return (
     <div>
       {!address ? (
-        <button onClick={handleSignIn}>Sign In</button>
+        <button onClick={handleSignIn}>Sign In with Wallet</button>
       ) : (
         <>
           <p>Connected: {address}</p>
           <button onClick={handleSave}>Save Profile</button>
           <button onClick={handleLoad}>Load Profile</button>
+          <button onClick={handleShare}>Share Profile</button>
           {profile && <pre>{JSON.stringify(profile, null, 2)}</pre>}
+          {shareLink && <p>Share link: <code>{shareLink}</code></p>}
         </>
       )}
     </div>
@@ -229,30 +347,45 @@ export default function App() {
 When you run the code successfully, you should see:
 
 ```
-Signed in as: 0x1234...abcd
+Address: 0x1234...abcd
 Data saved!
-Retrieved: { name: 'Alice', joined: '2024-01-15T10:30:00.000Z' }
+Retrieved: { name: 'Alice', joined: '2026-01-15T10:30:00.000Z' }
+Keys: ['profile']
+Share link: tc1:eyJhbGciOiJFZERTQ...
+Deleted profile
 ```
 
 <Note>
   The wallet popup will appear twice during first sign-in: once to connect, and once to sign the authentication message.
 </Note>
 
+## Configuration Reference
+
+All options passed to `new TinyCloudWeb()` are optional.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `tinycloudHosts` | `string[]` | `['https://node.tinycloud.xyz']` | TinyCloud node URLs to connect to |
+| `spacePrefix` | `string` | `undefined` | Prefix for the auto-generated space name |
+| `autoCreateSpace` | `boolean` | `true` | Create a space automatically on first sign-in |
+| `kvPrefix` | `string` | `undefined` | Prefix prepended to all KV keys |
+| `notifications` | `object` | `undefined` | `{ popups: true }` to show browser notifications |
+
 ## Next Steps
 
 Now that you have the basics working, explore these guides:
 
 <CardGroup cols={2}>
-  <Card title="Storage Guide" icon="database" href="/guides/storage">
-    Learn about advanced storage operations and data types.
+  <Card title="KV Storage" icon="database" href="/guides/kv-storage">
+    Advanced storage operations including prefixes, metadata, and data types.
   </Card>
-  <Card title="Delegation" icon="share-nodes" href="/guides/delegation">
-    Share data access with other users securely.
+  <Card title="Delegations" icon="share-nodes" href="/guides/delegations">
+    Share data access with fine-grained, revocable permissions.
   </Card>
-  <Card title="Concepts" icon="book" href="/concepts/spaces">
-    Understand spaces, capabilities, and the TinyCloud architecture.
+  <Card title="Spaces" icon="cube" href="/guides/spaces">
+    Understand spaces, the ownership containers at the heart of TinyCloud.
   </Card>
-  <Card title="API Reference" icon="code" href="/api-reference/introduction">
-    Full API documentation for all SDK methods.
+  <Card title="Node SDK" icon="server" href="/quickstart/node-sdk">
+    Need a backend? See the Node SDK quickstart for server-side usage.
   </Card>
 </CardGroup>

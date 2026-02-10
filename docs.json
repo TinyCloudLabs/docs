@@ -1,64 +1,90 @@
 {
-  "$schema": "https://mintlify.com/schema.json",
-  "name": "TinyCloud",
+  "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "logo": {
-    "dark": "/logo/dark.svg",
-    "light": "/logo/light.svg"
-  },
-  "favicon": "/favicon.svg",
+  "name": "TinyCloud",
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
     "dark": "#15803D"
   },
-  "topbarLinks": [
-    {
-      "name": "Support",
-      "url": "https://discord.gg/tinycloud"
-    }
-  ],
-  "topbarCtaButton": {
-    "name": "Dashboard",
-    "url": "https://app.tinycloud.xyz"
+  "favicon": "/favicon.svg",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
   },
   "navigation": {
-    "languages": [
+    "tabs": [
       {
-        "language": "en",
-        "tabs": [
+        "tab": "Documentation",
+        "groups": [
           {
-            "tab": "Documentation",
-            "groups": [
-              {
-                "group": "Getting Started",
-                "pages": ["index", "quickstart/web-sdk", "quickstart/node-sdk"]
-              },
-              {
-                "group": "Guides",
-                "pages": [
-                  "guides/authentication",
-                  "guides/spaces",
-                  "guides/kv-storage",
-                  "guides/delegations"
-                ]
-              },
-              {
-                "group": "Concepts",
-                "pages": ["concepts/did-formats", "concepts/capabilities"]
-              },
-              {
-                "group": "Help",
-                "pages": ["troubleshooting"]
-              }
+            "group": "Getting Started",
+            "pages": ["index", "quickstart/web-sdk", "quickstart/node-sdk"]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/authentication",
+              "guides/spaces",
+              "guides/kv-storage",
+              "guides/delegations",
+              "guides/sharing"
             ]
+          },
+          {
+            "group": "Concepts",
+            "pages": ["concepts/did-formats", "concepts/capabilities"]
+          }
+        ]
+      },
+      {
+        "tab": "OpenKey",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["openkey/index"]
+          },
+          {
+            "group": "Getting Started",
+            "pages": ["openkey/quickstart", "openkey/widget"]
+          },
+          {
+            "group": "Integration",
+            "pages": ["openkey/oauth", "openkey/tinycloud-integration"]
+          }
+        ]
+      },
+      {
+        "tab": "Help",
+        "groups": [
+          {
+            "group": "Support",
+            "pages": ["troubleshooting"]
           }
         ]
       }
-    ]
+    ],
+    "global": {
+      "anchors": []
+    }
   },
-  "footerSocials": {
-    "x": "https://x.com/tinycloudlabs",
-    "github": "https://github.com/tinycloudlabs"
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "url": "https://discord.gg/tinycloud"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Dashboard",
+      "url": "https://app.tinycloud.xyz"
+    }
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/tinycloudlabs",
+      "github": "https://github.com/tinycloudlabs"
+    }
   }
 }

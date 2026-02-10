@@ -1,26 +1,27 @@
 ---
-title: "Introduction"
-description: "TinyCloud SDK - User-owned data storage with delegatable capabilities"
+title: "TinyCloud Documentation"
+description: "User-owned data storage with delegatable capabilities"
 ---
 
-# Welcome to TinyCloud
+# TinyCloud Documentation
 
-TinyCloud provides decentralized, user-owned data storage with fine-grained access control through delegatable capabilities.
-
-## Key Features
+TinyCloud is a decentralized, user-owned data storage platform built on [UCAN capabilities](https://ucan.xyz/) and [Sign-In with Ethereum (SIWE)](https://login.xyz/) authentication. It gives users full ownership of their data while enabling fine-grained, delegatable access control for applications and collaborators.
 
 <CardGroup cols={2}>
-  <Card title="Web SDK" icon="browser" href="/quickstart/web-sdk">
-    Build browser applications with wallet-based authentication
+  <Card title="Web SDK Quickstart" icon="browser" href="/quickstart/web-sdk">
+    Build browser apps with wallet-based authentication and user-owned storage
   </Card>
-  <Card title="Node SDK" icon="server" href="/quickstart/node-sdk">
-    Build backend services with private key authentication
+  <Card title="Node SDK Quickstart" icon="server" href="/quickstart/node-sdk">
+    Build backend services with private key authentication and programmatic access
   </Card>
-  <Card title="Key-Value Storage" icon="database" href="/guides/kv-storage">
-    Simple, secure storage for your application data
+  <Card title="KV Storage" icon="database" href="/guides/kv-storage">
+    Store and retrieve application data in user-owned spaces
   </Card>
-  <Card title="Delegations" icon="share" href="/guides/delegations">
-    Share access with fine-grained, revocable permissions
+  <Card title="Delegations & Sharing" icon="share" href="/guides/delegations">
+    Grant scoped, revocable permissions to other users and applications
+  </Card>
+  <Card title="OpenKey" icon="key" href="/openkey/index">
+    Simplified key management and authentication for your users
   </Card>
 </CardGroup>
 
@@ -28,27 +29,38 @@ TinyCloud provides decentralized, user-owned data storage with fine-grained acce
 
 <Tabs>
   <Tab title="Web Developers">
-    Building a browser-based app? Start with the [Web SDK Quickstart](/quickstart/web-sdk).
+    Building a browser-based application? Start with the [Web SDK Quickstart](/quickstart/web-sdk).
 
-    You'll learn:
+    You'll learn how to:
     - Connect user wallets (MetaMask, WalletConnect)
     - Sign in with Ethereum (SIWE)
-    - Store and retrieve user data
+    - Store and retrieve user data in spaces
+    - Share data through delegations and sharing links
   </Tab>
   <Tab title="Backend Developers">
-    Building a server or CLI? Start with the [Node SDK Quickstart](/quickstart/node-sdk).
+    Building a server, API, or CLI tool? Start with the [Node SDK Quickstart](/quickstart/node-sdk).
 
-    You'll learn:
+    You'll learn how to:
     - Authenticate with private keys
     - Manage spaces programmatically
     - Create delegations for user access
+    - Build server-side integrations with TinyCloud storage
+  </Tab>
+  <Tab title="Key Management (OpenKey)">
+    Need simplified authentication for your users? Start with the [OpenKey overview](/openkey/index).
+
+    You'll learn how to:
+    - Embed the OpenKey widget for seamless sign-in
+    - Integrate OpenKey with OAuth providers
+    - Connect OpenKey with TinyCloud storage
   </Tab>
 </Tabs>
 
 ## Core Concepts
 
-- **Spaces**: Data ownership containers tied to user identity
-- **KV Storage**: Key-value storage within spaces
-- **Delegations**: Shareable, scoped access permissions using UCAN
+- **Spaces** - Data ownership containers tied to user identity. Each user gets a space where their application data lives. [Learn more](/guides/spaces)
+- **KV Storage** - Key-value storage within spaces for reading and writing application data. [Learn more](/guides/kv-storage)
+- **Delegations** - Shareable, scoped access permissions built on UCAN. Grant other users or applications specific capabilities over your data. [Learn more](/guides/delegations)
+- **Sharing Links** - Generate links that grant temporary or scoped access to data without requiring the recipient to have an existing account. [Learn more](/guides/sharing)
 
-Ready to start? Pick a [quickstart guide](/quickstart/web-sdk) above.
+Ready to start? Pick a quickstart guide above or explore the [core concepts](/concepts/did-formats).

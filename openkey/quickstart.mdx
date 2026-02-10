@@ -1,0 +1,226 @@
+---
+title: "OpenKey Quickstart"
+description: "Create an account, generate a key, and sign your first message"
+icon: "rocket"
+---
+
+Get started with OpenKey in under 5 minutes. You will create an account, generate an Ethereum key inside the TEE, and sign a message.
+
+## Prerequisites
+
+- A modern browser (Chrome, Firefox, Safari, Edge)
+- A device that supports WebAuthn (biometric sensor, security key, or platform authenticator)
+
+<Note>
+OpenKey uses passkeys for authentication. Most modern devices support passkeys through Touch ID, Face ID, Windows Hello, or hardware security keys.
+</Note>
+
+## Create Your Account
+
+<Steps>
+<Step title="Go to OpenKey">
+  Navigate to [openkey.so](https://openkey.so) and click **Get Started**.
+</Step>
+
+<Step title="Verify your identity">
+  Choose one of two registration methods:
+
+  <Tabs>
+    <Tab title="Email OTP">
+      Enter your email address. You will receive a 6-digit verification code. Enter the code to verify your email.
+    </Tab>
+    <Tab title="Google">
+      Click **Continue with Google** and complete the Google sign-in flow.
+    </Tab>
+  </Tabs>
+</Step>
+
+<Step title="Register a passkey">
+  After email or Google verification, you will be prompted to register a passkey. This is **required** -- all future logins use your passkey.
+
+  Follow your browser's prompt to create the passkey (Touch ID, Face ID, Windows Hello, or a hardware security key).
+</Step>
+
+<Step title="Your first key is ready">
+  When your account is created, OpenKey automatically generates an Ethereum key inside the TEE. You are redirected to the dashboard where you can see your key's address.
+</Step>
+</Steps>
+
+## Your Dashboard
+
+Once signed in, the dashboard shows:
+
+- **Your keys**: Ethereum addresses managed by OpenKey, with labels
+- **Key details**: Click a key to see its address, creation date, and signing options
+- **Settings**: Account management and passkey settings
+
+## Generate an Additional Key
+
+You can create multiple Ethereum keys under your account.
+
+<Tabs>
+  <Tab title="Dashboard">
+    Click **Generate New Key** on the dashboard. The new key is generated inside the TEE and appears immediately.
+  </Tab>
+  <Tab title="API">
+    ```bash
+    curl -X POST https://api.openkey.so/api/keys/generate \
+      -H "Content-Type: application/json" \
+      -H "Cookie: better-auth.session_token=YOUR_SESSION_TOKEN" \
+      -d '{"label": "My second key"}'
+    ```
+
+    Response:
+
+    ```json
+    {
+      "key": {
+        "id": "clx1234567890",
+        "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68",
+        "publicKey": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68",
+        "keyIndex": 1,
+        "label": "My second key",
+        "createdAt": "2026-01-15T10:30:00.000Z"
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Sign a Message
+
+Sign a message using one of your keys.
+
+<Tabs>
+  <Tab title="personal_sign (default)">
+    Signs with the EIP-191 personal message prefix. This is the standard format used by wallets.
+
+    ```bash
+    curl -X POST https://api.openkey.so/api/keys/KEY_ID/sign \
+      -H "Content-Type: application/json" \
+      -H "Cookie: better-auth.session_token=YOUR_SESSION_TOKEN" \
+      -d '{
+        "message": "Hello from OpenKey!"
+      }'
+    ```
+
+    Response:
+
+    ```json
+    {
+      "signature": "0x1234...abcd",
+      "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68",
+      "format": "personal_sign"
+    }
+    ```
+  </Tab>
+  <Tab title="Raw signing">
+    Signs the message bytes directly without any prefix.
+
+    ```bash
+    curl -X POST https://api.openkey.so/api/keys/KEY_ID/sign \
+      -H "Content-Type: application/json" \
+      -H "Cookie: better-auth.session_token=YOUR_SESSION_TOKEN" \
+      -d '{
+        "message": "0xdeadbeef...",
+        "format": "raw"
+      }'
+    ```
+
+    Response:
+
+    ```json
+    {
+      "signature": "0x5678...efgh",
+      "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68",
+      "format": "raw"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Sign Typed Data (EIP-712)
+
+Sign structured data following the EIP-712 standard.
+
+```bash
+curl -X POST https://api.openkey.so/api/keys/KEY_ID/sign-typed-data \
+  -H "Content-Type: application/json" \
+  -H "Cookie: better-auth.session_token=YOUR_SESSION_TOKEN" \
+  -d '{
+    "domain": {
+      "name": "My App",
+      "version": "1",
+      "chainId": 1
+    },
+    "types": {
+      "Message": [
+        { "name": "content", "type": "string" },
+        { "name": "timestamp", "type": "uint256" }
+      ]
+    },
+    "primaryType": "Message",
+    "message": {
+      "content": "Hello, EIP-712!",
+      "timestamp": 1705312200
+    }
+  }'
+```
+
+Response:
+
+```json
+{
+  "signature": "0xabcd...1234",
+  "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68"
+}
+```
+
+## API Reference
+
+Here is a summary of the key management endpoints. All endpoints require an authenticated session.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/keys` | List your keys (add `?archived=true` to include archived) |
+| `POST` | `/api/keys/generate` | Generate a new Ethereum key |
+| `GET` | `/api/keys/:keyId` | Get key details |
+| `PATCH` | `/api/keys/:keyId` | Update key label |
+| `POST` | `/api/keys/:keyId/sign` | Sign a message |
+| `POST` | `/api/keys/:keyId/sign-typed-data` | Sign EIP-712 typed data |
+| `GET` | `/api/keys/:keyId/quote` | Get TEE attestation quote for a key |
+| `POST` | `/api/keys/:keyId/archive` | Archive a key (soft delete) |
+| `POST` | `/api/keys/:keyId/unarchive` | Unarchive a key |
+
+## TEE Attestation
+
+You can verify that a key is managed inside a TEE by requesting an attestation quote.
+
+```bash
+curl https://api.openkey.so/api/keys/KEY_ID/quote \
+  -H "Cookie: better-auth.session_token=YOUR_SESSION_TOKEN"
+```
+
+```json
+{
+  "quote": "base64-encoded-attestation-quote...",
+  "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68",
+  "inTee": true
+}
+```
+
+The `inTee` field confirms the API is running inside a TEE. The `quote` can be independently verified against the TEE platform's attestation service.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Widget Integration" icon="window-maximize" href="/openkey/widget">
+    Embed connect and sign flows in your web application.
+  </Card>
+  <Card title="OAuth Provider" icon="lock" href="/openkey/oauth">
+    Let users sign in to your app with their OpenKey account.
+  </Card>
+  <Card title="TinyCloud Integration" icon="cloud" href="/openkey/tinycloud-integration">
+    Use OpenKey as the wallet for TinyCloud SDK.
+  </Card>
+</CardGroup>

@@ -7,171 +7,218 @@ icon: "wrench"
 This guide covers the most common issues developers encounter when working with the TinyCloud SDK and how to resolve them.
 
 <AccordionGroup>
-  <Accordion title="Delegation failed: invalid delegatee">
+  <Accordion title='Delegation failed: invalid delegatee'>
     **Symptom**: Creating a delegation fails with the error "Delegation failed: invalid delegatee" or similar validation error.
 
-    **Cause**: You are using the session DID (`.did`) instead of the PKH DID (`.pkhDid`) when specifying the delegatee.
+    **Cause**: You are using the session key DID (`tc.sessionDid`) instead of the PKH DID (`tc.did` after `signIn()`) when specifying the delegatee. The server expects the delegatee to be in PKH format (`did:pkh:eip155:{chainId}:{address}`), not session key format (`did:key:z6Mk...`).
 
-    **Solution**: Always use `.pkhDid` for user-to-user delegations:
+    **Solution**: Use `tc.did` for user-to-user delegations. After `signIn()`, this returns the PKH DID:
 
     ```typescript
-    // Wrong
-    await alice.createDelegation({ delegateDID: bob.did });
+    // Wrong - session key DID
+    await alice.createDelegation({ delegateDID: bob.sessionDid });
 
-    // Correct
-    await alice.createDelegation({ delegateDID: bob.pkhDid });
+    // Correct - PKH DID (tc.did after signIn)
+    await alice.createDelegation({ delegateDID: bob.did });
     ```
 
-    See [DID Formats](/concepts/did-formats) for a detailed explanation.
+    See [DID Formats](/concepts/did-formats) for a detailed explanation of the smart getter behavior.
   </Accordion>
 
-  <Accordion title="Space does not exist">
-    **Symptom**: Operations fail with "space does not exist" or "space not found" errors.
+  <Accordion title='Space does not exist'>
+    **Symptom**: Operations fail with "space does not exist" or "space not found" errors after authentication.
 
-    **Cause**: The space has not been created, or `autoCreateSpace` is not enabled.
+    **Cause**: The space has not been created yet. This happens when `autoCreateSpace` is disabled, or when an extension hook (like `TinyCloudStorage.afterSignIn`) runs before the space creation step completes.
 
-    **Solution**: Either enable auto-creation or explicitly create the space:
+    **Solution**: Ensure the space exists before performing operations:
 
-    ```typescript
-    // Option 1: Enable auto-creation in session config
-    const session = await client.createSession({
-      autoCreateSpace: true
+    <CodeGroup>
+    ```typescript Web SDK
+    const tc = new TinyCloudWeb({
+      host: 'https://api.tinycloud.xyz',
+      prefix: 'my-app',
+      // Ensure space is created on first sign-in
+      autoCreateSpace: true,
     });
 
-    // Option 2: Explicitly ensure the space exists
-    await session.ensureSpaceExists();
+    await tc.signIn();
+    // Space is now guaranteed to exist
     ```
+
+    ```typescript Node SDK
+    const tc = new TinyCloudNode({
+      host: 'https://api.tinycloud.xyz',
+      prefix: 'my-app',
+      privateKey: process.env.WALLET_PRIVATE_KEY,
+      autoCreateSpace: true,
+    });
+
+    await tc.signIn();
+    ```
+    </CodeGroup>
+
+    If you have `autoCreateSpace` disabled and need manual control, call `ensureSpaceExists()` explicitly before any data operations.
   </Accordion>
 
-  <Accordion title="Session expired">
-    **Symptom**: Operations that previously worked now fail with authentication or session errors.
+  <Accordion title='Session expired'>
+    **Symptom**: Operations that previously worked now fail with authentication or session errors. You may see `SESSION_EXPIRED` or `UNAUTHORIZED` error codes.
 
     **Cause**: The session TTL has been exceeded. TinyCloud sessions have a limited lifetime for security.
 
-    **Solution**: Re-authenticate to obtain a new session:
+    **Solution**: Detect expiry and re-authenticate:
 
-    ```typescript
-    // Check if session is still valid
-    if (session.isExpired()) {
-      // Re-authenticate
-      const newSession = await client.createSession();
+    <CodeGroup>
+    ```typescript Web SDK
+    if (tc.isSessionExpired()) {
+      await tc.signIn();
     }
     ```
 
-    Consider implementing session refresh logic in your application to handle this gracefully.
+    ```typescript Node SDK
+    try {
+      await tc.kv.get('key');
+    } catch (error) {
+      if (error.code === 'SESSION_EXPIRED') {
+        await tc.signIn();
+        // Retry the operation
+        await tc.kv.get('key');
+      }
+    }
+    ```
+    </CodeGroup>
+
+    <Tip>
+    For long-running services, use file-based session persistence and implement retry logic around session expiry. See [Authentication](/guides/authentication) for session persistence options.
+    </Tip>
   </Accordion>
 
-  <Accordion title="WASM module not found">
-    **Symptom**: Import errors or runtime errors about missing WASM modules when using the SDK.
+  <Accordion title='WASM module not found'>
+    **Symptom**: Import errors or runtime errors about missing WASM modules when using the SDK. Common messages include `Cannot find module '@tinycloudlabs/sdk-rs'` or `WebAssembly module not found`.
 
-    **Cause**: The WASM package (`@tinycloudlabs/sdk-rs`) was not built before the TypeScript wrappers.
+    **Cause**: The WASM package (`@tinycloudlabs/sdk-rs`) was not built before the TypeScript wrappers. The build order matters because the TypeScript packages depend on WASM artifacts that must exist first.
 
     **Solution**: Rebuild in the correct order:
 
     ```bash
-    # In the web-sdk repository
+    # In the web-sdk repository root
 
-    # 1. Build WASM first
+    # 1. Build WASM artifacts first
     cd packages/sdk-rs
     bun run build
 
-    # 2. Then build the wrappers
+    # 2. Then build the TypeScript wrappers
     cd ../..
     bun run build
     ```
 
-    The build order must be:
-    1. `@tinycloudlabs/sdk-rs` (WASM artifacts)
-    2. `@tinycloudlabs/node-sdk-wasm` / `@tinycloudlabs/web-sdk-wasm` (TypeScript wrappers)
+    The required build order is:
+    1. `@tinycloudlabs/sdk-rs` -- produces WASM artifacts
+    2. `@tinycloudlabs/node-sdk-wasm` -- TypeScript wrapper (depends on step 1)
+    3. `@tinycloudlabs/web-sdk-wasm` -- TypeScript wrapper (depends on step 1)
+
+    <Warning>
+    Running `bun run build` from the repository root without first building `sdk-rs` will fail. Always build WASM first.
+    </Warning>
   </Accordion>
 
-  <Accordion title="Invalid private key">
-    **Symptom**: Session creation fails with "invalid private key" or key parsing errors.
+  <Accordion title='Cannot signIn() in session-only mode'>
+    **Symptom**: Calling `signIn()` throws an error indicating that sign-in is not available, or that a private key is required.
 
-    **Cause**: The private key is not in the expected format. It must be exactly 32 bytes (64 hexadecimal characters).
+    **Cause**: The TinyCloud instance was initialized without a `privateKey` (or without a connected wallet in the Web SDK). In session-only mode, there is no wallet available to sign the SIWE message that `signIn()` requires.
 
-    **Solution**: Ensure the key is properly formatted:
+    **Solution**: Provide a private key when initializing the Node SDK:
 
     ```typescript
-    // Both formats are valid
-    const key1 = "0x1234..."; // 64 hex chars after 0x (66 total)
-    const key2 = "1234...";   // 64 hex chars without prefix
+    // This will fail - no private key for signing
+    const tc = new TinyCloudNode({
+      host: 'https://api.tinycloud.xyz',
+      prefix: 'my-app',
+      // Missing: privateKey
+    });
+    await tc.signIn(); // Error: cannot sign without private key
 
-    // Invalid examples
-    const bad1 = "0x123";     // Too short
-    const bad2 = "123abc";    // Not 64 characters
+    // Correct - provide a private key
+    const tc = new TinyCloudNode({
+      host: 'https://api.tinycloud.xyz',
+      prefix: 'my-app',
+      privateKey: process.env.WALLET_PRIVATE_KEY,
+    });
+    await tc.signIn(); // Works
     ```
 
-    If generating a key programmatically, ensure you are using a cryptographically secure random source and outputting exactly 32 bytes.
+    For the Web SDK, ensure the user has connected their wallet before calling `signIn()`.
   </Accordion>
 
-  <Accordion title="Sub-delegation rejected: path not within parent">
+  <Accordion title='Share link has expired'>
+    **Symptom**: Receiving a share link (`tc1:...`) fails with an expiry-related error. The link was previously valid but no longer works.
+
+    **Cause**: Share links contain an embedded delegation that has a set expiry time. Once that time passes, the link becomes permanently invalid.
+
+    **Solution**: The original sharer must generate a new link with a fresh expiry:
+
+    ```typescript
+    const link = await tc.sharing.generate({
+      key: 'my-document',
+      expiresIn: '7d', // New 7-day window
+    });
+    ```
+
+    There is no way to extend the expiry of an existing link. Share links are immutable once generated because the delegation is cryptographically signed with the original expiry baked in.
+
+    <Tip>
+    When generating share links, choose an expiry that matches how long the link needs to be usable. Use shorter durations for sensitive data and longer durations for public content.
+    </Tip>
+  </Accordion>
+
+  <Accordion title='Sub-delegation rejected: path not within parent'>
     **Symptom**: Creating a sub-delegation fails with a path constraint error.
 
-    **Cause**: The path specified in the child delegation is not within the parent's path scope.
+    **Cause**: The path specified in the child delegation is not within the parent's path scope. The server enforces that sub-delegations can only narrow access, never widen it.
 
     **Solution**: Ensure the child path is a sub-path of the parent:
 
     ```typescript
-    // If parent has path: /users/alice/
+    // If parent delegation has path: /users/alice/*
 
-    // Valid child paths
-    "/users/alice/"         // Same path
-    "/users/alice/docs/"    // Sub-path
-    "/users/alice/docs/readme.txt"
+    // Valid child paths:
+    "/users/alice/*"              // Same scope
+    "/users/alice/docs/*"         // Narrower scope
+    "/users/alice/docs/readme.txt" // Specific file within scope
 
-    // Invalid child paths
-    "/users/bob/"           // Different user
-    "/users/"               // Parent of the allowed path
-    "/admin/"               // Unrelated path
+    // Invalid child paths:
+    "/users/bob/*"    // Different user - outside parent scope
+    "/users/*"        // Broader than parent - cannot widen
+    "/admin/*"        // Unrelated path - outside parent scope
     ```
+
+    See [Capabilities](/concepts/capabilities) for the full constraint rules.
   </Accordion>
 
-  <Accordion title="Sub-delegation rejected: expiry exceeds parent">
+  <Accordion title='Sub-delegation rejected: expiry exceeds parent'>
     **Symptom**: Creating a sub-delegation fails with an expiry constraint error.
 
-    **Cause**: The child delegation's expiry time is later than the parent's expiry.
+    **Cause**: The child delegation's expiry time is later than the parent's expiry. Sub-delegations cannot outlive the capability they derive from.
 
     **Solution**: Set the child expiry to be equal to or earlier than the parent:
 
     ```typescript
-    // If parent expires at timestamp 1704067200 (Jan 1, 2024)
+    // Parent delegation expires at timestamp 1738800000
 
-    // Get parent expiry
-    const parentExpiry = parentCapability.expiry;
+    // Get parent expiry for reference
+    const parentExpiry = parentDelegation.expiry;
 
     // Create child with same or earlier expiry
-    await alice.createDelegation({
-      delegateDID: bob.pkhDid,
-      expiry: parentExpiry, // Same as parent
-      // Or: expiry: parentExpiry - 3600 // 1 hour earlier
-    });
-    ```
-  </Accordion>
-
-  <Accordion title="Sign request timed out">
-    **Symptom**: Using the event-emitter signing strategy results in timeout errors.
-
-    **Cause**: The sign request was emitted but no handler responded with a signature.
-
-    **Solution**: Ensure you have a listener that handles sign requests:
-
-    ```typescript
-    client.on('signRequest', async (request) => {
-      // Present signing UI to user
-      const signature = await wallet.signMessage(request.message);
-
-      // IMPORTANT: Must call respond()
-      request.respond(signature);
+    await tc.createSubDelegation({
+      parentDelegation,
+      delegateDID: bob.did,
+      expiresIn: '1d', // Must resolve to before parent's expiry
     });
     ```
 
-    Common mistakes:
-    - Forgetting to call `request.respond()`
-    - Not awaiting the signature before responding
-    - Listener not registered before session creation
+    <Note>
+    When using relative durations like `'7d'`, the SDK calculates the absolute expiry from the current time. If the parent expires in 3 days, using `expiresIn: '7d'` will fail even though 7 days seems reasonable.
+    </Note>
   </Accordion>
-
 </AccordionGroup>
 
 ## Still Having Issues?
@@ -182,3 +229,4 @@ If your issue is not covered here:
 2. Verify your SDK version is up to date
 3. Review the server logs for more detailed error messages
 4. Ensure your wallet is connected to the expected network
+5. Join the [TinyCloud Discord](https://discord.gg/tinycloud) for community support

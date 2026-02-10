@@ -1,72 +1,98 @@
 ---
 title: "DID Formats"
-description: "Understanding the two DID types in TinyCloud and avoiding the #1 delegation pitfall"
+description: "Understanding the two DID types in TinyCloud and how the smart getter works in the Node SDK"
 icon: "fingerprint"
 ---
 
-TinyCloud uses two distinct types of Decentralized Identifiers (DIDs) for different purposes. Understanding when to use each is critical for successful delegations.
+TinyCloud uses two distinct types of Decentralized Identifiers (DIDs) for different purposes. Understanding when to use each is critical for successful delegations and correct identity handling.
 
 ## The Two DID Types
 
 ### Session Key DID
 
-The **Session Key DID** is an ephemeral identifier generated for each session. It uses the `did:key` method and looks like:
+The **Session Key DID** is an ephemeral identifier generated fresh for each session. It uses the `did:key` method:
 
 ```
 did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK#z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
 ```
 
-This DID is accessed via the `.did` getter on a session:
+This DID represents the cryptographic key that signs requests to the TinyCloud server during a single session. It is rotated on each authentication and should never be used for persistent identity.
+
+Access it via `.sessionDid`:
 
 ```typescript
-const sessionDid = session.did;
-// Returns: did:key:z6Mk...
+const sessionDid = tc.sessionDid;
+// Returns: did:key:z6Mk...#z6Mk...
 ```
-
-**Purpose**: Internal cryptographic operations. This DID represents the session key that signs requests to the TinyCloud server. It is rotated on each authentication.
 
 ### PKH DID (User Identity)
 
-The **PKH DID** (Public Key Hash) represents the user's persistent identity derived from their blockchain wallet. It uses the `did:pkh` method and looks like:
+The **PKH DID** (Public Key Hash) represents the user's persistent identity, derived from their blockchain wallet address. It uses the `did:pkh` method:
 
 ```
 did:pkh:eip155:1:0x1234567890abcdef1234567890abcdef12345678
 ```
 
-This DID is accessed via the `.pkhDid` getter:
+This DID remains constant as long as the user uses the same wallet address. It is the correct identifier for user-to-user relationships and delegations.
+
+## The Smart `.did` Getter (Node SDK v1)
+
+In the v1 Node SDK, `tc.did` is a **smart getter** that returns different values depending on the authentication state:
+
+<Tabs>
+<Tab title="After signIn()">
+After calling `signIn()`, `tc.did` returns the **PKH DID** (persistent identity):
 
 ```typescript
-const userDid = session.pkhDid;
-// Returns: did:pkh:eip155:{chainId}:{address}
+await tc.signIn();
+
+console.log(tc.did);
+// did:pkh:eip155:1:0x1234...abcd
+
+console.log(tc.sessionDid);
+// did:key:z6Mk...#z6Mk...
 ```
 
-**Purpose**: User identity across sessions. This is the DID that represents **the user**, not the session.
+In this mode, `tc.did` and `tc.sessionDid` return different values. Use `tc.did` for delegations and identity, and `tc.sessionDid` for debugging session internals.
+</Tab>
+
+<Tab title="Session-only mode">
+In session-only mode (no `signIn()`, just a session key), `tc.did` falls back to the **session key DID**:
+
+```typescript
+// Session-only mode (no wallet sign-in)
+console.log(tc.did);
+// did:key:z6Mk...#z6Mk...
+
+console.log(tc.sessionDid);
+// did:key:z6Mk...#z6Mk... (same value)
+```
+
+In this mode, both getters return the same value because there is no wallet-derived identity available.
+</Tab>
+</Tabs>
 
 ## When to Use Which
 
-| Use Case | DID Type | Getter |
-|----------|----------|--------|
-| User-to-user delegations | PKH DID | `.pkhDid` |
-| Identifying a user | PKH DID | `.pkhDid` |
-| Internal session operations | Session DID | `.did` |
-| Debugging session issues | Session DID | `.did` |
+| Use Case | What to Use | Returns |
+|----------|-------------|---------|
+| User-to-user delegations | `tc.did` | PKH DID (after signIn) |
+| Identifying a user persistently | `tc.did` | PKH DID (after signIn) |
+| Debugging session key issues | `tc.sessionDid` | Session Key DID |
+| Logging internal session state | `tc.sessionDid` | Session Key DID |
 
-<Warning>
-**This is the #1 pitfall in TinyCloud SDK usage.**
-
-When creating delegations between users, you MUST use the PKH DID (`.pkhDid`), not the session DID (`.did`).
-
-The server validates that the delegatee matches exactly using PKH format. Using the session DID will always fail.
-</Warning>
+<Tip>
+After `signIn()`, use `tc.did` for delegations. It returns the PKH DID, which is what the server expects. Use `tc.sessionDid` only when you need to inspect the ephemeral session key for debugging.
+</Tip>
 
 ## The Common Mistake
 
-When Alice wants to delegate capabilities to Bob, developers often make this mistake:
+When Alice wants to delegate capabilities to Bob, developers sometimes use the session DID directly instead of the persistent identity:
 
 ```typescript
-// WRONG - will fail server validation
+// WRONG - using sessionDid for delegations will fail server validation
 await alice.createDelegation({
-  delegateDID: bob.did,  // Session key DID
+  delegateDID: bob.sessionDid,  // Session key DID - ephemeral!
   abilities: ["tinycloud.kv/get", "tinycloud.kv/put"]
 });
 // Error: "Delegation failed: invalid delegatee"
@@ -75,12 +101,22 @@ await alice.createDelegation({
 The correct approach:
 
 ```typescript
-// CORRECT - use pkhDid for user identity
+// CORRECT - use tc.did (which returns PKH DID after signIn)
 await alice.createDelegation({
-  delegateDID: bob.pkhDid,  // PKH DID
+  delegateDID: bob.did,  // PKH DID after signIn
   abilities: ["tinycloud.kv/get", "tinycloud.kv/put"]
 });
 ```
+
+<Warning>
+**This is the #1 pitfall in TinyCloud SDK usage.**
+
+The server validates that the delegatee matches exactly using PKH format (`did:pkh:eip155:{chainId}:{address}`). A delegation targeting a session key DID will always fail because:
+
+1. The server expects PKH format for the delegatee field
+2. Session DIDs are ephemeral and rotate on each authentication
+3. A delegation to Bob's session DID becomes invalid the moment Bob re-authenticates
+</Warning>
 
 ## Why This Matters
 
@@ -88,25 +124,25 @@ The TinyCloud server performs strict validation on delegation chains:
 
 1. **Delegatee matching**: When Bob uses a delegation from Alice, the server checks that the `delegatee` field in Alice's delegation matches Bob's identity
 2. **PKH format expected**: The server expects the delegatee to be in PKH DID format (`did:pkh:eip155:...`)
-3. **Session DIDs are ephemeral**: Bob's session DID changes with each authentication, so a delegation to `bob.did` would be invalid after Bob re-authenticates
+3. **Session DIDs are ephemeral**: Bob's session DID changes with each authentication, so a delegation to `bob.sessionDid` would be invalid after Bob re-authenticates
 
 The PKH DID remains constant as long as Bob uses the same wallet address, making it the correct identifier for persistent user-to-user relationships.
 
 ## Quick Reference
 
 ```typescript
-// Getting both DID types from a session
-const session = await client.getSession();
+// After signIn():
+console.log("User identity (for delegations):", tc.did);
+// -> did:pkh:eip155:1:0xabc...
 
-// For delegations - ALWAYS use pkhDid
-console.log("User identity:", session.pkhDid);
-// → did:pkh:eip155:1:0xabc...
+console.log("Session key (for debugging):", tc.sessionDid);
+// -> did:key:z6Mk...#z6Mk...
 
-// For debugging session internals only
-console.log("Session key:", session.did);
-// → did:key:z6Mk...
+// The smart getter summary:
+// tc.did        = PKH DID after signIn, session DID in session-only mode
+// tc.sessionDid = Always session key DID
 ```
 
 <Note>
-If you see the error "Delegation failed: invalid delegatee", check that you are using `.pkhDid` instead of `.did` when specifying the delegate.
+If you see the error "Delegation failed: invalid delegatee", verify that you are using `tc.did` (after `signIn()`) rather than `tc.sessionDid` when specifying the delegate.
 </Note>

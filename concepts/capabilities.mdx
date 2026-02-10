@@ -11,37 +11,44 @@ TinyCloud uses a capability-based authorization system built on UCAN (User Contr
 UCAN is a decentralized authorization framework where capabilities are:
 
 - **Bearer tokens**: Whoever holds the token can use the capability
-- **Self-certifying**: No central authority needed to verify
+- **Self-certifying**: No central authority needed to verify -- the token itself contains proof
 - **Delegatable**: Users can grant subsets of their capabilities to others
-- **Cryptographically signed**: Tamper-proof and verifiable
+- **Cryptographically signed**: Tamper-proof and verifiable by anyone
 
-When you authenticate with TinyCloud, your wallet signs a SIWE message that includes ReCap capabilities. This creates a root UCAN that defines what actions you can perform.
+Unlike traditional API keys or OAuth tokens, UCANs do not require a round-trip to a central server for validation. The entire proof chain is embedded in the token itself.
 
-## ReCap Integration
+## ReCap Integration with SIWE
 
-ReCap embeds capability claims within SIWE messages, allowing Ethereum wallets to authorize specific actions. The flow works as follows:
+ReCap embeds capability claims within SIWE (Sign-In with Ethereum) messages, allowing Ethereum wallets to authorize specific actions as part of the sign-in flow.
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Wallet
-    participant TinyCloud
+    participant User as User Wallet
+    participant SDK as TinyCloud SDK
+    participant Node as TinyCloud Node
 
-    User->>TinyCloud: Request session
-    TinyCloud->>User: SIWE message with ReCap
-    User->>Wallet: Sign message
-    Wallet->>User: Signature
-    User->>TinyCloud: Submit signature
-    TinyCloud->>User: Session with capabilities
+    User->>SDK: Connect wallet
+    SDK->>Node: Request nonce
+    Node->>SDK: Nonce + session params
+    SDK->>SDK: Build SIWE message with ReCap capabilities
+    SDK->>User: Request signature
+    User->>SDK: Signed SIWE message
+    SDK->>Node: Submit signature + capabilities
+    Node->>Node: Verify signature & capability claims
+    Node->>SDK: Session token with authorized capabilities
 ```
+
+The SIWE message includes a ReCap object that declares which abilities the session is authorized to perform. This creates the root UCAN from which all delegations descend.
 
 ## Ability String Format
 
-TinyCloud uses a hierarchical ability string format:
+TinyCloud uses a hierarchical ability string format to define specific actions:
 
 ```
 tinycloud.{resource}/{action}
 ```
+
+The `tinycloud.` prefix is the ReCap ability namespace (a spec-level concept), followed by the resource type and the specific action.
 
 ### Key-Value Operations
 
@@ -66,39 +73,54 @@ tinycloud.{resource}/{action}
 |---------|-------------|
 | `tinycloud.capabilities/read` | Read and verify capability chains |
 
-### Path Scoping
+## Path Scoping
 
-Abilities can be scoped to specific paths within a space:
+Abilities can be scoped to specific key paths within a space. This limits what a capability holder can access, even within the same resource type.
 
 ```typescript
-// Full access to all keys
-"tinycloud.kv/put"
+// Full access to all keys in the KV store
+await tc.createDelegation({
+  delegateDID: bob.did,
+  abilities: ["tinycloud.kv/put"],
+  // No path restriction - can write anywhere
+});
 
-// Access only to keys under /users/alice/
-"tinycloud.kv/put" with path: "/users/alice/"
+// Scoped access: only keys under /users/alice/
+await tc.createDelegation({
+  delegateDID: bob.did,
+  abilities: ["tinycloud.kv/put"],
+  paths: ["/users/alice/*"],
+  // Bob can write to /users/alice/profile but NOT /users/bob/profile
+});
 ```
+
+Path scoping is enforced at the server level. Requests outside the allowed path are rejected even if the capability token is otherwise valid.
 
 ## Delegation Chains
 
-One of UCAN's most powerful features is the ability to delegate capabilities to others. TinyCloud enforces strict rules to ensure security.
+One of UCAN's most powerful features is the ability to delegate capabilities to others. Each delegation creates a link in a verifiable chain.
 
 ### Delegation Hierarchy
 
 ```mermaid
 graph TD
-    A[Alice - Space Owner] -->|delegates| B[Bob - Editor]
-    B -->|sub-delegates| C[Carol - Viewer]
-    A -->|delegates| D[Dave - Admin]
+    A["Alice (Space Owner)<br/>All capabilities"] -->|"delegates kv/get, kv/put<br/>path: docs/*"| B["Bob (Editor)"]
+    A -->|"delegates space/admin"| D["Dave (Admin)"]
+    B -->|"sub-delegates kv/get<br/>path: docs/public/*"| C["Carol (Viewer)"]
+    D -->|"sub-delegates kv/get, kv/put<br/>path: *"| E["Eve (Editor via Dave)"]
 
-    style A fill:#4CAF50
-    style B fill:#2196F3
-    style C fill:#FF9800
-    style D fill:#9C27B0
+    style A fill:#4CAF50,color:#fff
+    style B fill:#2196F3,color:#fff
+    style C fill:#FF9800,color:#fff
+    style D fill:#9C27B0,color:#fff
+    style E fill:#607D8B,color:#fff
 ```
+
+Each link in the chain must be a subset of the parent. Alice grants Bob write access to `docs/*`; Bob can sub-delegate read access to `docs/public/*` to Carol, but Bob cannot grant Carol write access or access outside `docs/*`.
 
 ### Constraint Rules
 
-When creating a delegation, the child capability must be a subset of the parent:
+When creating a delegation, the child capability must be a strict subset of the parent across all dimensions:
 
 <AccordionGroup>
   <Accordion title="Expiry Constraint">
@@ -110,14 +132,14 @@ When creating a delegation, the child capability must be a subset of the parent:
     // Alice's capability expires in 24 hours
     // This delegation is valid (12 hours < 24 hours)
     await alice.createDelegation({
-      delegateDID: bob.pkhDid,
-      expiresIn: 12 * 60 * 60 // 12 hours
+      delegateDID: bob.did,
+      expiresIn: '12h',
     });
 
     // This would fail (48 hours > 24 hours)
     await alice.createDelegation({
-      delegateDID: bob.pkhDid,
-      expiresIn: 48 * 60 * 60 // 48 hours - INVALID
+      delegateDID: bob.did,
+      expiresIn: '48h', // REJECTED: exceeds parent expiry
     });
     ```
   </Accordion>
@@ -125,7 +147,16 @@ When creating a delegation, the child capability must be a subset of the parent:
   <Accordion title="not_before Constraint">
     **Child not_before must be greater than or equal to parent not_before.**
 
-    A delegation cannot become valid before the parent capability is valid.
+    A delegation cannot become valid before the parent capability is valid. This prevents backdating attacks where a sub-delegation could be used before the original grant was intended to be active.
+
+    ```typescript
+    // Parent is valid starting Jan 10
+    // Child must start on or after Jan 10
+    await alice.createDelegation({
+      delegateDID: bob.did,
+      notBefore: '2026-01-12T00:00:00Z', // Valid: after parent's not_before
+    });
+    ```
   </Accordion>
 
   <Accordion title="Action Subset Constraint">
@@ -138,14 +169,14 @@ When creating a delegation, the child capability must be a subset of the parent:
 
     // Valid: subset of Alice's capabilities
     await alice.createDelegation({
-      delegateDID: bob.pkhDid,
-      abilities: ["tinycloud.kv/get", "tinycloud.kv/put"]
+      delegateDID: bob.did,
+      abilities: ["tinycloud.kv/get", "tinycloud.kv/put"],
     });
 
-    // Invalid: Alice cannot delegate kv/list
+    // Invalid: Alice does not have kv/list
     await alice.createDelegation({
-      delegateDID: bob.pkhDid,
-      abilities: ["tinycloud.kv/list"] // FAILS - Alice doesn't have this
+      delegateDID: bob.did,
+      abilities: ["tinycloud.kv/list"], // REJECTED: not in parent's set
     });
     ```
   </Accordion>
@@ -156,22 +187,38 @@ When creating a delegation, the child capability must be a subset of the parent:
     If Alice can only access `/projects/alpha/`, she can delegate access to `/projects/alpha/docs/` but not to `/projects/beta/`.
 
     ```typescript
-    // Alice's scope: /projects/alpha/
+    // Alice's scope: /projects/alpha/*
 
     // Valid: within Alice's scope
     await alice.createDelegation({
-      delegateDID: bob.pkhDid,
-      path: "/projects/alpha/docs/"
+      delegateDID: bob.did,
+      paths: ["/projects/alpha/docs/*"],
     });
 
     // Invalid: outside Alice's scope
     await alice.createDelegation({
-      delegateDID: bob.pkhDid,
-      path: "/projects/beta/" // FAILS
+      delegateDID: bob.did,
+      paths: ["/projects/beta/*"], // REJECTED: not within parent path
     });
     ```
   </Accordion>
 </AccordionGroup>
+
+### How the Server Validates Chains
+
+When a request arrives with a delegation token, the TinyCloud node walks the entire chain:
+
+```mermaid
+flowchart LR
+    A[Verify signature<br/>on each link] --> B[Check delegatee<br/>matches next delegator]
+    B --> C[Verify action<br/>is subset]
+    C --> D[Verify path<br/>is within scope]
+    D --> E[Verify expiry<br/>and not_before]
+    E --> F[Check revocation<br/>status]
+    F --> G{All valid?}
+    G -->|Yes| H[Allow request]
+    G -->|No| I[Reject request]
+```
 
 ### Preventing Sub-delegation
 
@@ -179,9 +226,9 @@ To prevent further delegation of capabilities, use the `disableSubDelegation` fl
 
 ```typescript
 await alice.createDelegation({
-  delegateDID: bob.pkhDid,
+  delegateDID: bob.did,
   abilities: ["tinycloud.kv/get"],
-  disableSubDelegation: true
+  disableSubDelegation: true,
 });
 
 // Bob now CANNOT create further delegations from this capability
@@ -198,13 +245,14 @@ Capabilities can be revoked before their expiry. When a capability in the chain 
 - The revocation is permanent for that specific token
 
 <Note>
-Revocation propagates down the chain. If Alice revokes Bob's delegation, Carol's sub-delegation from Bob also becomes invalid.
+Revocation propagates down the chain. If Alice revokes Bob's delegation, Carol's sub-delegation from Bob also becomes invalid, even if Carol's token has not expired.
 </Note>
 
 ## Best Practices
 
-1. **Principle of least privilege**: Delegate only the minimum capabilities needed
-2. **Short expiry times**: Use shorter expiry periods for sensitive operations
-3. **Path scoping**: Limit access to specific paths rather than entire spaces
-4. **Disable sub-delegation**: When the recipient should not share access further
-5. **Use PKH DIDs**: Always use `.pkhDid` for the delegatee (see [DID Formats](/concepts/did-formats))
+1. **Principle of least privilege**: Delegate only the minimum capabilities needed for the task
+2. **Short expiry times**: Use shorter expiry periods for sensitive operations; prefer hours over days
+3. **Path scoping**: Limit access to specific paths rather than granting access to entire spaces
+4. **Disable sub-delegation**: When the recipient should not be able to share access further
+5. **Use the correct DID**: Always use `tc.did` (PKH DID after signIn) for the delegatee (see [DID Formats](/concepts/did-formats))
+6. **Audit delegation chains**: Use `tinycloud.capabilities/read` to inspect active capability chains in your space

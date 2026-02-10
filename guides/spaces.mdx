@@ -5,11 +5,21 @@ icon: 'folder-tree'
 sidebarTitle: 'Spaces'
 ---
 
-A space is a data ownership container in TinyCloud. Each user has their own space where their data is stored and controlled.
+A **space** is a data ownership container in TinyCloud. Every piece of data belongs to a space, and every space is owned by a single wallet address. Spaces are the fundamental unit of isolation -- data in one space is completely separate from data in another.
+
+## What is a Space?
+
+Think of a space as a personal vault tied to your wallet identity. When you sign in with your Ethereum wallet, TinyCloud creates (or connects to) a space where your application data is stored. You control who can read, write, or share that data through [delegations](/guides/delegations).
+
+Key properties of a space:
+- **Owned by a wallet address** -- only the owner can grant access
+- **Isolated by prefix** -- the same wallet can have multiple spaces for different apps
+- **Created on demand** -- spaces are provisioned during the first sign-in (by default)
+- **Addressed by a deterministic ID** -- derived from the wallet address, chain ID, and prefix
 
 ## Space ID Format
 
-Space IDs follow the format:
+Space IDs are deterministic. Given the same inputs, the same space ID is always produced:
 
 ```
 {address}-{chainId}-{prefix}
@@ -17,70 +27,82 @@ Space IDs follow the format:
 
 | Component | Description | Example |
 |-----------|-------------|---------|
-| `address` | Ethereum address (lowercase) | `0x1234...abcd` |
-| `chainId` | EIP-155 chain ID | `1` (mainnet), `11155111` (sepolia) |
-| `prefix` | Application identifier | `my-app` |
+| `address` | Ethereum address (lowercase, checksummed) | `0x1234...abcd` |
+| `chainId` | EIP-155 chain ID | `1` (mainnet), `11155111` (Sepolia) |
+| `prefix` | Application-defined identifier | `my-app` |
 
-Example space ID:
+For example:
+
 ```
 0x1234567890abcdef1234567890abcdef12345678-1-my-app
 ```
 
+<Note>
+The space ID is derived deterministically. You do not choose it -- it is computed from your wallet address, the chain you are connected to, and the prefix you configure.
+</Note>
+
 ## Auto-Creation vs Manual
 
-By default, spaces are created automatically on first sign-in.
+By default, TinyCloud creates the space automatically on first sign-in. You can disable this if you need to control when spaces are provisioned.
 
+<Tabs>
+<Tab title="Auto-creation (default)">
 <CodeGroup>
 ```typescript Web SDK
 const tc = new TinyCloudWeb({
-  host: 'https://api.tinycloud.xyz',
-  prefix: 'my-app',
-  // autoCreateSpace: true (default)
-});
-
-await tc.signIn();
-// Space created automatically if it doesn't exist
-```
-
-```typescript Node SDK
-const tc = new TinyCloudNode({
-  host: 'https://api.tinycloud.xyz',
-  prefix: 'my-app',
-  privateKey: process.env.WALLET_PRIVATE_KEY,
+  spacePrefix: 'my-app',
   autoCreateSpace: true, // default
 });
 
 await tc.signIn();
+// Space is created automatically if it does not already exist
+```
+
+```typescript Node SDK
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  prefix: 'my-app',
+  autoCreateSpace: true, // default
+});
+
+await tc.signIn();
+// Space created automatically
 ```
 </CodeGroup>
-
-To disable auto-creation:
-
+</Tab>
+<Tab title="Manual creation">
 <CodeGroup>
 ```typescript Web SDK
 const tc = new TinyCloudWeb({
-  host: 'https://api.tinycloud.xyz',
+  spacePrefix: 'my-app',
+  autoCreateSpace: false,
+});
+
+await tc.signIn();
+// If the space does not exist, sign-in will fail with an error
+```
+
+```typescript Node SDK
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
   prefix: 'my-app',
   autoCreateSpace: false,
 });
 
 await tc.signIn();
-// Throws error if space doesn't exist
-```
-
-```typescript Node SDK
-const tc = new TinyCloudNode({
-  host: 'https://api.tinycloud.xyz',
-  prefix: 'my-app',
-  privateKey: process.env.WALLET_PRIVATE_KEY,
-  autoCreateSpace: false,
-});
+// Throws if the space does not exist
 ```
 </CodeGroup>
 
-## Getting Space ID
+<Warning>
+With `autoCreateSpace: false`, sign-in will fail if the space has not been created previously. Use this when your application requires explicit space provisioning as a separate step.
+</Warning>
+</Tab>
+</Tabs>
 
-After sign-in, retrieve the space ID for the current session.
+## Getting the Space ID
+
+After sign-in, you can retrieve the space ID for the current session. The accessor differs between Web and Node SDKs:
 
 <CodeGroup>
 ```typescript Web SDK
@@ -96,31 +118,77 @@ await tc.signIn();
 
 const spaceId = tc.spaceId;
 console.log('Space:', spaceId);
+// "0x1234...abcd-1-my-app"
 ```
 </CodeGroup>
 
-## Prefix Usage
+## Prefix for App Isolation
 
-The prefix isolates data between different applications for the same user.
+The prefix is the mechanism for isolating data between different applications that share the same wallet. Each unique prefix produces a different space ID, even for the same user on the same chain.
 
 ```typescript
 // User's game data
 const gameClient = new TinyCloudWeb({
-  host: 'https://api.tinycloud.xyz',
-  prefix: 'my-game',
+  spacePrefix: 'my-game',
 });
 
-// User's notes data (separate space)
+// User's notes data -- completely separate space
 const notesClient = new TinyCloudWeb({
-  host: 'https://api.tinycloud.xyz',
-  prefix: 'my-notes',
+  spacePrefix: 'my-notes',
 });
 ```
 
-Same wallet, different spaces:
-- `0x1234...abcd-1-my-game`
-- `0x1234...abcd-1-my-notes`
+For the same wallet (`0x1234...abcd`) on mainnet, this produces two distinct spaces:
+
+| Application | Prefix | Space ID |
+|-------------|--------|----------|
+| Game | `my-game` | `0x1234...abcd-1-my-game` |
+| Notes | `my-notes` | `0x1234...abcd-1-my-notes` |
+
+<Tip>
+Use a consistent, descriptive prefix for your application. If you change the prefix, users will get a new empty space -- their existing data stays in the old space.
+</Tip>
+
+## Same Wallet, Different Spaces
+
+Because the space ID is derived from `address + chainId + prefix`, a single wallet can own many independent spaces:
+
+```typescript
+// All three produce different spaces for the same wallet:
+
+// Space 1: 0xABC...-1-photos
+new TinyCloudNode({ privateKey: key, prefix: 'photos' });
+
+// Space 2: 0xABC...-1-documents
+new TinyCloudNode({ privateKey: key, prefix: 'documents' });
+
+// Space 3: 0xABC...-1-settings
+new TinyCloudNode({ privateKey: key, prefix: 'settings' });
+```
+
+Data stored in one space is invisible to the others. A `get` or `list` call in the `photos` space will never return keys from the `documents` space.
 
 <Note>
-Data in one space is completely isolated from other spaces, even for the same user.
+Data in one space is completely isolated from other spaces, even for the same user. This isolation is enforced at the server level -- there is no way to accidentally cross space boundaries.
 </Note>
+
+## Spaces and Delegations
+
+While spaces are owned by a single wallet, access can be shared through [delegations](/guides/delegations). When you create a delegation, you grant another user scoped access to paths within your space. The recipient does not get their own copy of the data -- they access it directly in your space using delegated credentials.
+
+```typescript
+// Alice owns the space and delegates read access to Bob
+const delegation = await alice.createDelegation({
+  delegateDID: bob.pkhDid,
+  actions: ['read'],
+  paths: ['documents/*'],
+});
+
+// Bob accesses data in Alice's space (not his own)
+await bob.useDelegation(delegation.portable);
+const doc = await bob.kv.get('documents/report.json', {
+  space: alice.spaceId,
+});
+```
+
+See the [Delegations guide](/guides/delegations) for full details on sharing access.

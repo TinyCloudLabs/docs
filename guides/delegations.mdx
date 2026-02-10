@@ -1,83 +1,73 @@
 ---
-title: 'Delegations'
+title: 'Delegations & Sharing'
 description: 'Share access to your space with other users and services'
 icon: 'share-nodes'
-sidebarTitle: 'Delegations'
+sidebarTitle: 'Delegations & Sharing'
 ---
 
-Delegations allow you to grant other users or services access to your space. They enable secure, scoped, and time-limited sharing of data and capabilities.
+Delegations allow you to grant other users or services scoped, time-limited access to data in your space. They are the core mechanism for sharing in TinyCloud.
 
 ## What Delegations Enable
 
-- **Share data**: Let other users read or write to paths in your space
-- **Grant permissions**: Allow services to perform actions on your behalf
-- **Chain access**: Recipients can create sub-delegations to others
-- **Time-bound access**: Delegations automatically expire
+- **Share data**: Let other users read or write to specific paths in your space
+- **Grant permissions**: Allow services to perform operations on your behalf
+- **Chain access**: Recipients can create sub-delegations to extend access to others
+- **Time-bound access**: Delegations automatically expire -- no manual cleanup required
 
 ## Creating a Delegation
 
-Grant another user access to your space.
+Grant another user access to paths in your space by specifying their DID, the actions they can perform, and the paths they can access.
 
 <Warning>
-**Critical**: Always use `pkhDid` (PKH DID format) for the `delegateDID` parameter, NOT the `did` property. Using the wrong DID format will cause server validation to fail.
+**Critical**: Always use the PKH DID (returned by `tc.did` after sign-in, or `tc.pkhDid`) for the `delegateDID` parameter. Using a session key DID will fail server validation. See [DID Formats](/concepts/did-formats) for details.
 </Warning>
-
-<CodeGroup>
-```typescript Web SDK
-// Alice grants Bob read access to her documents
-const delegation = await tc.storage.delegate({
-  delegateDID: bobPkhDid, // Use PKH DID!
-  actions: ['read'],
-  paths: ['documents/*'],
-  expiresIn: '7d',
-});
-
-// Send delegation to Bob
-console.log(delegation.portable); // Serialized for transport
-```
-
-```typescript Node SDK
-// Alice grants Bob read access
-const delegation = await tc.createDelegation({
-  delegateDID: bob.pkhDid, // CORRECT: Use pkhDid
-  actions: ['read'],
-  paths: ['documents/*'],
-  expiresIn: '7d',
-});
-
-// Wrong - will fail server validation
-// delegateDID: bob.did // INCORRECT: This is the session key DID
-```
-</CodeGroup>
 
 <Tabs>
 <Tab title="Quick">
-```typescript
-// Grant full access to a specific path
-const delegation = await tc.createDelegation({
-  delegateDID: recipient.pkhDid,
-  actions: ['read', 'write', 'delete'],
-  paths: ['shared/*'],
+<CodeGroup>
+```typescript Web SDK
+// Alice delegates read access to Bob
+const delegation = await tc.storage.delegate({
+  delegateDID: bobPkhDid,
+  actions: ['read'],
+  paths: ['documents/*'],
+  expiresIn: '7d',
 });
+
+// Send the portable delegation to Bob
+console.log(delegation.portable);
 ```
+
+```typescript Node SDK
+// Alice delegates read + write access to Bob
+const delegation = await alice.createDelegation({
+  delegateDID: bob.pkhDid,
+  path: 'shared/',
+  actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
+});
+
+console.log(delegation.portable);
+```
+</CodeGroup>
 </Tab>
 
 <Tab title="Explained">
 ```typescript
-const delegation = await tc.createDelegation({
+const delegation = await alice.createDelegation({
   // The recipient's PKH DID (did:pkh:eip155:{chainId}:{address})
-  delegateDID: recipient.pkhDid,
+  // MUST be the PKH DID, not the session key DID
+  delegateDID: bob.pkhDid,
 
   // Actions the recipient can perform
-  // Options: 'read', 'write', 'delete', 'list'
-  actions: ['read', 'write', 'delete'],
+  // Available: tinycloud.kv/get, tinycloud.kv/put, tinycloud.kv/del, tinycloud.kv/list
+  actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
 
-  // Path patterns the delegation covers
-  // Use * for wildcards: 'docs/*' matches 'docs/file1', 'docs/folder/file2'
-  paths: ['shared/*'],
+  // Path prefix the delegation covers
+  // 'shared/' grants access to all keys starting with 'shared/'
+  path: 'shared/',
 
   // When the delegation expires (optional)
-  // Formats: '1h', '7d', '30d', or ISO date string
+  // Formats: '1h', '7d', '30d', or an ISO date string
   expiresIn: '7d',
 
   // Earliest time the delegation becomes valid (optional)
@@ -89,55 +79,74 @@ const delegation = await tc.createDelegation({
 
 ## Using a Received Delegation
 
-When you receive a delegation, use it to access another user's space.
+When you receive a delegation (as a portable JSON string), load it into your SDK to access the delegator's space.
 
 <CodeGroup>
 ```typescript Web SDK
-// Bob received a delegation from Alice
+// Bob received a portable delegation from Alice
 const portableDelegation = /* received from Alice */;
 
 // Load the delegation
 await tc.storage.useDelegation(portableDelegation);
 
-// Now Bob can access Alice's documents
+// Now Bob can access Alice's space
 const docs = await tc.storage.list('documents/', {
+  space: aliceSpaceId,
+});
+
+const report = await tc.storage.get('documents/report.json', {
   space: aliceSpaceId,
 });
 ```
 
 ```typescript Node SDK
-// Bob received a delegation from Alice
+// Bob received a portable delegation from Alice
 const portableDelegation = /* received from Alice */;
 
-// Load the delegation
-await tc.useDelegation(portableDelegation);
+// Load the delegation and get a DelegatedAccess handle
+const access = await bob.useDelegation(portableDelegation);
 
-// Access Alice's space
-const doc = await tc.kv.get('documents/report.json', {
-  space: aliceSpaceId,
-});
+// Use the access handle to read from Alice's space
+const data = await access.kv.get('shared/data');
+const keys = await access.kv.list('shared/');
 ```
 </CodeGroup>
 
+<Note>
+The recipient does not get a copy of the data. They access it directly in the delegator's space, subject to the scoped permissions in the delegation.
+</Note>
+
+## DelegatedAccess
+
+When using a delegation in the Node SDK, `useDelegation` returns a `DelegatedAccess` object. This object provides a scoped KV interface that automatically targets the delegator's space.
+
+```typescript
+const access = await bob.useDelegation(portableDelegation);
+
+// access.kv is scoped to Alice's space with the delegated permissions
+await access.kv.get('shared/document');   // Read from Alice's space
+await access.kv.put('shared/response', { message: 'Thanks!' }); // Write to Alice's space
+await access.kv.list('shared/');          // List keys in Alice's space
+```
+
 ## Sub-Delegations
 
-Recipients can further delegate their access to others, with constraints.
+Recipients can further delegate their access to others. Sub-delegations must be strictly narrower than the parent delegation.
 
 <CodeGroup>
 ```typescript Web SDK
 // Bob creates a sub-delegation for Carol
-// Bob can only delegate permissions he has
 const subDelegation = await tc.storage.delegate({
   delegateDID: carolPkhDid,
-  actions: ['read'], // Must be subset of Bob's actions
+  actions: ['read'],             // Must be subset of Bob's actions
   paths: ['documents/public/*'], // Must be within Bob's paths
-  expiresIn: '1d', // Must expire before Bob's delegation
+  expiresIn: '1d',               // Must expire before Bob's delegation
 });
 ```
 
 ```typescript Node SDK
 // Bob sub-delegates to Carol
-const subDelegation = await tc.createSubDelegation({
+const subDelegation = await bob.createSubDelegation({
   // The delegation Bob received from Alice
   parentDelegation: aliceDelegation,
 
@@ -145,97 +154,157 @@ const subDelegation = await tc.createSubDelegation({
   delegateDID: carol.pkhDid,
 
   // Subset of actions Bob has
-  actions: ['read'],
+  actions: ['tinycloud.kv/get'],
 
   // Narrower path scope
-  paths: ['documents/public/*'],
+  path: 'documents/public/',
 
   // Earlier expiry
   expiresIn: '1d',
 });
+
+// Send to Carol
+sendToUser(carol.address, subDelegation.portable);
 ```
 </CodeGroup>
 
 ## Delegation Constraints
 
-Delegations must follow these rules:
+Every sub-delegation must be a strict subset of its parent. The server enforces these rules:
 
-| Constraint | Rule |
-|------------|------|
-| **Actions** | Must be a subset of parent's actions |
-| **Paths** | Must be within parent's path scope |
-| **Expiry** | Must expire at or before parent's expiry |
-| **Not Before** | Must be at or after parent's not_before |
+| Constraint | Rule | Example |
+|------------|------|---------|
+| **Actions** | Must be a subset of parent's actions | Parent has `get + put`, child can have `get` only |
+| **Paths** | Must be within parent's path scope | Parent has `data/*`, child can have `data/public/*` |
+| **Expiry** | Must expire at or before parent's expiry | Parent expires in 7d, child must expire in 7d or less |
+| **Not Before** | Must be at or after parent's not_before | Parent starts Jan 1, child cannot start before Jan 1 |
+
+<AccordionGroup>
+<Accordion title="Valid sub-delegation example">
+```typescript
+// Parent: read + write to 'data/*', expires in 7 days
+
+await bob.createSubDelegation({
+  parentDelegation,
+  delegateDID: carol.pkhDid,
+  actions: ['tinycloud.kv/get'],  // Subset of [get, put]
+  path: 'data/public/',           // Within data/*
+  expiresIn: '3d',                // Before 7 days
+});
+// Accepted by server
+```
+</Accordion>
+<Accordion title="Invalid sub-delegation example">
+```typescript
+// Parent: read + write to 'data/*', expires in 7 days
+
+await bob.createSubDelegation({
+  parentDelegation,
+  delegateDID: carol.pkhDid,
+  actions: ['tinycloud.kv/get', 'tinycloud.kv/del'], // 'del' not in parent
+  path: 'other/',                                      // Outside parent scope
+  expiresIn: '30d',                                    // After parent expires
+});
+// Rejected by server
+```
+</Accordion>
+</AccordionGroup>
+
+## DID Format
+
+<Warning>
+This is the most common source of delegation failures. Use the PKH DID for delegations, not the session key DID.
+</Warning>
+
+TinyCloud uses two DID formats:
+
+| Format | Property | Example | When to Use |
+|--------|----------|---------|-------------|
+| **PKH DID** | `tc.pkhDid` | `did:pkh:eip155:1:0x1234...` | Delegations, user identity |
+| **Session Key DID** | `tc.did` | `did:key:z6Mk...#z6Mk...` | Internal session operations |
+
+After sign-in, `tc.did` returns the PKH DID in the Node SDK. The PKH DID represents the user's persistent wallet identity, while the session key DID is ephemeral and rotates on every authentication.
 
 ```typescript
-// Parent delegation: read + write to 'data/*', expires in 7 days
-
-// Valid sub-delegation
-await tc.createSubDelegation({
-  parentDelegation,
-  delegateDID: recipient.pkhDid,
-  actions: ['read'],        // Subset of [read, write]
-  paths: ['data/public/*'], // Within data/*
-  expiresIn: '3d',          // Before 7 days
+// Correct: use pkhDid for delegations
+await alice.createDelegation({
+  delegateDID: bob.pkhDid,  // did:pkh:eip155:1:0x...
+  actions: ['tinycloud.kv/get'],
 });
 
-// Invalid - would be rejected
-await tc.createSubDelegation({
-  parentDelegation,
-  delegateDID: recipient.pkhDid,
-  actions: ['read', 'delete'], // 'delete' not in parent
-  paths: ['other/*'],          // Outside parent scope
-  expiresIn: '30d',            // After parent expires
+// Wrong: session key DID -- will fail server validation
+await alice.createDelegation({
+  delegateDID: bob.did,     // did:key:z6Mk... -- INCORRECT for delegations
+  actions: ['tinycloud.kv/get'],
 });
 ```
 
 ## PortableDelegation Format
 
-Delegations are serialized as `PortableDelegation` for transport between users.
+Delegations are serialized as `PortableDelegation` for transport between users. This is a JSON string containing the signed delegation chain, which can be verified cryptographically.
 
 ```typescript
-// Create delegation
-const delegation = await tc.createDelegation({
-  delegateDID: recipient.pkhDid,
-  actions: ['read'],
-  paths: ['shared/*'],
+// Create and serialize
+const delegation = await alice.createDelegation({
+  delegateDID: bob.pkhDid,
+  actions: ['tinycloud.kv/get'],
+  path: 'shared/',
 });
 
-// Serialize for transport (JSON string)
+// The portable format is a JSON string
 const portable = delegation.portable;
 
-// Send via any channel: API, email, QR code, etc.
+// Send via any channel: HTTP API, email, QR code, messaging, etc.
 sendToRecipient(portable);
 
 // Recipient loads it
-const received = await tc.useDelegation(portable);
+const access = await bob.useDelegation(portable);
 ```
 
-The portable format is a JSON string containing the signed delegation chain, which can be verified cryptographically by the server.
+<Tip>
+The portable delegation is self-contained. The recipient does not need any additional context to verify and use it -- the cryptographic chain of trust is embedded in the payload.
+</Tip>
 
-## DID Formats
+## Sharing Links
 
-<Warning>
-Understanding DID formats is critical for delegations to work correctly.
-</Warning>
-
-TinyCloud uses two DID formats:
-
-| Format | Property | Example | Use Case |
-|--------|----------|---------|----------|
-| **PKH DID** | `pkhDid` | `did:pkh:eip155:1:0x1234...` | Delegations, user identity |
-| **Key DID** | `did` | `did:key:z6Mk...#z6Mk...` | Internal session keys |
+For simpler sharing scenarios, TinyCloud provides a sharing links API that generates a URL containing an embedded delegation. The recipient can access the shared data without being authenticated.
 
 ```typescript
-// Correct - use PKH DID for delegations
-await tc.createDelegation({
-  delegateDID: recipient.pkhDid,  // did:pkh:eip155:1:0x...
+// Generate a share link for a specific key
+const link = await tc.sharing.generate({
+  key: 'profile',
+  expiresIn: '7d',
 });
 
-// Wrong - session key DID will fail
-await tc.createDelegation({
-  delegateDID: recipient.did,     // did:key:z6Mk...
+console.log(link);
+// https://node.tinycloud.xyz/share/eyJhbGciOi...
+
+// Recipient opens the link -- no auth needed
+// This is a static method that works without an active session
+const result = await TinyCloudWeb.receiveShare(link);
+console.log(result);
+// { name: 'Alice', email: 'alice@example.com' }
+```
+
+<Note>
+Sharing links are ideal for one-off sharing with people who may not have a TinyCloud account. For ongoing collaboration, use standard delegations instead.
+</Note>
+
+## Revoking Delegations
+
+Currently, delegations expire automatically based on their `expiresIn` value. For scenarios where you need immediate revocation, use short-lived delegations and refresh them as needed.
+
+```typescript
+// Short-lived delegation that must be refreshed
+const delegation = await alice.createDelegation({
+  delegateDID: bob.pkhDid,
+  actions: ['tinycloud.kv/get'],
+  path: 'shared/',
+  expiresIn: '1h', // Expires in 1 hour
 });
+
+// To "revoke", simply stop issuing new delegations
+// The existing one becomes invalid after 1 hour
 ```
 
 ## Complete Example
@@ -243,17 +312,17 @@ await tc.createDelegation({
 Alice shares a document folder with Bob, who then shares a subset with Carol.
 
 <Steps>
-<Step title="Alice creates delegation for Bob">
+<Step title="Alice creates a delegation for Bob">
 ```typescript
 // Alice's client
 const aliceToBob = await alice.createDelegation({
   delegateDID: bob.pkhDid,
-  actions: ['read', 'write'],
-  paths: ['documents/*'],
+  actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
+  path: 'documents/',
   expiresIn: '30d',
 });
 
-// Send to Bob
+// Send the portable delegation to Bob
 sendToUser(bob.address, aliceToBob.portable);
 ```
 </Step>
@@ -261,55 +330,45 @@ sendToUser(bob.address, aliceToBob.portable);
 <Step title="Bob receives and uses the delegation">
 ```typescript
 // Bob's client
-const received = await bob.useDelegation(aliceToBobPortable);
+const access = await bob.useDelegation(aliceToBobPortable);
 
-// Bob can now read Alice's documents
-const files = await bob.kv.list('documents/', {
-  space: alice.spaceId,
+// Bob can now read and write to Alice's documents
+const files = await access.kv.list('documents/');
+const report = await access.kv.get('documents/report.json');
+
+// Bob can also write (he has kv/put)
+await access.kv.put('documents/feedback.json', {
+  reviewer: 'Bob',
+  comments: 'Looks good!',
 });
 ```
 </Step>
 
-<Step title="Bob creates sub-delegation for Carol">
+<Step title="Bob creates a sub-delegation for Carol">
 ```typescript
-// Bob sub-delegates read-only access to Carol
+// Bob sub-delegates read-only access to a narrower path
 const bobToCarol = await bob.createSubDelegation({
-  parentDelegation: received,
+  parentDelegation: aliceToBobPortable,
   delegateDID: carol.pkhDid,
-  actions: ['read'], // Only read, not write
-  paths: ['documents/public/*'], // Narrower scope
-  expiresIn: '7d', // Shorter duration
+  actions: ['tinycloud.kv/get'],       // Read only (subset of Bob's get+put)
+  path: 'documents/public/',           // Narrower scope
+  expiresIn: '7d',                     // Shorter than Bob's 30 days
 });
 
 sendToUser(carol.address, bobToCarol.portable);
 ```
 </Step>
 
-<Step title="Carol accesses the data">
+<Step title="Carol accesses the shared data">
 ```typescript
 // Carol's client
-await carol.useDelegation(bobToCarolPortable);
+const carolAccess = await carol.useDelegation(bobToCarolPortable);
 
 // Carol can read Alice's public documents
-const doc = await carol.kv.get('documents/public/readme.txt', {
-  space: alice.spaceId,
-});
+const doc = await carolAccess.kv.get('documents/public/readme.txt');
+
+// Carol cannot write (only has kv/get)
+// Carol cannot access documents outside documents/public/
 ```
 </Step>
 </Steps>
-
-## Revoking Delegations
-
-Currently, delegations expire automatically based on their `expiresIn` value. For immediate revocation, use short-lived delegations and refresh them as needed.
-
-```typescript
-// Short-lived delegation that must be refreshed
-const delegation = await tc.createDelegation({
-  delegateDID: recipient.pkhDid,
-  actions: ['read'],
-  paths: ['shared/*'],
-  expiresIn: '1h', // Expires in 1 hour
-});
-
-// To "revoke", simply don't issue a new delegation
-```
