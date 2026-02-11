@@ -72,13 +72,14 @@
     "links": [
       {
         "label": "Support",
-        "url": "https://discord.gg/tinycloud"
+        "href": "https://discord.gg/tinycloud",
+        "type": "discord"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "url": "https://app.tinycloud.xyz"
+      "href": "https://app.tinycloud.xyz"
     }
   },
   "footer": {
