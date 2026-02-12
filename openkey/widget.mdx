@@ -73,14 +73,14 @@ const openkey = new OpenKey({
   // OpenKey host URL (default: https://openkey.so)
   host: 'https://openkey.so',
 
-  // Use popup (true) or inline iframe overlay (false)
-  // Default: true
-  usePopup: true,
+  // Display mode: 'iframe' | 'popup' | 'redirect'
+  // Default: 'iframe'
+  mode: 'popup',
 });
 ```
 
 <Tip>
-Popup mode opens a separate browser window. Iframe mode renders an overlay within the current page. Popup mode is recommended because it avoids iframe-related cookie and security restrictions.
+Iframe mode (default) provides a clean inline UX. The SDK automatically falls back to popup mode if the iframe is blocked by CSP. Set `mode: 'popup'` to always use a popup window.
 </Tip>
 
 ## Connect Flow
@@ -88,7 +88,7 @@ Popup mode opens a separate browser window. Iframe mode renders an overlay withi
 The connect flow lets users authenticate with OpenKey and select (or generate) an Ethereum key to share with your app.
 
 ```typescript
-const { address, keyId } = await openkey.connect();
+const { address, keyId, keyType } = await openkey.connect();
 ```
 
 What happens when `connect()` is called:
@@ -118,6 +118,17 @@ The returned `AuthResult` contains:
 |-------|------|-------------|
 | `address` | `string` | Ethereum address of the selected key |
 | `keyId` | `string` | Key identifier (use this for signing) |
+| `keyType` | `'MANAGED' \| 'EXTERNAL'` | Whether key is TEE-managed or a linked external wallet |
+
+## Link External Wallet
+
+If the user already has an external wallet (like MetaMask), they can link it to their OpenKey account:
+
+```typescript
+const { address, keyId } = await openkey.linkWallet();
+```
+
+This opens the widget with the wallet linking flow instead of key selection.
 
 ## Sign Flow
 

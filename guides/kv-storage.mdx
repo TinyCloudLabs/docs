@@ -5,10 +5,10 @@ icon: 'database'
 sidebarTitle: 'KV Storage'
 ---
 
-TinyCloud provides a key-value storage API for persisting user data. All data is stored in the user's space and fully controlled by them. The API is the same across both SDKs, with one difference in the accessor name:
+TinyCloud provides a key-value storage API for persisting user data. All data is stored in the user's space and fully controlled by them. The API uses `tc.kv` in both SDKs:
 
-- **Web SDK**: `tc.storage.put / get / list / delete`
-- **Node SDK**: `tc.kv.put / get / list / delete`
+- **Web SDK**: `tc.kv.put / get / list / del`
+- **Node SDK**: `tc.kv.put / get / list / del`
 
 ## Basic Operations
 
@@ -18,7 +18,7 @@ Store a value at a key.
 
 <CodeGroup>
 ```typescript Web SDK
-await tc.storage.put('user/profile', {
+await tc.kv.put('user/profile', {
   name: 'Alice',
   email: 'alice@example.com',
 });
@@ -38,15 +38,19 @@ Retrieve a value by key.
 
 <CodeGroup>
 ```typescript Web SDK
-const profile = await tc.storage.get('user/profile');
-console.log(profile);
-// { name: 'Alice', email: 'alice@example.com' }
+const result = await tc.kv.get('user/profile');
+if (result.ok) {
+  console.log(result.data.data);
+  // { name: 'Alice', email: 'alice@example.com' }
+}
 ```
 
 ```typescript Node SDK
-const profile = await tc.kv.get('user/profile');
-console.log(profile);
-// { name: 'Alice', email: 'alice@example.com' }
+const result = await tc.kv.get('user/profile');
+if (result.ok) {
+  console.log(result.data.data);
+  // { name: 'Alice', email: 'alice@example.com' }
+}
 ```
 </CodeGroup>
 
@@ -56,15 +60,19 @@ List keys matching a prefix.
 
 <CodeGroup>
 ```typescript Web SDK
-const keys = await tc.storage.list('user/');
-console.log(keys);
-// ['user/profile', 'user/settings', 'user/preferences']
+const result = await tc.kv.list('user/');
+if (result.ok) {
+  console.log(result.data.keys);
+  // ['user/profile', 'user/settings', 'user/preferences']
+}
 ```
 
 ```typescript Node SDK
-const keys = await tc.kv.list('user/');
-console.log(keys);
-// ['user/profile', 'user/settings', 'user/preferences']
+const result = await tc.kv.list('user/');
+if (result.ok) {
+  console.log(result.data.keys);
+  // ['user/profile', 'user/settings', 'user/preferences']
+}
 ```
 </CodeGroup>
 
@@ -74,11 +82,11 @@ Remove a key and its value.
 
 <CodeGroup>
 ```typescript Web SDK
-await tc.storage.delete('user/profile');
+await tc.kv.del('user/profile');
 ```
 
 ```typescript Node SDK
-await tc.kv.delete('user/profile');
+await tc.kv.del('user/profile');
 ```
 </CodeGroup>
 
@@ -89,32 +97,41 @@ The KV API accepts multiple data types as values.
 <Tabs>
 <Tab title="Strings">
 ```typescript
-await tc.storage.put('greeting', 'Hello, World!');
+await tc.kv.put('greeting', 'Hello, World!');
 
-const greeting = await tc.storage.get('greeting');
-// "Hello, World!"
+const result = await tc.kv.get('greeting');
+if (result.ok) {
+  console.log(result.data.data);
+  // "Hello, World!"
+}
 ```
 </Tab>
 
 <Tab title="JSON Objects">
 ```typescript
-await tc.storage.put('config', {
+await tc.kv.put('config', {
   theme: 'dark',
   notifications: true,
   language: 'en',
 });
 
-const config = await tc.storage.get('config');
-// { theme: 'dark', notifications: true, language: 'en' }
+const result = await tc.kv.get('config');
+if (result.ok) {
+  console.log(result.data.data);
+  // { theme: 'dark', notifications: true, language: 'en' }
+}
 ```
 </Tab>
 
 <Tab title="Arrays">
 ```typescript
-await tc.storage.put('tags', ['typescript', 'react', 'tinycloud']);
+await tc.kv.put('tags', ['typescript', 'react', 'tinycloud']);
 
-const tags = await tc.storage.get('tags');
-// ['typescript', 'react', 'tinycloud']
+const result = await tc.kv.get('tags');
+if (result.ok) {
+  console.log(result.data.data);
+  // ['typescript', 'react', 'tinycloud']
+}
 ```
 </Tab>
 
@@ -122,17 +139,17 @@ const tags = await tc.storage.get('tags');
 ```typescript
 const imageBuffer = new Uint8Array([...]); // Binary data
 
-await tc.storage.put('avatar.png', imageBuffer, {
+await tc.kv.put('avatar.png', imageBuffer, {
   contentType: 'image/png',
 });
 
-const avatar = await tc.storage.get('avatar.png');
+const result = await tc.kv.get('avatar.png');
 ```
 </Tab>
 </Tabs>
 
 <Note>
-The examples in the Data Types section use `tc.storage` (Web SDK). For Node SDK, replace `tc.storage` with `tc.kv` -- the method signatures are identical.
+The examples in the Data Types section use `tc.kv`. The method signatures are identical across both Web and Node SDKs.
 </Note>
 
 ## Organizing Keys with Prefixes
@@ -141,25 +158,25 @@ Use path-like keys to organize your data logically. The `/` character has no spe
 
 ```typescript
 // User data
-await tc.storage.put('user/profile', { name: 'Alice' });
-await tc.storage.put('user/settings', { theme: 'dark' });
-await tc.storage.put('user/preferences', { lang: 'en' });
+await tc.kv.put('user/profile', { name: 'Alice' });
+await tc.kv.put('user/settings', { theme: 'dark' });
+await tc.kv.put('user/preferences', { lang: 'en' });
 
 // Application data
-await tc.storage.put('app/cache/items', [...]);
-await tc.storage.put('app/state', { lastSync: Date.now() });
+await tc.kv.put('app/cache/items', [...]);
+await tc.kv.put('app/state', { lastSync: Date.now() });
 
 // Documents organized by year
-await tc.storage.put('documents/2025/report.json', { ... });
-await tc.storage.put('documents/2025/summary.json', { ... });
-await tc.storage.put('documents/2026/plan.json', { ... });
+await tc.kv.put('documents/2025/report.json', { ... });
+await tc.kv.put('documents/2025/summary.json', { ... });
+await tc.kv.put('documents/2026/plan.json', { ... });
 
 // List all 2025 documents
-const docs2025 = await tc.storage.list('documents/2025/');
+const docs2025 = await tc.kv.list('documents/2025/');
 // ['documents/2025/report.json', 'documents/2025/summary.json']
 
 // List all user keys
-const userKeys = await tc.storage.list('user/');
+const userKeys = await tc.kv.list('user/');
 // ['user/preferences', 'user/profile', 'user/settings']
 ```
 
@@ -174,7 +191,7 @@ Store and retrieve metadata alongside values. Metadata is useful for tracking au
 <CodeGroup>
 ```typescript Web SDK
 // Put with metadata
-await tc.storage.put('document', content, {
+await tc.kv.put('document', content, {
   metadata: {
     author: 'Alice',
     version: '1.0',
@@ -183,7 +200,7 @@ await tc.storage.put('document', content, {
 });
 
 // Get metadata only (without fetching the value)
-const meta = await tc.storage.getMetadata('document');
+const meta = await tc.kv.getMetadata('document');
 console.log(meta);
 // { author: 'Alice', version: '1.0', createdAt: '2026-...' }
 ```
@@ -211,29 +228,27 @@ Handle common error cases when working with the KV API.
 
 <CodeGroup>
 ```typescript Web SDK
-try {
-  const value = await tc.storage.get('nonexistent-key');
-} catch (error) {
-  if (error.code === 'NOT_FOUND') {
+const result = await tc.kv.get('nonexistent-key');
+if (!result.ok) {
+  if (result.error.code === 'NOT_FOUND') {
     console.log('Key does not exist');
-  } else if (error.code === 'UNAUTHORIZED') {
+  } else if (result.error.code === 'UNAUTHORIZED') {
     console.log('Session expired or invalid');
   } else {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error:', result.error);
   }
 }
 ```
 
 ```typescript Node SDK
-try {
-  const value = await tc.kv.get('nonexistent-key');
-} catch (error) {
-  if (error.code === 'NOT_FOUND') {
+const result = await tc.kv.get('nonexistent-key');
+if (!result.ok) {
+  if (result.error.code === 'NOT_FOUND') {
     console.log('Key does not exist');
-  } else if (error.code === 'UNAUTHORIZED') {
+  } else if (result.error.code === 'UNAUTHORIZED') {
     console.log('Session expired or invalid');
   } else {
-    throw error;
+    throw result.error;
   }
 }
 ```
@@ -248,7 +263,7 @@ Store and load user preferences with sensible defaults.
 <CodeGroup>
 ```typescript Web SDK
 // Save preferences
-await tc.storage.put('preferences', {
+await tc.kv.put('preferences', {
   theme: 'dark',
   fontSize: 14,
   notifications: { email: true, push: false },
@@ -261,16 +276,8 @@ const defaults = {
   notifications: { email: true, push: true },
 };
 
-let prefs;
-try {
-  prefs = await tc.storage.get('preferences');
-} catch (error) {
-  if (error.code === 'NOT_FOUND') {
-    prefs = defaults;
-  } else {
-    throw error;
-  }
-}
+const result = await tc.kv.get('preferences');
+const prefs = result.ok ? result.data.data : defaults;
 ```
 
 ```typescript Node SDK
@@ -282,16 +289,9 @@ await tc.kv.put('preferences', {
 });
 
 // Load preferences with defaults
-let prefs;
-try {
-  prefs = await tc.kv.get('preferences');
-} catch (error) {
-  if (error.code === 'NOT_FOUND') {
-    prefs = { theme: 'light', fontSize: 12 };
-  } else {
-    throw error;
-  }
-}
+const defaults = { theme: 'light', fontSize: 12 };
+const result = await tc.kv.get('preferences');
+const prefs = result.ok ? result.data.data : defaults;
 ```
 </CodeGroup>
 
@@ -305,20 +305,22 @@ async function saveDocument(docId: string, content: any) {
   const version = Date.now();
 
   // Save the current version
-  await tc.storage.put(`docs/${docId}/current`, content);
+  await tc.kv.put(`docs/${docId}/current`, content);
 
   // Save to version history
-  await tc.storage.put(`docs/${docId}/history/${version}`, content);
+  await tc.kv.put(`docs/${docId}/history/${version}`, content);
 }
 
 // List all versions of a document
 async function getDocumentHistory(docId: string) {
-  return await tc.storage.list(`docs/${docId}/history/`);
+  const result = await tc.kv.list(`docs/${docId}/history/`);
+  return result.ok ? result.data.keys : [];
 }
 
 // Load a specific version
 async function loadVersion(docId: string, version: string) {
-  return await tc.storage.get(`docs/${docId}/history/${version}`);
+  const result = await tc.kv.get(`docs/${docId}/history/${version}`);
+  return result.ok ? result.data.data : null;
 }
 ```
 
@@ -329,28 +331,21 @@ Manage a simple shopping cart.
 ```typescript
 // Add an item to the cart
 async function addToCart(item: { id: string; name: string; price: number }) {
-  let cart;
-  try {
-    cart = await tc.storage.get('cart');
-  } catch {
-    cart = [];
-  }
+  const result = await tc.kv.get('cart');
+  const cart = result.ok ? result.data.data : [];
   cart.push(item);
-  await tc.storage.put('cart', cart);
+  await tc.kv.put('cart', cart);
 }
 
 // Get cart contents
 async function getCart() {
-  try {
-    return await tc.storage.get('cart');
-  } catch {
-    return [];
-  }
+  const result = await tc.kv.get('cart');
+  return result.ok ? result.data.data : [];
 }
 
 // Clear the cart
 async function clearCart() {
-  await tc.storage.delete('cart');
+  await tc.kv.del('cart');
 }
 ```
 
@@ -372,8 +367,8 @@ const tcStaging = new TinyCloudWeb({
 
 // Both write to 'config', but the actual keys are different:
 // prod/config vs staging/config
-await tcProd.storage.put('config', { env: 'production' });
-await tcStaging.storage.put('config', { env: 'staging' });
+await tcProd.kv.put('config', { env: 'production' });
+await tcStaging.kv.put('config', { env: 'staging' });
 ```
 
 ```typescript Node SDK
@@ -391,8 +386,8 @@ await tcProd.kv.put('config', { env: 'production' });
 
 | Method | Web SDK | Node SDK | Description |
 |--------|---------|----------|-------------|
-| Store a value | `tc.storage.put(key, value)` | `tc.kv.put(key, value)` | Write data at the given key |
-| Retrieve a value | `tc.storage.get(key)` | `tc.kv.get(key)` | Read data at the given key |
-| List keys | `tc.storage.list(prefix)` | `tc.kv.list(prefix)` | List keys matching a prefix |
-| Delete a value | `tc.storage.delete(key)` | `tc.kv.delete(key)` | Remove a key and its data |
-| Get metadata | `tc.storage.getMetadata(key)` | `tc.kv.getMetadata(key)` | Retrieve metadata without the value |
+| Store a value | `tc.kv.put(key, value)` | `tc.kv.put(key, value)` | Write data at the given key |
+| Retrieve a value | `tc.kv.get(key)` | `tc.kv.get(key)` | Read data at the given key (returns `Result`) |
+| List keys | `tc.kv.list(prefix)` | `tc.kv.list(prefix)` | List keys matching a prefix (returns `Result`) |
+| Delete a value | `tc.kv.del(key)` | `tc.kv.del(key)` | Remove a key and its data |
+| Get metadata | `tc.kv.getMetadata(key)` | `tc.kv.getMetadata(key)` | Retrieve metadata without the value |

@@ -179,14 +179,14 @@ While spaces are owned by a single wallet, access can be shared through [delegat
 ```typescript
 // Alice owns the space and delegates read access to Bob
 const delegation = await alice.createDelegation({
-  delegateDID: bob.pkhDid,
+  delegateDID: bob.did,  // Bob's primary DID (after signIn)
   actions: ['read'],
   paths: ['documents/*'],
 });
 
 // Bob accesses data in Alice's space (not his own)
 await bob.useDelegation(delegation.portable);
-const doc = await bob.kv.get('documents/report.json', {
+const result = await bob.kv.get('documents/report.json', {
   space: alice.spaceId,
 });
 ```

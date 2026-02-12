@@ -83,9 +83,29 @@ The `clientSecret` is only returned once at creation time. Store it securely. Fo
   Redirect the user to OpenKey's authorization endpoint with PKCE parameters.
 
   ```typescript
+  // PKCE helpers
+  function generateCodeVerifier(): string {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function generateCodeChallenge(verifier: string): Promise<string> {
+    const data = new TextEncoder().encode(verifier);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(hash)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function generateRandomString(length: number): string {
+    const array = new Uint8Array(length);
+    crypto.getRandomValues(array);
+    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('').slice(0, length);
+  }
+
   // Generate PKCE values
-  const codeVerifier = generateRandomString(43);
-  const codeChallenge = await sha256Base64Url(codeVerifier);
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
   const state = generateRandomString(16);
 
   // Store verifier and state for later

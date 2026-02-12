@@ -33,7 +33,7 @@ Sharing links contain an embedded private key that grants access to the shared d
 ### Web SDK
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb({
   host: 'https://node.tinycloud.xyz',
@@ -43,19 +43,21 @@ const tc = new TinyCloudWeb({
 await tc.signIn();
 
 // Generate a sharing link for a specific key
-const link = await tc.sharing.generate({
-  key: 'my-document',
-  expiresIn: '7d',
+const result = await tc.sharing.generate({
+  path: 'my-document',
+  expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 });
 
-console.log(link);
-// tc1:eyJ2ZXJz...
+if (result.ok) {
+  console.log(result.data);
+  // tc1:eyJ2ZXJz...
+}
 ```
 
 ### Node SDK
 
 ```typescript
-import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode } from '@tinycloud/node-sdk';
 
 const tc = new TinyCloudNode({
   host: 'https://node.tinycloud.xyz',
@@ -66,9 +68,9 @@ const tc = new TinyCloudNode({
 await tc.signIn();
 
 // Generate a sharing link
-const link = await tc.sharing.generate({
-  key: 'reports/q4-summary',
-  expiresIn: '24h',
+const result = await tc.sharing.generate({
+  path: 'reports/q4-summary',
+  expiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
 });
 ```
 
@@ -78,25 +80,28 @@ const link = await tc.sharing.generate({
 <Tab title="Quick">
 ```typescript
 // Simple: share a key for 7 days
-const link = await tc.sharing.generate({
-  key: 'my-document',
-  expiresIn: '7d',
+const result = await tc.sharing.generate({
+  path: 'my-document',
+  expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 });
 ```
 </Tab>
 
 <Tab title="Explained">
 ```typescript
-const link = await tc.sharing.generate({
-  // The KV key to share
-  // The recipient will be able to read the data at this key
-  key: 'my-document',
+const result = await tc.sharing.generate({
+  // The KV path to share
+  // The recipient will be able to read the data at this path
+  path: 'my-document',
 
-  // How long the link remains valid
-  // Formats: '1h', '12h', '7d', '30d'
-  // The embedded delegation expires after this duration
-  expiresIn: '7d',
+  // When the link expires (absolute Date)
+  // The embedded delegation expires at this time
+  expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 });
+
+if (result.ok) {
+  console.log(result.data); // The tc1:... link
+}
 ```
 </Tab>
 </Tabs>
@@ -108,7 +113,7 @@ Recipients can access shared data using the static `receiveShare` method. This d
 ### Web SDK
 
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const result = await TinyCloudWeb.receiveShare('tc1:eyJ2ZXJz...');
 
@@ -124,7 +129,7 @@ if (result.ok) {
 ### Node SDK
 
 ```typescript
-import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode } from '@tinycloud/node-sdk';
 
 const result = await TinyCloudNode.receiveShare('tc1:eyJ2ZXJz...');
 
@@ -228,15 +233,15 @@ Sharing links respect the delegation expiry set at generation time. Once expired
 
 ```typescript
 // Short-lived link for sensitive data
-const sensitiveLink = await tc.sharing.generate({
-  key: 'credentials/api-key',
-  expiresIn: '1h',
+const sensitiveResult = await tc.sharing.generate({
+  path: 'credentials/api-key',
+  expiry: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
 });
 
 // Long-lived link for public content
-const publicLink = await tc.sharing.generate({
-  key: 'blog/latest-post',
-  expiresIn: '30d',
+const publicResult = await tc.sharing.generate({
+  path: 'blog/latest-post',
+  expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
 });
 ```
 
@@ -251,7 +256,7 @@ Alice shares a document with Bob via a link, and Bob reads it without needing a 
 <Steps>
 <Step title="Alice stores data and generates a link">
 ```typescript
-import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode } from '@tinycloud/node-sdk';
 
 const alice = new TinyCloudNode({
   host: 'https://node.tinycloud.xyz',
@@ -269,13 +274,15 @@ await alice.kv.put('docs/meeting-notes', {
 });
 
 // Generate a sharing link (valid for 7 days)
-const link = await alice.sharing.generate({
-  key: 'docs/meeting-notes',
-  expiresIn: '7d',
+const result = await alice.sharing.generate({
+  path: 'docs/meeting-notes',
+  expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 });
 
-console.log('Share this link:', link);
-// tc1:eyJ2ZXJz...
+if (result.ok) {
+  console.log('Share this link:', result.data);
+  // tc1:eyJ2ZXJz...
+}
 ```
 </Step>
 
@@ -285,7 +292,7 @@ Alice sends the `tc1:...` link to Bob through any channel -- email, chat, or eve
 
 <Step title="Bob receives the shared data">
 ```typescript
-import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode } from '@tinycloud/node-sdk';
 
 // Bob does NOT need to signIn or have a private key
 const result = await TinyCloudNode.receiveShare(link);
