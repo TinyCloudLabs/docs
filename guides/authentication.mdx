@@ -47,7 +47,7 @@ Calling `signIn()` in the browser triggers the wallet popup for the user to appr
 <Tabs>
 <Tab title="Quick">
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb({
   notifications: { popups: true },
@@ -60,7 +60,7 @@ console.log('Signed in:', tc.userAuthorization.getSpaceId());
 </Tab>
 <Tab title="Explained">
 ```typescript
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Create an instance with full configuration
 const tc = new TinyCloudWeb({
@@ -108,7 +108,7 @@ The Node SDK signs the SIWE message automatically using the provided private key
 <Tabs>
 <Tab title="Quick">
 ```typescript
-import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode } from '@tinycloud/node-sdk';
 
 const tc = new TinyCloudNode({
   privateKey: process.env.WALLET_PRIVATE_KEY,
@@ -122,7 +122,7 @@ console.log('Signed in:', tc.spaceId);
 </Tab>
 <Tab title="Explained">
 ```typescript
-import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode } from '@tinycloud/node-sdk';
 
 const tc = new TinyCloudNode({
   // Ethereum private key (32-byte hex string)
@@ -168,7 +168,7 @@ Never hardcode private keys in source code. Always use environment variables or 
 You can create a `TinyCloudNode` instance **without** a private key. This creates a session-only client that cannot sign in on its own but can receive delegations from other users.
 
 ```typescript
-import { TinyCloudNode } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode } from '@tinycloud/node-sdk';
 
 // No privateKey -- session-only mode
 const tc = new TinyCloudNode({
@@ -179,7 +179,7 @@ const tc = new TinyCloudNode({
 
 // But this client can receive and use delegations
 const access = await tc.useDelegation(portableDelegation);
-const data = await access.kv.get('shared/document');
+const result = await access.kv.get('shared/document');
 ```
 
 <Tip>
@@ -228,7 +228,7 @@ The Node SDK provides two session storage implementations:
 
 <CodeGroup>
 ```typescript FileSessionStorage
-import { TinyCloudNode, FileSessionStorage } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode, FileSessionStorage } from '@tinycloud/node-sdk';
 
 // Persists session to disk -- survives process restarts
 const tc = new TinyCloudNode({
@@ -243,7 +243,7 @@ await tc.signIn();
 ```
 
 ```typescript MemorySessionStorage
-import { TinyCloudNode, MemorySessionStorage } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode, MemorySessionStorage } from '@tinycloud/node-sdk';
 
 // Session lives only in memory -- lost on process exit
 const tc = new TinyCloudNode({
@@ -386,7 +386,7 @@ A full authentication flow with session persistence and expiry handling:
 
 <CodeGroup>
 ```typescript Web SDK
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb({
   tinycloudHosts: ['https://node.tinycloud.xyz'],
@@ -416,7 +416,7 @@ async function handleSignOut() {
 ```
 
 ```typescript Node SDK
-import { TinyCloudNode, FileSessionStorage } from '@tinycloudlabs/node-sdk';
+import { TinyCloudNode, FileSessionStorage } from '@tinycloud/node-sdk';
 
 const tc = new TinyCloudNode({
   privateKey: process.env.WALLET_PRIVATE_KEY,

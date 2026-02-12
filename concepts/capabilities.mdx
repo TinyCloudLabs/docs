@@ -133,13 +133,13 @@ When creating a delegation, the child capability must be a strict subset of the 
     // This delegation is valid (12 hours < 24 hours)
     await alice.createDelegation({
       delegateDID: bob.did,
-      expiresIn: '12h',
+      expiry: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours
     });
 
     // This would fail (48 hours > 24 hours)
     await alice.createDelegation({
       delegateDID: bob.did,
-      expiresIn: '48h', // REJECTED: exceeds parent expiry
+      expiry: new Date(Date.now() + 48 * 60 * 60 * 1000), // REJECTED: exceeds parent expiry
     });
     ```
   </Accordion>
@@ -254,5 +254,5 @@ Revocation propagates down the chain. If Alice revokes Bob's delegation, Carol's
 2. **Short expiry times**: Use shorter expiry periods for sensitive operations; prefer hours over days
 3. **Path scoping**: Limit access to specific paths rather than granting access to entire spaces
 4. **Disable sub-delegation**: When the recipient should not be able to share access further
-5. **Use the correct DID**: Always use `tc.did` (PKH DID after signIn) for the delegatee (see [DID Formats](/concepts/did-formats))
+5. **Use the correct DID**: Always use `tc.did` (primary DID after signIn) for the delegatee (see [DID Formats](/concepts/did-formats))
 6. **Audit delegation chains**: Use `tinycloud.capabilities/read` to inspect active capability chains in your space

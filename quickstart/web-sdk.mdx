@@ -22,19 +22,19 @@ Before you begin, make sure you have:
 
 <CodeGroup>
 ```bash npm
-npm install @tinycloudlabs/web-sdk
+npm install @tinycloud/web-sdk
 ```
 
 ```bash yarn
-yarn add @tinycloudlabs/web-sdk
+yarn add @tinycloud/web-sdk
 ```
 
 ```bash pnpm
-pnpm add @tinycloudlabs/web-sdk
+pnpm add @tinycloud/web-sdk
 ```
 
 ```bash bun
-bun add @tinycloudlabs/web-sdk
+bun add @tinycloud/web-sdk
 ```
 </CodeGroup>
 
@@ -47,14 +47,14 @@ Create a new TinyCloud instance in your application.
 <Tabs>
   <Tab title="Quick">
     ```typescript
-    import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+    import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
     const tc = new TinyCloudWeb();
     ```
   </Tab>
   <Tab title="Explained">
     ```typescript
-    import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+    import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
     // Create a TinyCloud instance with configuration
     // All options are optional -- sensible defaults are used
@@ -86,7 +86,7 @@ Authenticate the user by connecting their wallet and signing a message.
   <Tab title="Quick">
     ```typescript
     await tc.signIn();
-    console.log('Address:', tc.address);
+    console.log('Address:', tc.address());
     ```
   </Tab>
   <Tab title="Explained">
@@ -99,7 +99,7 @@ Authenticate the user by connecting their wallet and signing a message.
     await tc.signIn();
 
     // After sign-in, the user's Ethereum address is available
-    console.log('Address:', tc.address);
+    console.log('Address:', tc.address());
     ```
   </Tab>
 </Tabs>
@@ -110,28 +110,32 @@ Authenticate the user by connecting their wallet and signing a message.
 
 ### Store Data
 
-Save data to the user's personal space via `tc.storage`.
+Save data to the user's personal space via `tc.kv`.
 
 <Tabs>
   <Tab title="Quick">
     ```typescript
-    await tc.storage.put('profile', {
+    const putResult = await tc.kv.put('profile', {
       name: 'Alice',
       joined: new Date().toISOString(),
     });
-    console.log('Data saved!');
+    if (putResult.ok) {
+      console.log('Data saved!');
+    }
     ```
   </Tab>
   <Tab title="Explained">
     ```typescript
     // Store a JSON object under the key 'profile'
     // Data is stored in the user's space on TinyCloud
-    await tc.storage.put('profile', {
+    const putResult = await tc.kv.put('profile', {
       name: 'Alice',
       joined: new Date().toISOString(),
     });
 
-    console.log('Data saved!');
+    if (putResult.ok) {
+      console.log('Data saved!');
+    }
     // The data is now persisted and only accessible
     // by this user (or those they delegate access to)
     ```
@@ -145,17 +149,21 @@ Read the data back from storage.
 <Tabs>
   <Tab title="Quick">
     ```typescript
-    const profile = await tc.storage.get('profile');
-    console.log('Retrieved:', profile);
+    const result = await tc.kv.get('profile');
+    if (result.ok) {
+      console.log('Retrieved:', result.data.data);
+    }
     ```
   </Tab>
   <Tab title="Explained">
     ```typescript
     // Retrieve the value stored under 'profile'
-    const profile = await tc.storage.get('profile');
+    const result = await tc.kv.get('profile');
 
     // Returns the original object: { name: 'Alice', joined: '...' }
-    console.log('Retrieved:', profile);
+    if (result.ok) {
+      console.log('Retrieved:', result.data.data);
+    }
     ```
   </Tab>
 </Tabs>
@@ -167,23 +175,31 @@ Browse keys and clean up data you no longer need.
 <Tabs>
   <Tab title="Quick">
     ```typescript
-    const keys = await tc.storage.list('');
-    console.log('All keys:', keys);
+    const listResult = await tc.kv.list();
+    if (listResult.ok) {
+      console.log('All keys:', listResult.data.keys);
+    }
 
-    await tc.storage.delete('profile');
-    console.log('Deleted profile');
+    const delResult = await tc.kv.del('profile');
+    if (delResult.ok) {
+      console.log('Deleted profile');
+    }
     ```
   </Tab>
   <Tab title="Explained">
     ```typescript
     // List all keys matching a prefix
-    // Pass an empty string to list everything in the space
-    const keys = await tc.storage.list('');
-    console.log('All keys:', keys);
+    // Call without arguments to list everything in the space
+    const listResult = await tc.kv.list();
+    if (listResult.ok) {
+      console.log('All keys:', listResult.data.keys);
+    }
 
     // Remove a key and its value
-    await tc.storage.delete('profile');
-    console.log('Deleted profile');
+    const delResult = await tc.kv.del('profile');
+    if (delResult.ok) {
+      console.log('Deleted profile');
+    }
     ```
   </Tab>
 </Tabs>
@@ -195,25 +211,29 @@ Generate a share link so anyone can receive your data -- no account required on 
 <Tabs>
   <Tab title="Quick">
     ```typescript
-    const shareLink = await tc.sharing.generate({
-      key: 'profile',
-      expiresIn: '7d',
+    const result = await tc.sharing.generate({
+      path: 'profile',
+      expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
-    console.log('Share link:', shareLink); // tc1:...
+    if (result.ok) {
+      console.log('Share link:', result.data.token);
+    }
     ```
   </Tab>
   <Tab title="Explained">
     ```typescript
-    // Generate a time-limited share link for a specific key
+    // Generate a time-limited share link for a specific path
     // The link encodes a delegation that grants read access
-    const shareLink = await tc.sharing.generate({
-      key: 'profile',       // The key to share
-      expiresIn: '7d',       // Link expires in 7 days
+    const result = await tc.sharing.generate({
+      path: 'profile',       // The path to share
+      expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Link expires in 7 days
     });
 
     // Share links use the tc1: prefix and can be sent
     // over any channel -- chat, email, QR code, etc.
-    console.log('Share link:', shareLink); // tc1:...
+    if (result.ok) {
+      console.log('Share link:', result.data.token); // tc1:...
+    }
     ```
   </Tab>
 </Tabs>
@@ -241,7 +261,7 @@ if (result.ok) {
 
 <CodeGroup>
 ```typescript Vanilla JS
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 async function main() {
   // 1. Initialize
@@ -251,33 +271,43 @@ async function main() {
 
   // 2. Sign in
   await tc.signIn();
-  console.log('Address:', tc.address);
+  console.log('Address:', tc.address());
 
   // 3. Store data
-  await tc.storage.put('profile', {
+  const putResult = await tc.kv.put('profile', {
     name: 'Alice',
     joined: new Date().toISOString(),
   });
-  console.log('Data saved!');
+  if (putResult.ok) {
+    console.log('Data saved!');
+  }
 
   // 4. Retrieve data
-  const profile = await tc.storage.get('profile');
-  console.log('Retrieved:', profile);
+  const getResult = await tc.kv.get('profile');
+  if (getResult.ok) {
+    console.log('Retrieved:', getResult.data.data);
+  }
 
   // 5. List keys
-  const keys = await tc.storage.list('');
-  console.log('Keys:', keys);
+  const listResult = await tc.kv.list();
+  if (listResult.ok) {
+    console.log('Keys:', listResult.data.keys);
+  }
 
   // 6. Share data
-  const shareLink = await tc.sharing.generate({
-    key: 'profile',
-    expiresIn: '7d',
+  const shareResult = await tc.sharing.generate({
+    path: 'profile',
+    expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
-  console.log('Share link:', shareLink);
+  if (shareResult.ok) {
+    console.log('Share link:', shareResult.data.token);
+  }
 
   // 7. Clean up
-  await tc.storage.delete('profile');
-  console.log('Deleted profile');
+  const delResult = await tc.kv.del('profile');
+  if (delResult.ok) {
+    console.log('Deleted profile');
+  }
 }
 
 main().catch(console.error);
@@ -285,7 +315,7 @@ main().catch(console.error);
 
 ```tsx React
 import { useState } from 'react';
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb({
   notifications: { popups: true },
@@ -298,28 +328,34 @@ export default function App() {
 
   async function handleSignIn() {
     await tc.signIn();
-    setAddress(tc.address!);
+    setAddress(tc.address()!);
   }
 
   async function handleSave() {
-    await tc.storage.put('profile', {
+    const result = await tc.kv.put('profile', {
       name: 'Alice',
       joined: new Date().toISOString(),
     });
-    alert('Saved!');
+    if (result.ok) {
+      alert('Saved!');
+    }
   }
 
   async function handleLoad() {
-    const data = await tc.storage.get('profile');
-    setProfile(data);
+    const result = await tc.kv.get('profile');
+    if (result.ok) {
+      setProfile(result.data.data);
+    }
   }
 
   async function handleShare() {
-    const link = await tc.sharing.generate({
-      key: 'profile',
-      expiresIn: '7d',
+    const result = await tc.sharing.generate({
+      path: 'profile',
+      expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
-    setShareLink(link);
+    if (result.ok) {
+      setShareLink(result.data.token);
+    }
   }
 
   return (

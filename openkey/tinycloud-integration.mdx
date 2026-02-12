@@ -44,59 +44,50 @@ Instead of the wallet extension signing the SIWE message, OpenKey's TEE-managed 
 <Step title="Install dependencies">
 
 ```bash
-npm install @tinycloudlabs/web-sdk @openkey/sdk
+npm install @tinycloud/web-sdk @openkey/sdk
 ```
 </Step>
 
 <Step title="Initialize OpenKey and TinyCloud">
 
 ```typescript
-import { OpenKey } from '@openkey/sdk';
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const openkey = new OpenKey({
   appName: 'My TinyCloud App',
 });
-
-const tc = new TinyCloudWeb({
-  notifications: { popups: true },
-  persistence: { autoResumeSession: true },
-});
 ```
 </Step>
 
-<Step title="Connect with OpenKey">
+<Step title="Connect with OpenKey and create provider">
 
-Use OpenKey to get the user's Ethereum address and key ID before signing in to TinyCloud.
+Use OpenKey to get the user's Ethereum address and create an EIP-1193 provider.
 
 ```typescript
 // Connect with OpenKey (passkey auth + key selection)
-const { address, keyId } = await openkey.connect();
-console.log('OpenKey address:', address);
+const authResult = await openkey.connect();
+console.log('OpenKey address:', authResult.address);
+
+// Create EIP-1193 provider from OpenKey
+const provider = new OpenKeyEIP1193Provider(openkey, authResult);
 ```
 </Step>
 
-<Step title="Sign the SIWE message with OpenKey">
+<Step title="Initialize TinyCloud with OpenKey provider">
 
-Provide a custom signer to TinyCloud that delegates signing to OpenKey instead of a browser wallet.
+Pass the OpenKey provider to TinyCloud and sign in.
 
 ```typescript
-// Sign in to TinyCloud using OpenKey as the signer
-const session = await tc.signIn({
-  // Custom signer that uses OpenKey
-  signer: {
-    getAddress: async () => address,
-    signMessage: async (message: string) => {
-      const { signature } = await openkey.signMessage({
-        message,
-        keyId,
-      });
-      return signature;
-    },
-  },
+// Initialize TinyCloud with the OpenKey provider
+const tc = new TinyCloudWeb({
+  providers: { web3: { driver: provider } },
 });
 
-console.log('TinyCloud session:', session.address);
+// Sign in - TinyCloud uses OpenKey for signing automatically
+await tc.signIn();
+
+console.log('TinyCloud session:', tc.address());
 ```
 </Step>
 
@@ -106,14 +97,16 @@ Once signed in, all TinyCloud operations work exactly the same as with a browser
 
 ```typescript
 // Store data in the user's space
-await tc.storage.put('profile', {
+const putResult = await tc.kv.put('profile', {
   name: 'Alice',
   wallet: 'openkey',
 });
 
 // Retrieve data
-const profile = await tc.storage.get('profile');
-console.log(profile);
+const getResult = await tc.kv.get('profile');
+if (getResult.ok) {
+  console.log(getResult.data.data);
+}
 ```
 </Step>
 </Steps>
@@ -122,36 +115,32 @@ console.log(profile);
 
 <CodeGroup>
 ```typescript Vanilla JS
-import { OpenKey } from '@openkey/sdk';
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 async function main() {
   const openkey = new OpenKey({ appName: 'My App' });
-  const tc = new TinyCloudWeb({
-    notifications: { popups: true },
-    persistence: { autoResumeSession: true },
-  });
 
   // Step 1: Connect with OpenKey
-  const { address, keyId } = await openkey.connect();
-  console.log('Connected via OpenKey:', address);
+  const authResult = await openkey.connect();
+  console.log('Connected via OpenKey:', authResult.address);
 
-  // Step 2: Sign in to TinyCloud with OpenKey signer
-  const session = await tc.signIn({
-    signer: {
-      getAddress: async () => address,
-      signMessage: async (message: string) => {
-        const { signature } = await openkey.signMessage({ message, keyId });
-        return signature;
-      },
-    },
+  // Step 2: Create EIP-1193 provider and initialize TinyCloud
+  const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+  const tc = new TinyCloudWeb({
+    providers: { web3: { driver: provider } },
   });
-  console.log('TinyCloud session active:', session.address);
 
-  // Step 3: Use TinyCloud storage
-  await tc.storage.put('settings', { theme: 'dark', lang: 'en' });
-  const settings = await tc.storage.get('settings');
-  console.log('Settings:', settings);
+  // Step 3: Sign in to TinyCloud
+  await tc.signIn();
+  console.log('TinyCloud session active:', tc.address());
+
+  // Step 4: Use TinyCloud KV storage
+  await tc.kv.put('settings', { theme: 'dark', lang: 'en' });
+  const result = await tc.kv.get('settings');
+  if (result.ok) {
+    console.log('Settings:', result.data.data);
+  }
 }
 
 main().catch(console.error);
@@ -159,14 +148,11 @@ main().catch(console.error);
 
 ```tsx React
 import { useState } from 'react';
-import { OpenKey } from '@openkey/sdk';
-import { TinyCloudWeb } from '@tinycloudlabs/web-sdk';
+import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const openkey = new OpenKey({ appName: 'My React App' });
-const tc = new TinyCloudWeb({
-  notifications: { popups: true },
-  persistence: { autoResumeSession: true },
-});
+let tc: TinyCloudWeb | null = null;
 
 export default function App() {
   const [address, setAddress] = useState('');
@@ -174,29 +160,31 @@ export default function App() {
 
   async function handleSignIn() {
     // Connect with OpenKey
-    const { address: addr, keyId } = await openkey.connect();
-    setAddress(addr);
+    const authResult = await openkey.connect();
+    setAddress(authResult.address);
+
+    // Create EIP-1193 provider and initialize TinyCloud
+    const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+    tc = new TinyCloudWeb({
+      providers: { web3: { driver: provider } },
+    });
 
     // Sign in to TinyCloud
-    await tc.signIn({
-      signer: {
-        getAddress: async () => addr,
-        signMessage: async (message: string) => {
-          const { signature } = await openkey.signMessage({ message, keyId });
-          return signature;
-        },
-      },
-    });
+    await tc.signIn();
   }
 
   async function handleSave() {
-    await tc.storage.put('demo', { timestamp: Date.now() });
+    if (!tc) return;
+    await tc.kv.put('demo', { timestamp: Date.now() });
     alert('Saved!');
   }
 
   async function handleLoad() {
-    const result = await tc.storage.get('demo');
-    setData(result);
+    if (!tc) return;
+    const result = await tc.kv.get('demo');
+    if (result.ok) {
+      setData(result.data.data);
+    }
   }
 
   return (
@@ -217,50 +205,49 @@ export default function App() {
 ```
 </CodeGroup>
 
-## Session Persistence
+## Session Management
 
-When TinyCloud is configured with `autoResumeSession: true`, the session persists across page reloads. On the next visit, TinyCloud resumes the session without requiring OpenKey sign-in again (as long as the session has not expired).
+Check if there's an existing session before initiating a new sign-in flow:
 
 ```typescript
-const tc = new TinyCloudWeb({
-  persistence: { autoResumeSession: true },
-});
+import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
-// On page load, try to resume
-const resumed = await tc.tryResumeSession();
+const openkey = new OpenKey({ appName: 'My App' });
 
-if (!resumed) {
-  // No valid session, initiate OpenKey sign-in
-  const { address, keyId } = await openkey.connect();
-  await tc.signIn({
-    signer: {
-      getAddress: async () => address,
-      signMessage: async (message: string) => {
-        const { signature } = await openkey.signMessage({ message, keyId });
-        return signature;
-      },
-    },
+// Check if there's an existing session
+if (tc.session()) {
+  console.log('Session active:', tc.address());
+} else {
+  // Need to connect with OpenKey and sign in
+  const authResult = await openkey.connect();
+  const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+
+  const tc = new TinyCloudWeb({
+    providers: { web3: { driver: provider } },
   });
+
+  await tc.signIn();
 }
 ```
 
 ## Delegations with OpenKey
 
-Delegations work the same way regardless of whether the signer is OpenKey or a browser wallet. The PKH DID is derived from the Ethereum address, which is the same whether the key is in MetaMask or OpenKey.
+Delegations work the same way regardless of whether the signer is OpenKey or a browser wallet. The primary DID is derived from the Ethereum address, which is the same whether the key is in MetaMask or OpenKey.
 
 ```typescript
 // Alice (using OpenKey) delegates to Bob
 const delegation = await tc.createDelegation({
-  delegateDID: bob.pkhDid, // Always use PKH DID
-  actions: ['read'],
-  paths: ['shared/*'],
-  expiresIn: '7d',
+  delegateDID: bob.did, // Use the recipient's primary DID (tc.did after signIn)
+  actions: ['tinycloud.kv/get', 'tinycloud.kv/list'],
+  path: 'shared/',
+  expiryMs: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
 });
 ```
 
-<Warning>
-Always use `pkhDid` for delegations, not `did`. This applies regardless of the signer being used. See the [Delegations guide](/guides/delegations) for details.
-</Warning>
+<Note>
+Use the recipient's primary DID (`tc.did` after signIn) for delegations. This applies regardless of the signer being used. See the [Delegations guide](/guides/delegations) for details.
+</Note>
 
 ## Comparison: OpenKey vs. Browser Wallet
 

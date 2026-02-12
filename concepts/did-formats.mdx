@@ -1,6 +1,6 @@
 ---
 title: "DID Formats"
-description: "Understanding the two DID types in TinyCloud and how the smart getter works in the Node SDK"
+description: "Understanding primary and session DIDs in TinyCloud"
 icon: "fingerprint"
 ---
 
@@ -25,9 +25,9 @@ const sessionDid = tc.sessionDid;
 // Returns: did:key:z6Mk...#z6Mk...
 ```
 
-### PKH DID (User Identity)
+### Primary DID (User Identity)
 
-The **PKH DID** (Public Key Hash) represents the user's persistent identity, derived from their blockchain wallet address. It uses the `did:pkh` method:
+The **Primary DID** represents the user's persistent identity, derived from the authentication method they used. For Ethereum wallets, this is a `did:pkh` (Public Key Hash) DID:
 
 ```
 did:pkh:eip155:1:0x1234567890abcdef1234567890abcdef12345678
@@ -35,32 +35,32 @@ did:pkh:eip155:1:0x1234567890abcdef1234567890abcdef12345678
 
 This DID remains constant as long as the user uses the same wallet address. It is the correct identifier for user-to-user relationships and delegations.
 
-## The Smart `.did` Getter (Node SDK v1)
+## The `.did` Property
 
-In the v1 Node SDK, `tc.did` is a **smart getter** that returns different values depending on the authentication state:
+The `tc.did` property returns different values depending on the authentication state:
 
 <Tabs>
 <Tab title="After signIn()">
-After calling `signIn()`, `tc.did` returns the **PKH DID** (persistent identity):
+After calling `signIn()`, `tc.did` returns the **primary DID** (persistent identity):
 
 ```typescript
 await tc.signIn();
 
 console.log(tc.did);
-// did:pkh:eip155:1:0x1234...abcd
+// did:pkh:eip155:1:0x1234...abcd (primary DID)
 
 console.log(tc.sessionDid);
-// did:key:z6Mk...#z6Mk...
+// did:key:z6Mk...#z6Mk... (session key DID)
 ```
 
 In this mode, `tc.did` and `tc.sessionDid` return different values. Use `tc.did` for delegations and identity, and `tc.sessionDid` for debugging session internals.
 </Tab>
 
-<Tab title="Session-only mode">
-In session-only mode (no `signIn()`, just a session key), `tc.did` falls back to the **session key DID**:
+<Tab title="Before signIn()">
+Before signIn (or in session-only mode with no wallet), `tc.did` returns the **session key DID**:
 
 ```typescript
-// Session-only mode (no wallet sign-in)
+// Before signIn or in session-only mode
 console.log(tc.did);
 // did:key:z6Mk...#z6Mk...
 
@@ -68,7 +68,7 @@ console.log(tc.sessionDid);
 // did:key:z6Mk...#z6Mk... (same value)
 ```
 
-In this mode, both getters return the same value because there is no wallet-derived identity available.
+In this mode, both getters return the same value because there is no authenticated identity available yet.
 </Tab>
 </Tabs>
 
@@ -76,18 +76,18 @@ In this mode, both getters return the same value because there is no wallet-deri
 
 | Use Case | What to Use | Returns |
 |----------|-------------|---------|
-| User-to-user delegations | `tc.did` | PKH DID (after signIn) |
-| Identifying a user persistently | `tc.did` | PKH DID (after signIn) |
+| User-to-user delegations | `tc.did` | Primary DID (after signIn) |
+| Identifying a user persistently | `tc.did` | Primary DID (after signIn) |
 | Debugging session key issues | `tc.sessionDid` | Session Key DID |
 | Logging internal session state | `tc.sessionDid` | Session Key DID |
 
 <Tip>
-After `signIn()`, use `tc.did` for delegations. It returns the PKH DID, which is what the server expects. Use `tc.sessionDid` only when you need to inspect the ephemeral session key for debugging.
+After `signIn()`, use `tc.did` for delegations. It returns the primary DID, which is what the server expects. Use `tc.sessionDid` only when you need to inspect the ephemeral session key for debugging.
 </Tip>
 
 ## The Common Mistake
 
-When Alice wants to delegate capabilities to Bob, developers sometimes use the session DID directly instead of the persistent identity:
+When Alice wants to delegate capabilities to Bob, developers sometimes use the session DID directly instead of the primary identity:
 
 ```typescript
 // WRONG - using sessionDid for delegations will fail server validation
@@ -101,9 +101,9 @@ await alice.createDelegation({
 The correct approach:
 
 ```typescript
-// CORRECT - use tc.did (which returns PKH DID after signIn)
+// CORRECT - use tc.did (which returns primary DID after signIn)
 await alice.createDelegation({
-  delegateDID: bob.did,  // PKH DID after signIn
+  delegateDID: bob.did,  // Primary DID after signIn
   abilities: ["tinycloud.kv/get", "tinycloud.kv/put"]
 });
 ```
@@ -111,9 +111,9 @@ await alice.createDelegation({
 <Warning>
 **This is the #1 pitfall in TinyCloud SDK usage.**
 
-The server validates that the delegatee matches exactly using PKH format (`did:pkh:eip155:{chainId}:{address}`). A delegation targeting a session key DID will always fail because:
+After signIn, the `.did` property returns your primary DID. This is the DID others should use when creating delegations to you. A delegation targeting a session key DID will always fail because:
 
-1. The server expects PKH format for the delegatee field
+1. The server expects the primary DID format for the delegatee field
 2. Session DIDs are ephemeral and rotate on each authentication
 3. A delegation to Bob's session DID becomes invalid the moment Bob re-authenticates
 </Warning>
@@ -123,23 +123,23 @@ The server validates that the delegatee matches exactly using PKH format (`did:p
 The TinyCloud server performs strict validation on delegation chains:
 
 1. **Delegatee matching**: When Bob uses a delegation from Alice, the server checks that the `delegatee` field in Alice's delegation matches Bob's identity
-2. **PKH format expected**: The server expects the delegatee to be in PKH DID format (`did:pkh:eip155:...`)
+2. **Primary DID expected**: The server expects the delegatee to be the primary DID (e.g., `did:pkh:eip155:...` for Ethereum wallets)
 3. **Session DIDs are ephemeral**: Bob's session DID changes with each authentication, so a delegation to `bob.sessionDid` would be invalid after Bob re-authenticates
 
-The PKH DID remains constant as long as Bob uses the same wallet address, making it the correct identifier for persistent user-to-user relationships.
+The primary DID remains constant as long as Bob uses the same authentication method (e.g., same wallet address), making it the correct identifier for persistent user-to-user relationships.
 
 ## Quick Reference
 
 ```typescript
 // After signIn():
 console.log("User identity (for delegations):", tc.did);
-// -> did:pkh:eip155:1:0xabc...
+// -> did:pkh:eip155:1:0xabc... (primary DID)
 
 console.log("Session key (for debugging):", tc.sessionDid);
 // -> did:key:z6Mk...#z6Mk...
 
-// The smart getter summary:
-// tc.did        = PKH DID after signIn, session DID in session-only mode
+// Summary:
+// tc.did        = Primary DID after signIn, session DID before signIn
 // tc.sessionDid = Always session key DID
 ```
 
