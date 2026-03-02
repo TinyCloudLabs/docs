@@ -23,22 +23,9 @@ The authentication flow follows three steps regardless of which SDK you use:
 </Step>
 </Steps>
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Wallet
-    participant SDK
-    participant TinyCloud Node
-
-    User->>SDK: signIn()
-    SDK->>Wallet: Request signature (SIWE + ReCap)
-    Wallet->>User: Approve & sign
-    User->>Wallet: Confirm
-    Wallet->>SDK: Signature
-    SDK->>TinyCloud Node: Submit signature + session key
-    TinyCloud Node->>SDK: Session established
-    SDK->>User: Ready
-```
+<Frame>
+  <img src="/images/diagrams/auth-siwe-flow.svg" alt="SIWE authentication flow" />
+</Frame>
 
 ## Web SDK Sign-In
 

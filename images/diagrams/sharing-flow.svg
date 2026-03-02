@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 669.9979999999999 750" width="669.9979999999999" height="750" style="--bg:#FFFFFF;--fg:#27272A;--accent:#2563EB;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--_arrow)" stroke-width="1" />
+  </marker>
+</defs>
+<line class="lifeline" data-actor="Alice" x1="88.10050000000001" y1="70" x2="88.10050000000001" y2="720" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="SDK" x1="248.00650000000002" y1="70" x2="248.00650000000002" y2="720" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Node" x1="413.8405" y1="70" x2="413.8405" y2="720" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Bob" x1="578.9335" y1="70" x2="578.9335" y2="720" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="Alice" data-to="SDK" data-label="sharing.generate({ key, expiresIn })" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="88.10050000000001" y1="90" x2="248.00650000000002" y2="90" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="168.0535" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">sharing.generate({ key, expiresIn })</text>
+</g>
+<g class="message" data-from="SDK" data-to="SDK" data-label="Create ephemeral key pair" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="248.00650000000002,130 278.0065,130 278.0065,150 248.00650000000002,150" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="286.0065" y="140" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Create ephemeral key pair</text>
+</g>
+<g class="message" data-from="SDK" data-to="SDK" data-label="Create delegation to ephemeral key" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="248.00650000000002,200 278.0065,200 278.0065,220 248.00650000000002,220" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="286.0065" y="210" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Create delegation to ephemeral key</text>
+</g>
+<g class="message" data-from="SDK" data-to="SDK" data-label="Encode as tc1: link" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="248.00650000000002,270 278.0065,270 278.0065,290 248.00650000000002,290" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="286.0065" y="280" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Encode as tc1: link</text>
+</g>
+<g class="message" data-from="SDK" data-to="Alice" data-label="tc1:eyJ2ZXJz..." data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="248.00650000000002" y1="340" x2="88.10050000000001" y2="340" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="168.0535" y="330" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">tc1:eyJ2ZXJz...</text>
+</g>
+<g class="message" data-from="Alice" data-to="Bob" data-label="Send link (email, chat, etc.)" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="88.10050000000001" y1="380" x2="578.9335" y2="380" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="333.517" y="370" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Send link (email, chat, etc.)</text>
+</g>
+<g class="message" data-from="Bob" data-to="SDK" data-label="receiveShare('tc1:...')" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="578.9335" y1="420" x2="248.00650000000002" y2="420" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="413.47" y="410" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">receiveShare(&#39;tc1:...&#39;)</text>
+</g>
+<g class="message" data-from="SDK" data-to="SDK" data-label="Decode payload" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="248.00650000000002,460 278.0065,460 278.0065,480 248.00650000000002,480" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="286.0065" y="470" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Decode payload</text>
+</g>
+<g class="message" data-from="SDK" data-to="Node" data-label="Request data with delegation + ephemeral key" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="248.00650000000002" y1="530" x2="413.8405" y2="530" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="330.9235" y="520" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Request data with delegation + ephemeral key</text>
+</g>
+<g class="message" data-from="Node" data-to="Node" data-label="Validate delegation chain" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="413.8405,570 443.8405,570 443.8405,590 413.8405,590" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="451.8405" y="580" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Validate delegation chain</text>
+</g>
+<g class="message" data-from="Node" data-to="SDK" data-label="Return shared data" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="413.8405" y1="640" x2="248.00650000000002" y2="640" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="330.9235" y="630" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Return shared data</text>
+</g>
+<g class="message" data-from="SDK" data-to="Bob" data-label="{ data, path, spaceId }" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="248.00650000000002" y1="680" x2="578.9335" y2="680" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="413.47" y="670" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">{ data, path, spaceId }</text>
+</g>
+<g class="actor" data-id="Alice" data-label="Alice (Sharer)" data-type="participant">
+  <rect x="30.000000000000007" y="30" width="116.20100000000001" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="88.10050000000001" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Alice (Sharer)</text>
+</g>
+<g class="actor" data-id="SDK" data-label="TinyCloud SDK" data-type="participant">
+  <rect x="186.20100000000002" y="30" width="123.61099999999999" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="248.00650000000002" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">TinyCloud SDK</text>
+</g>
+<g class="actor" data-id="Node" data-label="TinyCloud Node" data-type="participant">
+  <rect x="349.812" y="30" width="128.057" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="413.8405" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">TinyCloud Node</text>
+</g>
+<g class="actor" data-id="Bob" data-label="Bob (Recipient)" data-type="participant">
+  <rect x="517.869" y="30" width="122.129" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="578.9335" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Bob (Recipient)</text>
+</g>
+</svg>

@@ -160,28 +160,9 @@ When a recipient opens the link:
 3. Presents the embedded delegation to the TinyCloud node
 4. The node validates the delegation chain and returns the data
 
-```mermaid
-sequenceDiagram
-    participant Alice as Alice (Sharer)
-    participant SDK as TinyCloud SDK
-    participant Node as TinyCloud Node
-    participant Bob as Bob (Recipient)
-
-    Alice->>SDK: sharing.generate({ key, expiresIn })
-    SDK->>SDK: Create ephemeral key pair
-    SDK->>SDK: Create delegation to ephemeral key
-    SDK->>SDK: Encode as tc1: link
-    SDK->>Alice: tc1:eyJ2ZXJz...
-
-    Alice-->>Bob: Send link (email, chat, etc.)
-
-    Bob->>SDK: receiveShare('tc1:...')
-    SDK->>SDK: Decode payload
-    SDK->>Node: Request data with delegation + ephemeral key
-    Node->>Node: Validate delegation chain
-    Node->>SDK: Return shared data
-    SDK->>Bob: { data, path, spaceId }
-```
+<Frame>
+  <img src="/images/diagrams/sharing-flow.svg" alt="Sharing link generation and receive flow" />
+</Frame>
 
 ## Link Format Details
 

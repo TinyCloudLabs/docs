@@ -33,35 +33,9 @@ OpenKey also functions as an OAuth 2.1 provider, allowing third-party applicatio
 
 ## Architecture
 
-```mermaid
-graph TB
-    subgraph Client["Client (Browser)"]
-        App[Your Application]
-        SDK["@openkey/sdk"]
-        Widget[OpenKey Widget]
-    end
-
-    subgraph TEE["Trusted Execution Environment (dstack)"]
-        API["Hono API Server"]
-        Auth[better-auth]
-        KMS[TEE Key Derivation]
-        Seal[Seal / Unseal]
-    end
-
-    DB[(PostgreSQL)]
-
-    App -->|postMessage| Widget
-    App -->|OAuth / SDK| SDK
-    SDK -->|HTTPS| API
-    Widget -->|HTTPS| API
-    API --> Auth
-    API --> Seal
-    Seal --> KMS
-    API --> DB
-
-    style TEE fill:#1a2b1a,stroke:#16a34a
-    style Client fill:#1a1a2b,stroke:#3b82f6
-```
+<Frame>
+  <img src="/images/diagrams/openkey-architecture.svg" alt="OpenKey architecture - client, TEE, and database" />
+</Frame>
 
 ### How It Works
 

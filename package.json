@@ -1,0 +1,11 @@
+{
+  "name": "tinycloud-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render-diagrams": "node scripts/render-diagrams.mjs"
+  },
+  "devDependencies": {
+    "beautiful-mermaid": "latest"
+  }
+}

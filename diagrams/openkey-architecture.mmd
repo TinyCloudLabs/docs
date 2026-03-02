@@ -1,0 +1,24 @@
+graph TB
+    subgraph Client["Client (Browser)"]
+        App[Your Application]
+        SDK["@openkey/sdk"]
+        Widget[OpenKey Widget]
+    end
+
+    subgraph TEE["Trusted Execution Environment (dstack)"]
+        API["Hono API Server"]
+        Auth[better-auth]
+        KMS[TEE Key Derivation]
+        Seal[Seal / Unseal]
+    end
+
+    DB[(PostgreSQL)]
+
+    App -->|postMessage| Widget
+    App -->|OAuth / SDK| SDK
+    SDK -->|HTTPS| API
+    Widget -->|HTTPS| API
+    API --> Auth
+    API --> Seal
+    Seal --> KMS
+    API --> DB
