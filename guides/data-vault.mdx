@@ -1,0 +1,307 @@
+---
+title: 'Data Vault'
+description: 'End-to-end encrypted key-value storage with client-side cryptography'
+icon: 'lock'
+sidebarTitle: 'Data Vault'
+---
+
+The Data Vault is an end-to-end encrypted key-value store built into the TinyCloud SDK. All encryption and decryption happens on the client -- the server only stores encrypted blobs and has zero access to plaintext data.
+
+Available as `tc.vault` on both `TinyCloudWeb` (browser) and `TinyCloudNode` (Node.js).
+
+## How It Works
+
+The vault uses WASM-based cryptography:
+
+- **AES-256-GCM** for data encryption (per-entry random keys for forward secrecy)
+- **HKDF-SHA256** for master key derivation from wallet signatures
+- **X25519** Diffie-Hellman for sharing encrypted data with other users
+
+When you unlock the vault, the SDK requests two wallet signatures:
+
+1. One to derive the **master encryption key** (deterministic -- same wallet always produces the same key)
+2. One to derive the **X25519 identity keypair** (used for sharing)
+
+The master key never leaves the client. The X25519 public key is published to `.well-known/vault-pubkey` in the user's public space for peer discovery. All encrypted data (`vault/*`, `keys/*`, `grants/*`) lives in the user's primary space.
+
+## Unlocking the Vault
+
+Before any vault operations, you must unlock it. This derives encryption keys from wallet signatures.
+
+<CodeGroup>
+```typescript Web SDK
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
+
+const tc = new TinyCloudWeb({ /* config */ });
+await tc.signIn();
+
+// Triggers two wallet signature prompts
+const result = await tc.vault.unlock(signer);
+if (!result.ok) {
+  console.error('Unlock failed:', result.error);
+}
+```
+
+```typescript Node SDK
+import { TinyCloudNode, PrivateKeySigner } from '@tinycloud/node-sdk';
+
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  host: 'https://node.tinycloud.xyz',
+  prefix: 'my-app',
+});
+await tc.signIn();
+
+// Signs automatically with the private key
+const signer = new PrivateKeySigner(process.env.WALLET_PRIVATE_KEY);
+const result = await tc.vault.unlock(signer);
+```
+</CodeGroup>
+
+<Note>
+Unlocking is deterministic. The same wallet always produces the same encryption keys, so data encrypted in one session can be decrypted in another.
+</Note>
+
+## Basic Operations
+
+### Put
+
+Encrypt and store a value.
+
+```typescript
+await tc.vault.put('medical/records', {
+  bloodType: 'O+',
+  allergies: ['penicillin'],
+});
+```
+
+Each `put` generates a random AES-256-GCM key for that entry. The entry key is encrypted with your master key and stored separately from the ciphertext.
+
+### Get
+
+Retrieve and decrypt a value.
+
+```typescript
+const result = await tc.vault.get<{ bloodType: string }>('medical/records');
+if (result.ok) {
+  console.log(result.data.value);    // { bloodType: 'O+', allergies: ['penicillin'] }
+  console.log(result.data.keyId);    // encryption key ID
+  console.log(result.data.metadata); // envelope metadata
+}
+```
+
+### Delete
+
+Remove an encrypted entry.
+
+```typescript
+await tc.vault.delete('medical/records');
+```
+
+### List
+
+List vault keys with optional prefix filtering.
+
+```typescript
+const result = await tc.vault.list();
+if (result.ok) {
+  console.log(result.data); // ['medical/records', 'credentials/api-key']
+}
+
+// Filter by prefix
+const medical = await tc.vault.list({ prefix: 'medical/' });
+```
+
+### Head
+
+Get metadata for an entry without decrypting the value.
+
+```typescript
+const result = await tc.vault.head('medical/records');
+if (result.ok) {
+  console.log(result.data);
+  // { 'x-vault-cipher': 'AES-256-GCM', 'x-vault-key-id': '...', ... }
+}
+```
+
+## Sharing Encrypted Data
+
+The vault supports sharing individual entries with other users via X25519 key exchange. Sharing involves two steps: the grantor creates a grant, and the recipient reads the shared data using a delegation.
+
+### Step 1: Grant Access
+
+The grantor re-encrypts the entry key to the recipient's X25519 public key using an ephemeral Diffie-Hellman keypair.
+
+```typescript
+// Alice grants Bob access to her medical records
+await alice.vault.grant('medical/records', bob.did);
+```
+
+<Warning>
+Use the recipient's primary DID (`tc.did` after signIn), not the session key DID. See [DID Formats](/concepts/did-formats) for details.
+</Warning>
+
+### Step 2: Delegate Read Access
+
+The grantor must also create a UCAN delegation so the recipient can read the encrypted data and grant from the grantor's space.
+
+```typescript
+import { serializeDelegation } from '@tinycloud/node-sdk';
+
+const delegation = await alice.createDelegation({
+  delegateDID: bob.did,
+  path: '',
+  actions: ['tinycloud.kv/get', 'tinycloud.kv/metadata'],
+  expiryMs: 24 * 60 * 60 * 1000, // 24 hours
+});
+
+// Send to Bob (via any channel)
+const portable = serializeDelegation(delegation);
+```
+
+### Step 3: Decrypt Shared Data
+
+The recipient loads the delegation and uses `getShared` to decrypt.
+
+```typescript
+import { deserializeDelegation } from '@tinycloud/node-sdk';
+
+const received = deserializeDelegation(portable);
+const access = await bob.useDelegation(received);
+
+const result = await bob.vault.getShared<{ bloodType: string }>(
+  alice.did,          // grantor's DID
+  'medical/records',  // key that was shared
+  { kv: access.kv }   // delegated KV for reading grantor's space
+);
+
+if (result.ok) {
+  console.log(result.data.value); // { bloodType: 'O+', allergies: ['penicillin'] }
+}
+```
+
+<Note>
+`getShared` requires a delegated KV instance (`access.kv`) because grants and encrypted data live in the grantor's authenticated space -- not in a public endpoint.
+</Note>
+
+## Batch Operations
+
+Store or retrieve multiple entries in one call.
+
+```typescript
+// Write multiple entries
+const results = await tc.vault.putMany([
+  { key: 'credentials/aws', value: { accessKey: '...', secret: '...' } },
+  { key: 'credentials/stripe', value: { apiKey: 'sk_live_...' } },
+]);
+
+// Read multiple entries
+const entries = await tc.vault.getMany(['credentials/aws', 'credentials/stripe']);
+for (const entry of entries) {
+  if (entry.ok) {
+    console.log(entry.data.value);
+  }
+}
+```
+
+## CLI
+
+The `tc vault` CLI wraps the SDK for command-line usage.
+
+```bash
+# Verify vault unlock works
+tc vault unlock
+
+# Encrypt and store
+tc vault put api-key "sk_live_abc123"
+tc vault put config --file ./config.json
+echo "secret" | tc vault put secret --stdin
+
+# Decrypt and retrieve
+tc vault get api-key
+tc vault get config --raw
+tc vault get config -o ./config.json
+
+# List keys
+tc vault list
+tc vault list --prefix credentials/
+
+# Metadata only
+tc vault head api-key
+
+# Delete
+tc vault delete api-key
+```
+
+<Note>
+The CLI requires a private key via `--private-key <hex>` or the `TC_PRIVATE_KEY` environment variable.
+</Note>
+
+## Error Handling
+
+Vault operations return `Result` types. Handle errors by checking `result.ok`.
+
+```typescript
+const result = await tc.vault.get('nonexistent');
+if (!result.ok) {
+  switch (result.error.code) {
+    case 'KEY_NOT_FOUND':
+      console.log('Entry does not exist');
+      break;
+    case 'VAULT_LOCKED':
+      console.log('Call vault.unlock() first');
+      break;
+    case 'DECRYPTION_FAILED':
+      console.log('Data corrupted or wrong key');
+      break;
+    case 'GRANT_NOT_FOUND':
+      console.log('No grant exists for this grantor/key pair');
+      break;
+    case 'PUBLIC_KEY_NOT_FOUND':
+      console.log('Recipient has not published their vault public key');
+      break;
+    case 'STORAGE_ERROR':
+      console.log('Underlying KV storage error:', result.error.cause);
+      break;
+  }
+}
+```
+
+## What the Server Sees
+
+The server stores self-describing encrypted envelopes. A vault entry on the server looks like:
+
+```json
+{
+  "metadata": {
+    "x-vault-version": "1",
+    "x-vault-cipher": "AES-256-GCM",
+    "x-vault-key-id": "k_abc123...",
+    "x-vault-content-type": "application/json",
+    "x-vault-kdf": "HKDF-SHA256"
+  },
+  "data": "base64-encoded-ciphertext..."
+}
+```
+
+The server cannot decrypt the `data` field. It has no access to the master key or per-entry keys.
+
+## API Quick Reference
+
+| Method | Description |
+|--------|-------------|
+| `vault.unlock(signer)` | Derive encryption keys from wallet signatures |
+| `vault.lock()` | Clear all key material from memory |
+| `vault.isUnlocked` | Whether the vault is currently unlocked |
+| `vault.put(key, value)` | Encrypt and store a value |
+| `vault.get(key)` | Decrypt and retrieve a value |
+| `vault.delete(key)` | Remove an encrypted entry |
+| `vault.list(options?)` | List vault keys (optional prefix filter) |
+| `vault.head(key)` | Get envelope metadata without decrypting |
+| `vault.putMany(entries)` | Batch encrypt and store |
+| `vault.getMany(keys)` | Batch decrypt and retrieve |
+| `vault.grant(key, recipientDID)` | Share access via X25519 key exchange |
+| `vault.revoke(key, recipientDID)` | Revoke a grant |
+| `vault.listGrants(key)` | List DIDs with access to a key |
+| `vault.getShared(grantorDID, key, opts)` | Decrypt data shared by another user |
+| `vault.resolvePublicKey(did)` | Look up a user's X25519 public key |

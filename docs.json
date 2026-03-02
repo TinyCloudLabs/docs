@@ -58,6 +58,7 @@
               "guides/authentication",
               "guides/spaces",
               "guides/kv-storage",
+              "guides/data-vault",
               "guides/delegations",
               "guides/sharing"
             ]
