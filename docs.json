@@ -1,11 +1,15 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
+  "theme": "maple",
   "name": "TinyCloud",
   "colors": {
     "primary": "#2563EB",
     "light": "#60A5FA",
-    "dark": "#1D4ED8"
+    "dark": "#1D4ED8",
+    "background": {
+      "light": "#F4F6F8",
+      "dark": "#0F172A"
+    }
   },
   "font": {
     "headings": {
@@ -17,10 +21,27 @@
       "weight": 400
     }
   },
+  "background": {
+    "decoration": "grid"
+  },
+  "iconLibrary": "lucide",
   "favicon": "/favicon.svg",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "claude",
+      "chatgpt",
+      "cursor",
+      "vscode"
+    ]
+  },
+  "seo": {
+    "indexing": "all"
   },
   "navigation": {
     "tabs": [

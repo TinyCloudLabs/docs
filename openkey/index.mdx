@@ -11,19 +11,19 @@ OpenKey also functions as an OAuth 2.1 provider, allowing third-party applicatio
 ## Key Features
 
 <CardGroup cols={2}>
-  <Card title="TEE Key Generation" icon="microchip">
+  <Card title="TEE Key Generation" icon="cpu">
     Private keys are generated and sealed inside a Trusted Execution Environment. They never leave the enclave in plaintext.
   </Card>
   <Card title="Passkey Authentication" icon="fingerprint">
     Passwordless, phishing-resistant login using WebAuthn. No seed phrases to lose.
   </Card>
-  <Card title="Message Signing" icon="signature">
+  <Card title="Message Signing" icon="pen-tool">
     Sign arbitrary messages and EIP-712 typed data. Supports both `personal_sign` and raw formats.
   </Card>
   <Card title="OAuth 2.1 Provider" icon="lock">
     Third-party apps authenticate users and request signing through a standard OAuth flow with PKCE.
   </Card>
-  <Card title="Embeddable Widget" icon="window-maximize">
+  <Card title="Embeddable Widget" icon="app-window">
     Drop-in popup or iframe widget for connect and sign flows. No browser extension required.
   </Card>
   <Card title="TinyCloud Integration" icon="cloud">
@@ -66,7 +66,7 @@ See [TinyCloud Integration](/openkey/tinycloud-integration) for setup details.
   <Card title="Quickstart" icon="rocket" href="/openkey/quickstart">
     Create an account, generate a key, and sign your first message.
   </Card>
-  <Card title="Widget Integration" icon="window-maximize" href="/openkey/widget">
+  <Card title="Widget Integration" icon="app-window" href="/openkey/widget">
     Embed OpenKey connect and sign flows in your application.
   </Card>
   <Card title="OAuth Provider" icon="lock" href="/openkey/oauth">
