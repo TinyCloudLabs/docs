@@ -24,6 +24,19 @@ When you unlock the vault, the SDK requests two wallet signatures:
 
 The master key never leaves the client. The X25519 public key is published to `.well-known/vault-pubkey` in the user's public space for peer discovery. All encrypted data (`vault/*`, `keys/*`, `grants/*`) lives in the user's primary space.
 
+## Public Space vs Primary Space
+
+The vault uses two separate spaces with distinct roles:
+
+- **Primary space** (authenticated): Stores all encrypted data (`vault/*`), encryption keys (`keys/*`), and grants (`grants/*`). Only accessible with proper UCAN delegation. This is where your actual vault contents live.
+- **Public space** (unauthenticated reads): Stores only discovery metadata — `.well-known/vault-pubkey`, `.well-known/vault-version`, and `.well-known/vault-space`. Anyone can read these to discover your vault's public key for sharing.
+
+The public space is derived deterministically from your address and chain ID. When you unlock the vault, the SDK automatically publishes your X25519 public key there so other users can encrypt data to you via `vault.grant()`.
+
+<Warning>
+The public space is strictly for discovery. Never store sensitive data there — even encrypted. All vault operations (`put`, `get`, `grant`) use the primary space.
+</Warning>
+
 ## Unlocking the Vault
 
 Before any vault operations, you must unlock it. This derives encryption keys from wallet signatures.
