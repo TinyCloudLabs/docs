@@ -3,9 +3,19 @@
   "theme": "mint",
   "name": "TinyCloud",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#2563EB",
+    "light": "#60A5FA",
+    "dark": "#1D4ED8"
+  },
+  "font": {
+    "headings": {
+      "family": "Oswald",
+      "weight": 600
+    },
+    "body": {
+      "family": "Inter",
+      "weight": 400
+    }
   },
   "favicon": "/favicon.svg",
   "logo": {
