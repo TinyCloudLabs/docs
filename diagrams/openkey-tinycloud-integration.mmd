@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant User
+    participant App as Your App
+    participant OpenKey as OpenKey Widget
+    participant TC as TinyCloud Node
+
+    App->>OpenKey: openkey.connect()
+    OpenKey->>User: Passkey authentication
+    User->>OpenKey: Approve
+    OpenKey->>App: { address, keyId }
+    App->>App: Build SIWE message
+    App->>OpenKey: openkey.signMessage(siweMessage)
+    OpenKey->>User: Review & approve
+    User->>OpenKey: Approve
+    OpenKey->>App: { signature }
+    App->>TC: Submit SIWE signature
+    TC->>App: Session established

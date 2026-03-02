@@ -1,0 +1,5 @@
+graph TD
+    A["Alice (Space Owner)<br/>All capabilities"] -->|"delegates kv/get, kv/put<br/>path: docs/*"| B["Bob (Editor)"]
+    A -->|"delegates space/admin"| D["Dave (Admin)"]
+    B -->|"sub-delegates kv/get<br/>path: docs/public/*"| C["Carol (Viewer)"]
+    D -->|"sub-delegates kv/get, kv/put<br/>path: *"| E["Eve (Editor via Dave)"]

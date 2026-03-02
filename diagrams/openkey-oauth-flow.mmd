@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant User
+    participant App as Your App
+    participant OpenKey as OpenKey (OAuth)
+
+    App->>OpenKey: Authorization request (PKCE)
+    OpenKey->>User: Login + consent screen
+    User->>OpenKey: Approve
+    OpenKey->>App: Authorization code
+    App->>OpenKey: Exchange code for tokens
+    OpenKey->>App: access_token, id_token
+    App->>OpenKey: API calls with access_token

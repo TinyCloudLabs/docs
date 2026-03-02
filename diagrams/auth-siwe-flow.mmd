@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant User
+    participant Wallet
+    participant SDK
+    participant TinyCloud Node
+
+    User->>SDK: signIn()
+    SDK->>Wallet: Request signature (SIWE + ReCap)
+    Wallet->>User: Approve & sign
+    User->>Wallet: Confirm
+    Wallet->>SDK: Signature
+    SDK->>TinyCloud Node: Submit signature + session key
+    TinyCloud Node->>SDK: Session established
+    SDK->>User: Ready

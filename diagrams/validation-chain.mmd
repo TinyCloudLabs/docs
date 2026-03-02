@@ -1,0 +1,9 @@
+flowchart LR
+    A[Verify signature<br/>on each link] --> B[Check delegatee<br/>matches next delegator]
+    B --> C[Verify action<br/>is subset]
+    C --> D[Verify path<br/>is within scope]
+    D --> E[Verify expiry<br/>and not_before]
+    E --> F[Check revocation<br/>status]
+    F --> G{All valid?}
+    G -->|Yes| H[Allow request]
+    G -->|No| I[Reject request]

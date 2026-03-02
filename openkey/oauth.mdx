@@ -8,20 +8,9 @@ OpenKey implements an OAuth 2.1 provider, allowing your application to authentic
 
 ## How It Works
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant App as Your App
-    participant OpenKey as OpenKey (OAuth)
-
-    App->>OpenKey: Authorization request (PKCE)
-    OpenKey->>User: Login + consent screen
-    User->>OpenKey: Approve
-    OpenKey->>App: Authorization code
-    App->>OpenKey: Exchange code for tokens
-    OpenKey->>App: access_token, id_token
-    App->>OpenKey: API calls with access_token
-```
+<Frame>
+  <img src="/images/diagrams/openkey-oauth-flow.svg" alt="OpenKey OAuth 2.1 authorization code flow" />
+</Frame>
 
 OpenKey uses OAuth 2.1 with PKCE (Proof Key for Code Exchange), which is secure for both server-side and single-page applications without requiring a client secret for public clients.
 

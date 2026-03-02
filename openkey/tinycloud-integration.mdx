@@ -16,25 +16,9 @@ OpenKey can replace browser wallet extensions (MetaMask, WalletConnect, etc.) as
 
 ## Architecture
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant App as Your App
-    participant OpenKey as OpenKey Widget
-    participant TC as TinyCloud Node
-
-    App->>OpenKey: openkey.connect()
-    OpenKey->>User: Passkey authentication
-    User->>OpenKey: Approve
-    OpenKey->>App: { address, keyId }
-    App->>App: Build SIWE message
-    App->>OpenKey: openkey.signMessage(siweMessage)
-    OpenKey->>User: Review & approve
-    User->>OpenKey: Approve
-    OpenKey->>App: { signature }
-    App->>TC: Submit SIWE signature
-    TC->>App: Session established
-```
+<Frame>
+  <img src="/images/diagrams/openkey-tinycloud-integration.svg" alt="OpenKey and TinyCloud integration flow" />
+</Frame>
 
 Instead of the wallet extension signing the SIWE message, OpenKey's TEE-managed key signs it. From TinyCloud's perspective, the signature is indistinguishable from one produced by MetaMask.
 

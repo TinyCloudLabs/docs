@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant User as User Wallet
+    participant SDK as TinyCloud SDK
+    participant Node as TinyCloud Node
+
+    User->>SDK: Connect wallet
+    SDK->>Node: Request nonce
+    Node->>SDK: Nonce + session params
+    SDK->>SDK: Build SIWE message with ReCap capabilities
+    SDK->>User: Request signature
+    User->>SDK: Signed SIWE message
+    SDK->>Node: Submit signature + capabilities
+    Node->>Node: Verify signature & capability claims
+    Node->>SDK: Session token with authorized capabilities

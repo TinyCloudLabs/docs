@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant App as Your App
+    participant SDK as OpenKey SDK
+    participant Widget as OpenKey Widget
+    participant User as User
+
+    App->>SDK: openkey.connect()
+    SDK->>Widget: Open popup/iframe
+    Widget-->>SDK: openkey:ready
+    SDK-->>Widget: openkey:auth:request
+    Widget->>User: Show sign-in (if needed)
+    User->>Widget: Authenticate with passkey
+    Widget->>User: Show key selection
+    User->>Widget: Select a key
+    Widget-->>SDK: openkey:auth:response
+    SDK->>App: { address, keyId }

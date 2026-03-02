@@ -21,22 +21,9 @@ Unlike traditional API keys or OAuth tokens, UCANs do not require a round-trip t
 
 ReCap embeds capability claims within SIWE (Sign-In with Ethereum) messages, allowing Ethereum wallets to authorize specific actions as part of the sign-in flow.
 
-```mermaid
-sequenceDiagram
-    participant User as User Wallet
-    participant SDK as TinyCloud SDK
-    participant Node as TinyCloud Node
-
-    User->>SDK: Connect wallet
-    SDK->>Node: Request nonce
-    Node->>SDK: Nonce + session params
-    SDK->>SDK: Build SIWE message with ReCap capabilities
-    SDK->>User: Request signature
-    User->>SDK: Signed SIWE message
-    SDK->>Node: Submit signature + capabilities
-    Node->>Node: Verify signature & capability claims
-    Node->>SDK: Session token with authorized capabilities
-```
+<Frame>
+  <img src="/images/diagrams/recap-integration.svg" alt="ReCap integration with SIWE flow" />
+</Frame>
 
 The SIWE message includes a ReCap object that declares which abilities the session is authorized to perform. This creates the root UCAN from which all delegations descend.
 
@@ -102,19 +89,9 @@ One of UCAN's most powerful features is the ability to delegate capabilities to 
 
 ### Delegation Hierarchy
 
-```mermaid
-graph TD
-    A["Alice (Space Owner)<br/>All capabilities"] -->|"delegates kv/get, kv/put<br/>path: docs/*"| B["Bob (Editor)"]
-    A -->|"delegates space/admin"| D["Dave (Admin)"]
-    B -->|"sub-delegates kv/get<br/>path: docs/public/*"| C["Carol (Viewer)"]
-    D -->|"sub-delegates kv/get, kv/put<br/>path: *"| E["Eve (Editor via Dave)"]
-
-    style A fill:#4CAF50,color:#fff
-    style B fill:#2196F3,color:#fff
-    style C fill:#FF9800,color:#fff
-    style D fill:#9C27B0,color:#fff
-    style E fill:#607D8B,color:#fff
-```
+<Frame>
+  <img src="/images/diagrams/delegation-hierarchy.svg" alt="Delegation hierarchy showing capability delegation chain" />
+</Frame>
 
 Each link in the chain must be a subset of the parent. Alice grants Bob write access to `docs/*`; Bob can sub-delegate read access to `docs/public/*` to Carol, but Bob cannot grant Carol write access or access outside `docs/*`.
 
@@ -208,17 +185,9 @@ When creating a delegation, the child capability must be a strict subset of the 
 
 When a request arrives with a delegation token, the TinyCloud node walks the entire chain:
 
-```mermaid
-flowchart LR
-    A[Verify signature<br/>on each link] --> B[Check delegatee<br/>matches next delegator]
-    B --> C[Verify action<br/>is subset]
-    C --> D[Verify path<br/>is within scope]
-    D --> E[Verify expiry<br/>and not_before]
-    E --> F[Check revocation<br/>status]
-    F --> G{All valid?}
-    G -->|Yes| H[Allow request]
-    G -->|No| I[Reject request]
-```
+<Frame>
+  <img src="/images/diagrams/validation-chain.svg" alt="Server-side delegation chain validation flow" />
+</Frame>
 
 ### Preventing Sub-delegation
 
