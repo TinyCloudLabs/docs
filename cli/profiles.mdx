@@ -45,9 +45,9 @@ tc profile list
 $ tc profile list
   Profiles:
 
-    * default       https://node.tinycloud.xyz       0x1234...abcd
-      staging       https://staging.tinycloud.xyz     0x5678...efgh
-      production    https://node.tinycloud.xyz        0x1234...abcd
+    * default       https://node.tinycloud.xyz       0xd8dA...6045
+      staging       https://staging.tinycloud.xyz     0xAb58...eC9B
+      production    https://node.tinycloud.xyz        0xd8dA...6045
 
   3 profiles (* = active)
 ```
@@ -62,19 +62,19 @@ $ tc profile list --json
     {
       "name": "default",
       "host": "https://node.tinycloud.xyz",
-      "address": "0x1234567890abcdef1234567890abcdef12345678",
+      "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
       "active": true
     },
     {
       "name": "staging",
       "host": "https://staging.tinycloud.xyz",
-      "address": "0x567890abcdef1234567890abcdef123456789012",
+      "address": "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B",
       "active": false
     },
     {
       "name": "production",
       "host": "https://node.tinycloud.xyz",
-      "address": "0x1234567890abcdef1234567890abcdef12345678",
+      "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
       "active": false
     }
   ],
@@ -116,8 +116,8 @@ If no name is given, shows the active profile.
 $ tc profile show staging
   Profile:   staging
   Host:      https://staging.tinycloud.xyz
-  Address:   0x5678...efgh
-  DID:       did:pkh:eip155:1:0x5678...efgh
+  Address:   0xAb58...eC9B
+  DID:       did:pkh:eip155:1:0xAb58...eC9B
   Session:   Active (expires in 11h 30m)
   Directory: ~/.tinycloud/profiles/staging/
 ```
@@ -129,8 +129,8 @@ $ tc profile show staging --json
 {
   "name": "staging",
   "host": "https://staging.tinycloud.xyz",
-  "address": "0x567890abcdef1234567890abcdef123456789012",
-  "did": "did:pkh:eip155:1:0x567890abcdef1234567890abcdef123456789012",
+  "address": "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B",
+  "did": "did:pkh:eip155:1:0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B",
   "session": {
     "active": true,
     "expiresAt": "2026-03-07T22:00:00.000Z"
@@ -153,7 +153,7 @@ tc profile switch <name>
 $ tc profile switch staging
   Switched to profile "staging".
   Host:     https://staging.tinycloud.xyz
-  Address:  0x5678...efgh
+  Address:  0xAb58...eC9B
 ```
 
 After switching, all commands use the new profile's keys and session.

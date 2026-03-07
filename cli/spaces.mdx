@@ -9,13 +9,13 @@ A space is a data ownership container in TinyCloud. Each space is tied to a user
 
 ## What is a Space?
 
-Every piece of data in TinyCloud lives inside a space. When you sign in, a space is automatically created for your profile. Spaces are identified by a combination of your address, chain ID, and application prefix:
+Every piece of data in TinyCloud lives inside a space. When you sign in, a space is automatically created for your profile. Spaces are identified by a URI combining the protocol, your identity, and a space name:
 
 ```
-{address}-{chainId}-{prefix}
+tinycloud:pkh:eip155:{chainId}:{address}:{spaceName}
 ```
 
-For example: `0x1234...abcd-1-my-app`
+For example: `tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app`
 
 <Info>
 Spaces isolate data between applications. The same wallet can have separate spaces for different apps, and data in one space is not accessible from another.
@@ -35,11 +35,11 @@ tc space list
 <Tab title="Human output">
 ```bash
 $ tc space list
-  Spaces for 0x1234...abcd:
+  Spaces for 0xd8dA...6045:
 
-    * 0x1234...abcd-1-default        (active)
-      0x1234...abcd-1-my-app
-      0x1234...abcd-1-staging
+    * tinycloud:pkh:eip155:1:0xd8dA...6045:default        (active)
+      tinycloud:pkh:eip155:1:0xd8dA...6045:my-app
+      tinycloud:pkh:eip155:1:0xd8dA...6045:staging
 
   3 spaces total
 ```
@@ -49,22 +49,22 @@ $ tc space list
 ```bash
 $ tc space list --json
 {
-  "address": "0x1234567890abcdef1234567890abcdef12345678",
-  "activeSpaceId": "0x1234...abcd-1-default",
+  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "activeSpaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
   "spaces": [
     {
-      "spaceId": "0x1234...abcd-1-default",
-      "prefix": "default",
+      "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
+      "name": "default",
       "active": true
     },
     {
-      "spaceId": "0x1234...abcd-1-my-app",
-      "prefix": "my-app",
+      "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app",
+      "name": "my-app",
       "active": false
     },
     {
-      "spaceId": "0x1234...abcd-1-staging",
-      "prefix": "staging",
+      "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:staging",
+      "name": "staging",
       "active": false
     }
   ],
@@ -86,7 +86,7 @@ tc space create <prefix>
 <Tab title="Human output">
 ```bash
 $ tc space create my-app
-  Space created: 0x1234...abcd-1-my-app
+  Space created: tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app
 ```
 </Tab>
 
@@ -94,8 +94,8 @@ $ tc space create my-app
 ```bash
 $ tc space create my-app --json
 {
-  "spaceId": "0x1234...abcd-1-my-app",
-  "prefix": "my-app",
+  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app",
+  "name": "my-app",
   "created": true
 }
 ```
@@ -116,9 +116,9 @@ If no space ID is given, shows information about the active space.
 <Tab title="Human output">
 ```bash
 $ tc space info
-  Space:    0x1234...abcd-1-default
-  Prefix:   default
-  Address:  0x1234...abcd
+  Space:    tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default
+  Name:     default
+  Address:  0xd8dA...6045
   Chain:    1 (mainnet)
   Keys:     42
   Created:  2026-01-15T08:00:00.000Z
@@ -129,9 +129,9 @@ $ tc space info
 ```bash
 $ tc space info --json
 {
-  "spaceId": "0x1234...abcd-1-default",
-  "prefix": "default",
-  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
+  "name": "default",
+  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
   "chainId": 1,
   "keyCount": 42,
   "createdAt": "2026-01-15T08:00:00.000Z"
@@ -149,8 +149,8 @@ tc space switch <space-id>
 ```
 
 ```bash
-$ tc space switch 0x1234...abcd-1-my-app
-  Switched to space: 0x1234...abcd-1-my-app
+$ tc space switch tinycloud:pkh:eip155:1:0xd8dA...6045:my-app
+  Switched to space: tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app
 ```
 
 After switching, all `tc kv` commands operate on the new active space.
@@ -165,11 +165,11 @@ tc space create production
 tc space create staging
 
 # Work in staging
-tc space switch 0x1234...abcd-1-staging
+tc space switch tinycloud:pkh:eip155:1:0xd8dA...6045:staging
 tc kv put config/feature-flag '{"newUI": true}'
 
 # Switch to production
-tc space switch 0x1234...abcd-1-production
+tc space switch tinycloud:pkh:eip155:1:0xd8dA...6045:production
 tc kv put config/feature-flag '{"newUI": false}'
 ```
 

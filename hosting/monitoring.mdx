@@ -181,7 +181,7 @@ format = "Text"
 2026-03-07T10:30:00.000Z  INFO tinycloud::server: Starting server on 0.0.0.0:8000
 2026-03-07T10:30:00.050Z  INFO tinycloud::storage: Connected to PostgreSQL
 2026-03-07T10:30:00.100Z  INFO tinycloud::server: Server ready
-2026-03-07T10:30:01.234Z  INFO tinycloud::api: POST /v1/kv/put space=0x1234...abcd-1-default key=greeting status=200 duration=12ms
+2026-03-07T10:30:01.234Z  INFO tinycloud::api: POST /v1/kv/put space=tinycloud:pkh:eip155:1:0xd8dA...6045:default key=greeting status=200 duration=12ms
 ```
 </Tab>
 
@@ -194,7 +194,7 @@ format = "Json"
 ```
 
 ```json
-{"timestamp":"2026-03-07T10:30:01.234Z","level":"INFO","target":"tinycloud::api","message":"POST /v1/kv/put","space":"0x1234...abcd-1-default","key":"greeting","status":200,"duration_ms":12}
+{"timestamp":"2026-03-07T10:30:01.234Z","level":"INFO","target":"tinycloud::api","message":"POST /v1/kv/put","space":"tinycloud:pkh:eip155:1:0xd8dA...6045:default","key":"greeting","status":200,"duration_ms":12}
 ```
 </Tab>
 </Tabs>

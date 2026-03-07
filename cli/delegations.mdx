@@ -19,7 +19,7 @@ tc delegation create --to <did> --actions <actions> [options]
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `--to <did>` | Recipient's DID (PKH or key format) | `did:pkh:eip155:1:0x1234...` |
+| `--to <did>` | Recipient's DID (PKH or key format) | `did:pkh:eip155:1:0xd8dA...` |
 | `--actions <actions>` | Comma-separated actions to grant | `kv/get,kv/put` |
 | `--paths <paths>` | Comma-separated path patterns | `documents/*,images/*` |
 | `--duration <duration>` | How long the delegation is valid | `7d` |
@@ -171,7 +171,7 @@ The `--to` flag accepts DIDs in multiple formats:
 
 | Format | Example | Description |
 |--------|---------|-------------|
-| PKH DID | `did:pkh:eip155:1:0x1234...` | Ethereum identity (recommended) |
+| PKH DID | `did:pkh:eip155:1:0xd8dA...` | Ethereum identity (recommended) |
 | Key DID | `did:key:z6Mk...` | Cryptographic key identity |
 
 <Warning>
@@ -215,7 +215,7 @@ tc share receive <share-url>
 $ tc share receive https://node.tinycloud.xyz/share/abc123def456
   Share accepted.
   You now have access to:
-    Space:    0x1234...abcd-1-default
+    Space:    tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default
     Actions:  kv/get
     Paths:    documents/report.json
     Expires:  2026-03-08T10:30:00.000Z

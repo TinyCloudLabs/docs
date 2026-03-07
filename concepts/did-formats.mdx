@@ -30,7 +30,7 @@ const sessionDid = tc.sessionDid;
 The **Primary DID** represents the user's persistent identity, derived from the authentication method they used. For Ethereum wallets, this is a `did:pkh` (Public Key Hash) DID:
 
 ```
-did:pkh:eip155:1:0x1234567890abcdef1234567890abcdef12345678
+did:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
 ```
 
 This DID remains constant as long as the user uses the same wallet address. It is the correct identifier for user-to-user relationships and delegations.
@@ -47,7 +47,7 @@ After calling `signIn()`, `tc.did` returns the **primary DID** (persistent ident
 await tc.signIn();
 
 console.log(tc.did);
-// did:pkh:eip155:1:0x1234...abcd (primary DID)
+// did:pkh:eip155:1:0xd8dA...6045 (primary DID)
 
 console.log(tc.sessionDid);
 // did:key:z6Mk...#z6Mk... (session key DID)
