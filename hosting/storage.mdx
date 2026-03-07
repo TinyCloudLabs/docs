@@ -1,0 +1,226 @@
+---
+title: "Block Storage"
+description: "Configure local filesystem or S3-compatible storage"
+icon: "hard-drive"
+sidebarTitle: "Storage"
+---
+
+Block storage is where TinyCloud persists the actual data content (the "blocks" behind key-value entries). Two backends are supported: local filesystem and S3-compatible object storage.
+
+## Storage Backends
+
+| Backend | Best For | Configuration |
+|---------|----------|---------------|
+| Local filesystem | Development, single-node | `type = "Local"` |
+| S3-compatible | Production, scalable | `type = "S3"` |
+
+## Local Filesystem
+
+Store blocks directly on the node's filesystem. Simple and requires no external services.
+
+### Configuration
+
+```toml
+[storage.blocks]
+type = "Local"
+path = "./data/blocks"
+```
+
+### Environment Variable
+
+```bash
+TINYCLOUD_STORAGE__BLOCKS__TYPE="Local"
+TINYCLOUD_STORAGE__BLOCKS__PATH="./data/blocks"
+```
+
+<Note>
+The specified path must exist and be writable by the TinyCloud process. In Docker, this is typically a mounted volume owned by UID `1000`.
+</Note>
+
+### Docker Volume Mount
+
+```yaml
+services:
+  tinycloud:
+    volumes:
+      - tinycloud-data:/data
+    environment:
+      TINYCLOUD_STORAGE__BLOCKS__TYPE: "Local"
+      TINYCLOUD_STORAGE__BLOCKS__PATH: "/data/blocks"
+```
+
+## S3-Compatible Storage
+
+Use Amazon S3 or any S3-compatible service (MinIO, LocalStack, DigitalOcean Spaces, Backblaze B2) for scalable, durable block storage.
+
+### Configuration
+
+```toml
+[storage.blocks]
+type = "S3"
+bucket = "tinycloud-blocks"
+# endpoint = "https://s3.amazonaws.com"  # Optional for AWS S3
+```
+
+### Environment Variables
+
+```bash
+TINYCLOUD_STORAGE__BLOCKS__TYPE="S3"
+TINYCLOUD_STORAGE__BLOCKS__BUCKET="tinycloud-blocks"
+
+# AWS credentials
+AWS_ACCESS_KEY_ID="your-access-key"
+AWS_SECRET_ACCESS_KEY="your-secret-key"
+AWS_DEFAULT_REGION="us-east-1"
+```
+
+### AWS S3
+
+For standard AWS S3, you only need the bucket name and AWS credentials:
+
+```toml
+[storage.blocks]
+type = "S3"
+bucket = "tinycloud-blocks"
+```
+
+```bash
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+AWS_DEFAULT_REGION=us-east-1
+```
+
+### S3-Compatible Services
+
+For non-AWS services, specify a custom endpoint:
+
+<Tabs>
+<Tab title="MinIO">
+```toml
+[storage.blocks]
+type = "S3"
+bucket = "tinycloud-blocks"
+endpoint = "http://minio:9000"
+```
+
+```bash
+AWS_ACCESS_KEY_ID=minioadmin
+AWS_SECRET_ACCESS_KEY=minioadmin
+AWS_DEFAULT_REGION=us-east-1
+```
+</Tab>
+
+<Tab title="LocalStack (testing)">
+```toml
+[storage.blocks]
+type = "S3"
+bucket = "tinycloud-blocks"
+endpoint = "http://localstack:4566"
+```
+
+```bash
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+AWS_DEFAULT_REGION=us-east-1
+```
+</Tab>
+
+<Tab title="DigitalOcean Spaces">
+```toml
+[storage.blocks]
+type = "S3"
+bucket = "tinycloud-blocks"
+endpoint = "https://nyc3.digitaloceanspaces.com"
+```
+
+```bash
+AWS_ACCESS_KEY_ID=your-spaces-key
+AWS_SECRET_ACCESS_KEY=your-spaces-secret
+AWS_DEFAULT_REGION=nyc3
+```
+</Tab>
+
+<Tab title="Backblaze B2">
+```toml
+[storage.blocks]
+type = "S3"
+bucket = "tinycloud-blocks"
+endpoint = "https://s3.us-west-000.backblazeb2.com"
+```
+
+```bash
+AWS_ACCESS_KEY_ID=your-b2-key-id
+AWS_SECRET_ACCESS_KEY=your-b2-application-key
+AWS_DEFAULT_REGION=us-west-000
+```
+</Tab>
+</Tabs>
+
+## Staging Storage
+
+Staging storage is a temporary buffer used during data uploads. Data is staged here before being committed to block storage.
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `Memory` | In-memory buffer (default) | Fast, suitable for most deployments |
+| `FileSystem` | Disk-based buffer | Low-memory environments or very large uploads |
+
+### Configuration
+
+<Tabs>
+<Tab title="Memory (default)">
+```toml
+[storage.staging]
+type = "Memory"
+```
+</Tab>
+
+<Tab title="Filesystem">
+```toml
+[storage.staging]
+type = "FileSystem"
+path = "./data/staging"
+```
+</Tab>
+</Tabs>
+
+<Tip>
+Use `Memory` staging unless you're running on a very constrained instance or handling exceptionally large uploads. The in-memory path is significantly faster.
+</Tip>
+
+## Per-Space Storage Limits
+
+Nodes can enforce storage limits per space to prevent any single user from consuming excessive resources. This is configured at the node level and applies to all spaces hosted on the node.
+
+<Info>
+Storage limits are enforced at the block storage layer. When a space exceeds its limit, write operations return an error until data is deleted to free up space.
+</Info>
+
+## Migrating Between Backends
+
+To migrate from local storage to S3 (or vice versa):
+
+<Steps>
+<Step title="Stop the node">
+```bash
+docker compose stop tinycloud
+```
+</Step>
+
+<Step title="Copy blocks to the new backend">
+For local to S3:
+```bash
+aws s3 sync ./data/blocks/ s3://tinycloud-blocks/
+```
+</Step>
+
+<Step title="Update configuration">
+Change the `[storage.blocks]` section to point to the new backend.
+</Step>
+
+<Step title="Restart the node">
+```bash
+docker compose up -d tinycloud
+```
+</Step>
+</Steps>

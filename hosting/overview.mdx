@@ -1,0 +1,131 @@
+---
+title: "Self-Hosting Overview"
+description: "Run your own TinyCloud node"
+icon: "server"
+sidebarTitle: "Overview"
+---
+
+A TinyCloud node is the server component that provides storage, authentication, and delegation services. You can run your own node for full control over your data infrastructure.
+
+## What is a TinyCloud Node?
+
+A TinyCloud node handles:
+
+- **Authentication** -- verifying SIWE signatures and managing sessions
+- **Key-value storage** -- storing and retrieving user data in spaces
+- **Delegations** -- creating, verifying, and enforcing access delegations
+- **Block storage** -- persisting data to local filesystem or S3-compatible storage
+- **Relay** -- connecting nodes for cross-node delegation resolution
+
+## System Requirements
+
+| Requirement | Minimum | Recommended |
+|-------------|---------|-------------|
+| CPU | 1 core | 2+ cores |
+| RAM | 512 MB | 2 GB |
+| Disk | 1 GB | 10 GB+ (depends on usage) |
+| Runtime | Docker or Rust toolchain | Docker |
+| Network | Port 8000 open | Ports 8000, 8001, 8081 |
+
+## Quick Start
+
+<Steps>
+<Step title="Clone the repository">
+```bash
+git clone https://github.com/TinyCloudLabs/tinycloud-node.git
+cd tinycloud-node
+```
+</Step>
+
+<Step title="Create a configuration file">
+Create a minimal `tinycloud.toml`:
+
+```toml
+port = 8000
+address = "0.0.0.0"
+
+[storage]
+database = "sqlite:./data/caps.db"
+
+[storage.blocks]
+type = "Local"
+path = "./data/blocks"
+
+[keys]
+type = "Static"
+# Set via TINYCLOUD_KEYS__SECRET env var instead
+```
+
+<Warning>
+Never put your secret key directly in the config file. Use the `TINYCLOUD_KEYS__SECRET` environment variable instead.
+</Warning>
+</Step>
+
+<Step title="Generate a secret key">
+Generate a random key of at least 32 bytes, base64url-encoded:
+
+```bash
+openssl rand -base64 32
+```
+</Step>
+
+<Step title="Run with Docker">
+```bash
+docker run -d \
+  --name tinycloud \
+  -p 8000:8000 \
+  -e TINYCLOUD_KEYS__SECRET=<your-base64url-secret> \
+  -v ./data:/data \
+  ghcr.io/tinycloudlabs/tinycloud-node
+```
+</Step>
+
+<Step title="Verify it's running">
+```bash
+curl http://localhost:8000/healthz
+```
+
+You should see a `200 OK` response.
+</Step>
+</Steps>
+
+## Ports
+
+| Port | Service | Description |
+|------|---------|-------------|
+| `8000` | API | Main HTTP API for clients |
+| `8001` | Prometheus | Metrics endpoint |
+| `8081` | Relay | Node-to-node relay protocol |
+
+## Docker Image
+
+The official Docker image is available on GitHub Container Registry:
+
+```
+ghcr.io/tinycloudlabs/tinycloud-node
+```
+
+See the [Docker deployment guide](/hosting/docker) for full Docker and Docker Compose instructions.
+
+## What's Next
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="settings" href="/hosting/configuration">
+    Full configuration reference for tinycloud.toml
+  </Card>
+  <Card title="Docker Deployment" icon="container" href="/hosting/docker">
+    Deploy with Docker and Docker Compose
+  </Card>
+  <Card title="Database Setup" icon="database" href="/hosting/databases">
+    Configure SQLite, PostgreSQL, or MySQL
+  </Card>
+  <Card title="Monitoring" icon="activity" href="/hosting/monitoring">
+    Health checks, metrics, and observability
+  </Card>
+</CardGroup>
+
+## Source Code
+
+<Card title="GitHub Repository" icon="github" href="https://github.com/TinyCloudLabs/tinycloud-node">
+  tinycloud-node on GitHub
+</Card>

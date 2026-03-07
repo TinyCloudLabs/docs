@@ -1,0 +1,227 @@
+---
+title: "Docker Deployment"
+description: "Deploy TinyCloud with Docker and Docker Compose"
+icon: "container"
+sidebarTitle: "Docker"
+---
+
+The official TinyCloud Docker image provides the easiest path to running a self-hosted node.
+
+## Docker Image
+
+```
+ghcr.io/tinycloudlabs/tinycloud-node
+```
+
+The image runs as an unprivileged user (`tinycloud`, UID/GID `1000:1000`) for security.
+
+## Quick Start with Docker
+
+Run a minimal TinyCloud node with SQLite and local storage:
+
+```bash
+docker run -d \
+  --name tinycloud \
+  -p 8000:8000 \
+  -e TINYCLOUD_KEYS__SECRET=$(openssl rand -base64 32) \
+  -v tinycloud-data:/data \
+  ghcr.io/tinycloudlabs/tinycloud-node
+```
+
+Verify it's running:
+
+```bash
+curl http://localhost:8000/healthz
+```
+
+## Data Directory Initialization
+
+The TinyCloud container expects a data directory structure. The included `init-tinycloud-data.sh` script creates the required directories:
+
+```
+./data/
+  blocks/        # Block storage
+  caps.db        # SQLite database (if using SQLite)
+```
+
+When using Docker volumes, the container initializes these automatically. For bind mounts, ensure the directories exist and are owned by UID `1000`:
+
+```bash
+mkdir -p ./data/blocks
+chown -R 1000:1000 ./data
+```
+
+## Docker Compose
+
+For production deployments, use Docker Compose with PostgreSQL and S3-compatible storage.
+
+### Full Stack Example
+
+```yaml
+version: "3.8"
+
+services:
+  tinycloud:
+    image: ghcr.io/tinycloudlabs/tinycloud-node
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8081:8081"
+    environment:
+      TINYCLOUD_PORT: "8000"
+      TINYCLOUD_ADDRESS: "0.0.0.0"
+      TINYCLOUD_CORS: "https://app.example.com"
+      TINYCLOUD_LOG_LEVEL: "info"
+      TINYCLOUD_STORAGE__DATABASE: "postgres://tinycloud:password@postgres:5432/tinycloud"
+      TINYCLOUD_STORAGE__BLOCKS__TYPE: "S3"
+      TINYCLOUD_STORAGE__BLOCKS__BUCKET: "tinycloud-blocks"
+      TINYCLOUD_STORAGE__BLOCKS__ENDPOINT: "http://localstack:4566"
+      TINYCLOUD_KEYS__SECRET: "${TINYCLOUD_SECRET_KEY}"
+      AWS_ACCESS_KEY_ID: "test"
+      AWS_SECRET_ACCESS_KEY: "test"
+      AWS_DEFAULT_REGION: "us-east-1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tinycloud
+      POSTGRES_USER: tinycloud
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tinycloud"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  localstack:
+    image: localstack/localstack
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: us-east-1
+    volumes:
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  localstack-data:
+```
+
+### Running
+
+```bash
+# Create a .env file with your secret key
+echo "TINYCLOUD_SECRET_KEY=$(openssl rand -base64 32)" > .env
+
+# Start all services
+docker compose up -d
+
+# Check status
+docker compose ps
+
+# View logs
+docker compose logs tinycloud -f
+```
+
+### Creating the S3 Bucket
+
+If using LocalStack for S3, create the bucket after the stack starts:
+
+```bash
+docker compose exec localstack \
+  awslocal s3 mb s3://tinycloud-blocks
+```
+
+## Minimal Docker Compose (SQLite)
+
+For development or low-traffic deployments, a simpler setup with SQLite:
+
+```yaml
+version: "3.8"
+
+services:
+  tinycloud:
+    image: ghcr.io/tinycloudlabs/tinycloud-node
+    ports:
+      - "8000:8000"
+    environment:
+      TINYCLOUD_ADDRESS: "0.0.0.0"
+      TINYCLOUD_STORAGE__DATABASE: "sqlite:/data/caps.db"
+      TINYCLOUD_STORAGE__BLOCKS__TYPE: "Local"
+      TINYCLOUD_STORAGE__BLOCKS__PATH: "/data/blocks"
+      TINYCLOUD_KEYS__SECRET: "${TINYCLOUD_SECRET_KEY}"
+    volumes:
+      - tinycloud-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  tinycloud-data:
+```
+
+## Volume Mounts
+
+| Mount Point | Purpose | Notes |
+|-------------|---------|-------|
+| `/data` | All persistent data | Contains database and blocks |
+| `/data/blocks` | Block storage files | Only for local block storage |
+
+<Info>
+Use Docker named volumes (not bind mounts) in production for better performance and portability. If you need bind mounts, ensure the directories are owned by UID/GID `1000:1000`.
+</Info>
+
+## Unprivileged User
+
+The TinyCloud Docker image runs as an unprivileged user for security:
+
+- **User**: `tinycloud`
+- **UID**: `1000`
+- **GID**: `1000`
+
+If you encounter permission issues with bind mounts:
+
+```bash
+# Fix ownership on the host
+sudo chown -R 1000:1000 ./data
+```
+
+## Upgrading
+
+To upgrade to a new version:
+
+```bash
+# Pull the latest image
+docker compose pull
+
+# Restart with the new image
+docker compose up -d
+
+# Migrations run automatically on startup
+```
+
+<Note>
+Database migrations are applied automatically when the node starts. No manual migration step is required.
+</Note>

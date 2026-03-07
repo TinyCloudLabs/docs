@@ -1,0 +1,252 @@
+---
+title: "Delegations & Sharing"
+description: "Grant access and share data with other users"
+icon: "share-2"
+sidebarTitle: "Delegations"
+---
+
+Delegations let you grant scoped, time-limited access to your space. Share links provide a simpler flow for sharing data with users who may not have a TinyCloud identity yet.
+
+## Delegations
+
+### tc delegation create
+
+Create a delegation granting another user access to your space.
+
+```bash
+tc delegation create --to <did> --actions <actions> [options]
+```
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--to <did>` | Recipient's DID (PKH or key format) | `did:pkh:eip155:1:0x1234...` |
+| `--actions <actions>` | Comma-separated actions to grant | `kv/get,kv/put` |
+| `--paths <paths>` | Comma-separated path patterns | `documents/*,images/*` |
+| `--duration <duration>` | How long the delegation is valid | `7d` |
+| `--not-before <time>` | Earliest time the delegation is valid | `2026-03-08T00:00:00Z` |
+
+#### Action Formats
+
+Actions follow the `{namespace}/{action}` format. You can use the full or short form:
+
+| Full Form | Short Form | Description |
+|-----------|------------|-------------|
+| `tinycloud.kv/get` | `kv/get` | Read a key |
+| `tinycloud.kv/put` | `kv/put` | Write a key |
+| `tinycloud.kv/delete` | `kv/delete` | Delete a key |
+| `tinycloud.kv/list` | `kv/list` | List keys |
+| `tinycloud.space/host` | `space/host` | Host a space |
+
+#### Duration Formats
+
+| Format | Description | Example |
+|--------|-------------|---------|
+| `30m` | Minutes | 30 minutes |
+| `1h` | Hours | 1 hour |
+| `7d` | Days | 7 days |
+| `1w` | Weeks | 1 week |
+| ISO 8601 | Absolute date | `2026-12-31T23:59:59Z` |
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc delegation create \
+    --to did:pkh:eip155:1:0x5678...efgh \
+    --actions kv/get,kv/list \
+    --paths "documents/*" \
+    --duration 7d
+
+  Delegation created:
+    ID:        del_abc123...
+    To:        did:pkh:eip155:1:0x5678...efgh
+    Actions:   kv/get, kv/list
+    Paths:     documents/*
+    Expires:   2026-03-14T10:30:00.000Z
+    Portable:  eyJhbGciOi...  (use --json to get full token)
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc delegation create \
+    --to did:pkh:eip155:1:0x5678...efgh \
+    --actions kv/get,kv/list \
+    --paths "documents/*" \
+    --duration 7d \
+    --json
+{
+  "id": "del_abc123...",
+  "delegateDID": "did:pkh:eip155:1:0x5678...efgh",
+  "actions": ["kv/get", "kv/list"],
+  "paths": ["documents/*"],
+  "expiresAt": "2026-03-14T10:30:00.000Z",
+  "portable": "eyJhbGciOi..."
+}
+```
+</Tab>
+</Tabs>
+
+### tc delegation list
+
+List all active delegations.
+
+```bash
+tc delegation list
+```
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc delegation list
+  Active delegations:
+
+    del_abc123  ->  did:pkh:eip155:1:0x5678...efgh
+      Actions:  kv/get, kv/list
+      Paths:    documents/*
+      Expires:  2026-03-14
+
+    del_def456  ->  did:pkh:eip155:1:0x9012...ijkl
+      Actions:  kv/get, kv/put, kv/delete
+      Paths:    shared/*
+      Expires:  2026-04-07
+
+  2 delegations total
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc delegation list --json
+{
+  "delegations": [
+    {
+      "id": "del_abc123",
+      "delegateDID": "did:pkh:eip155:1:0x5678...efgh",
+      "actions": ["kv/get", "kv/list"],
+      "paths": ["documents/*"],
+      "expiresAt": "2026-03-14T10:30:00.000Z"
+    }
+  ],
+  "count": 2
+}
+```
+</Tab>
+</Tabs>
+
+### tc delegation info
+
+Show details about a specific delegation.
+
+```bash
+tc delegation info <delegation-id>
+```
+
+```bash
+$ tc delegation info del_abc123
+  Delegation: del_abc123
+  To:         did:pkh:eip155:1:0x5678...efgh
+  Actions:    kv/get, kv/list
+  Paths:      documents/*
+  Created:    2026-03-07T10:30:00.000Z
+  Expires:    2026-03-14T10:30:00.000Z
+  Status:     Active
+```
+
+### tc delegation revoke
+
+Revoke an existing delegation.
+
+```bash
+tc delegation revoke <delegation-id>
+```
+
+```bash
+$ tc delegation revoke del_abc123
+  Delegation del_abc123 revoked.
+```
+
+## DID Formats
+
+The `--to` flag accepts DIDs in multiple formats:
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| PKH DID | `did:pkh:eip155:1:0x1234...` | Ethereum identity (recommended) |
+| Key DID | `did:key:z6Mk...` | Cryptographic key identity |
+
+<Warning>
+For user-to-user delegations, always use the recipient's PKH DID (`did:pkh:eip155:{chainId}:{address}`). Using a session key DID will cause server validation to fail.
+</Warning>
+
+## Share Links
+
+Share links are a simplified sharing mechanism. They generate a URL that recipients can use to receive a delegation, even without an existing TinyCloud identity.
+
+### tc share create
+
+Create a shareable link for data in your space.
+
+```bash
+tc share create --paths <paths> --actions <actions> --duration <duration>
+```
+
+```bash
+$ tc share create \
+    --paths "documents/report.json" \
+    --actions kv/get \
+    --duration 24h
+
+  Share link created:
+    https://node.tinycloud.xyz/share/abc123def456
+    Expires: 2026-03-08T10:30:00.000Z
+
+  Send this link to the recipient.
+```
+
+### tc share receive
+
+Accept a share link and import the delegation.
+
+```bash
+tc share receive <share-url>
+```
+
+```bash
+$ tc share receive https://node.tinycloud.xyz/share/abc123def456
+  Share accepted.
+  You now have access to:
+    Space:    0x1234...abcd-1-default
+    Actions:  kv/get
+    Paths:    documents/report.json
+    Expires:  2026-03-08T10:30:00.000Z
+```
+
+### tc share list
+
+List received share links.
+
+```bash
+tc share list
+```
+
+### tc share revoke
+
+Revoke a share link you created.
+
+```bash
+tc share revoke <share-id>
+```
+
+## Delegations vs Share Links
+
+| Feature | Delegation | Share Link |
+|---------|-----------|------------|
+| Requires recipient DID | Yes | No |
+| Recipient needs TinyCloud | Yes | No (on receive) |
+| Revocable | Yes | Yes |
+| Sub-delegatable | Yes | No |
+| Delivery | Manual (you send the token) | URL-based |
+
+<Tip>
+Use **delegations** when you know the recipient's DID and need fine-grained control. Use **share links** for quick, casual sharing where the recipient might not have TinyCloud set up yet.
+</Tip>

@@ -1,0 +1,256 @@
+---
+title: "Key-Value Storage"
+description: "Store, retrieve, and manage plaintext data"
+icon: "database"
+sidebarTitle: "KV Storage"
+---
+
+The `tc kv` commands let you store, retrieve, list, and delete key-value data in your space directly from the terminal.
+
+## Commands
+
+### tc kv put
+
+Store a value at a key.
+
+```bash
+tc kv put <key> [value]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--file <path>` | Read value from a file |
+| `--stdin` | Read value from standard input |
+
+<Tabs>
+<Tab title="Inline value">
+```bash
+$ tc kv put greeting "Hello, World!"
+  Stored: greeting (13 bytes)
+```
+</Tab>
+
+<Tab title="From file">
+```bash
+$ tc kv put config/app --file ./config.json
+  Stored: config/app (1.2 KB)
+```
+</Tab>
+
+<Tab title="From stdin">
+```bash
+$ echo '{"theme":"dark"}' | tc kv put user/settings --stdin
+  Stored: user/settings (16 bytes)
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc kv put greeting "Hello, World!" --json
+{
+  "key": "greeting",
+  "size": 13,
+  "stored": true
+}
+```
+</Tab>
+</Tabs>
+
+### tc kv get
+
+Retrieve a value by key.
+
+```bash
+tc kv get <key>
+```
+
+| Option | Description |
+|--------|-------------|
+| `--raw` | Output the raw value without formatting |
+| `--output <path>` | Write value to a file |
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc kv get greeting
+  Key:    greeting
+  Value:  Hello, World!
+  Size:   13 bytes
+```
+</Tab>
+
+<Tab title="Raw output">
+```bash
+$ tc kv get greeting --raw
+Hello, World!
+```
+</Tab>
+
+<Tab title="Save to file">
+```bash
+$ tc kv get config/app --output ./downloaded-config.json
+  Saved to ./downloaded-config.json (1.2 KB)
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc kv get greeting --json
+{
+  "key": "greeting",
+  "value": "Hello, World!",
+  "size": 13,
+  "contentType": "text/plain"
+}
+```
+</Tab>
+</Tabs>
+
+### tc kv list
+
+List keys in your space.
+
+```bash
+tc kv list [prefix]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--prefix <prefix>` | Filter keys by prefix |
+
+<Tabs>
+<Tab title="All keys">
+```bash
+$ tc kv list
+  Keys in space:
+    config/app
+    greeting
+    user/profile
+    user/settings
+
+  4 keys total
+```
+</Tab>
+
+<Tab title="With prefix">
+```bash
+$ tc kv list user/
+  Keys matching "user/":
+    user/profile
+    user/settings
+
+  2 keys total
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc kv list user/ --json
+{
+  "prefix": "user/",
+  "keys": [
+    "user/profile",
+    "user/settings"
+  ],
+  "count": 2
+}
+```
+</Tab>
+</Tabs>
+
+### tc kv delete
+
+Remove a key and its value.
+
+```bash
+tc kv delete <key>
+```
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc kv delete greeting
+  Deleted: greeting
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc kv delete greeting --json
+{
+  "key": "greeting",
+  "deleted": true
+}
+```
+</Tab>
+</Tabs>
+
+### tc kv head
+
+Get metadata for a key without retrieving its value.
+
+```bash
+tc kv head <key>
+```
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc kv head user/profile
+  Key:           user/profile
+  Size:          248 bytes
+  Content-Type:  application/json
+  Updated:       2026-03-07T14:22:00.000Z
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc kv head user/profile --json
+{
+  "key": "user/profile",
+  "size": 248,
+  "contentType": "application/json",
+  "updatedAt": "2026-03-07T14:22:00.000Z"
+}
+```
+</Tab>
+</Tabs>
+
+## Pipeline Examples
+
+The CLI is designed to compose with standard Unix tools. When output is piped, it automatically switches to JSON.
+
+<CodeGroup>
+```bash Store output of another command
+# Capture system info
+uname -a | tc kv put system/info --stdin
+```
+
+```bash Process retrieved data with jq
+# Extract a field from stored JSON
+tc kv get user/profile --raw | jq '.name'
+```
+
+```bash Bulk operations
+# Store multiple files
+for file in ./data/*.json; do
+  key="backup/$(basename "$file" .json)"
+  tc kv put "$key" --file "$file"
+done
+```
+
+```bash Copy between keys
+# Duplicate a value
+tc kv get source/key --raw | tc kv put dest/key --stdin
+```
+
+```bash List and filter
+# Find keys matching a pattern
+tc kv list --json | jq '.keys[] | select(startswith("config/"))'
+```
+</CodeGroup>
+
+<Tip>
+Use `--raw` with `tc kv get` when piping to other tools. This outputs the value directly without any formatting or metadata.
+</Tip>

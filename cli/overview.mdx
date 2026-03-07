@@ -1,0 +1,200 @@
+---
+title: "CLI Overview"
+description: "Install and configure the TinyCloud CLI"
+icon: "terminal"
+sidebarTitle: "Overview"
+---
+
+The TinyCloud CLI (`tc`) brings self-sovereign storage to your terminal. Manage key-value data, spaces, delegations, secrets, and more -- all from the command line.
+
+## Installation
+
+Install the CLI globally from npm:
+
+```bash
+npm install -g @tinycloud/cli
+```
+
+<Note>
+Requires **Node.js 18** or later.
+</Note>
+
+Verify the installation:
+
+```bash
+tc --version
+```
+
+## Quick Start
+
+Get up and running in under a minute:
+
+<Steps>
+<Step title="Initialize a profile">
+Generate a new key pair and create your default profile.
+
+```bash
+tc init --name my-project
+```
+</Step>
+
+<Step title="Sign in">
+Authenticate with a TinyCloud node to establish a session.
+
+```bash
+tc auth login
+```
+</Step>
+
+<Step title="Store data">
+Write a value to key-value storage.
+
+```bash
+tc kv put greeting "Hello from the CLI"
+```
+</Step>
+
+<Step title="Retrieve data">
+Read it back.
+
+```bash
+tc kv get greeting
+```
+
+```
+Hello from the CLI
+```
+</Step>
+
+<Step title="Explore your space">
+List your spaces and see what you have.
+
+```bash
+tc space list
+```
+</Step>
+</Steps>
+
+## Global Options
+
+Every `tc` command accepts these flags:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--profile <name>` | Use a specific profile | `default` |
+| `--host <url>` | Override the TinyCloud node URL | Profile default |
+| `--verbose` | Enable verbose logging | `false` |
+| `--no-cache` | Disable response caching | `false` |
+| `--quiet` | Suppress non-essential output | `false` |
+| `--json` | Force JSON output | `false` |
+
+```bash
+# Use a staging profile with verbose output
+tc kv list --profile staging --verbose
+
+# Force JSON output for scripting
+tc auth status --json
+```
+
+## Output Modes
+
+The CLI automatically adjusts its output format based on context:
+
+<Tabs>
+<Tab title="Interactive (TTY)">
+When running in a terminal, output is human-friendly with colors and formatting.
+
+```bash
+$ tc auth status
+  Profile:  default
+  Address:  0x1234...abcd
+  Space:    0x1234...abcd-1-my-app
+  Session:  Active (expires in 23h 42m)
+```
+</Tab>
+
+<Tab title="Piped (non-TTY)">
+When output is piped to another command, the CLI automatically switches to JSON.
+
+```bash
+$ tc auth status | jq '.address'
+"0x1234567890abcdef1234567890abcdef12345678"
+```
+</Tab>
+
+<Tab title="--json flag">
+Force JSON output in any context.
+
+```bash
+$ tc auth status --json
+{
+  "profile": "default",
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "spaceId": "0x1234...abcd-1-my-app",
+  "session": {
+    "active": true,
+    "expiresAt": "2026-03-08T10:30:00.000Z"
+  }
+}
+```
+</Tab>
+</Tabs>
+
+## Environment Variables
+
+Configure default behavior with environment variables. These are overridden by command-line flags.
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `TC_PROFILE` | Default profile name | `production` |
+| `TC_HOST` | Default TinyCloud node URL | `https://node.tinycloud.xyz` |
+| `TC_HIDE_BANNER` | Suppress the startup banner | `1` |
+| `TC_PRIVATE_KEY` | Private key for automated workflows | `0xabc...` |
+
+```bash
+# Example: CI/CD environment
+export TC_PROFILE=ci
+export TC_HOST=https://node.tinycloud.xyz
+export TC_PRIVATE_KEY=$SECRET_KEY
+export TC_HIDE_BANNER=1
+
+tc kv put deploy/version "1.2.3"
+```
+
+<Warning>
+Never commit `TC_PRIVATE_KEY` to source control. Use your CI/CD provider's secret management to inject it at runtime.
+</Warning>
+
+## Command Groups
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/cli/authentication">
+    Sign in, manage sessions, and check identity
+  </Card>
+  <Card title="Key-Value Storage" icon="database" href="/cli/storage">
+    Store, retrieve, and manage data
+  </Card>
+  <Card title="Spaces" icon="box" href="/cli/spaces">
+    Create and manage data ownership containers
+  </Card>
+  <Card title="Delegations & Sharing" icon="share" href="/cli/delegations">
+    Grant access and share data with other users
+  </Card>
+  <Card title="Secrets & Variables" icon="key" href="/cli/secrets">
+    Manage encrypted secrets and plaintext variables
+  </Card>
+  <Card title="Profiles" icon="users" href="/cli/profiles">
+    Manage multiple environments and configurations
+  </Card>
+  <Card title="Diagnostics" icon="stethoscope" href="/cli/diagnostics">
+    Troubleshoot your setup with built-in checks
+  </Card>
+</CardGroup>
+
+## Source Code
+
+The CLI is open source. Contributions and issues are welcome.
+
+<Card title="GitHub Repository" icon="github" href="https://github.com/TinyCloudLabs/js-sdk/tree/master/packages/cli">
+  @tinycloud/cli on GitHub
+</Card>

@@ -1,0 +1,226 @@
+---
+title: "Diagnostics"
+description: "Troubleshoot your setup with built-in checks"
+icon: "stethoscope"
+sidebarTitle: "Diagnostics"
+---
+
+The CLI includes built-in diagnostic tools to help you verify your setup, check node connectivity, and configure shell completions.
+
+## tc doctor
+
+Run a comprehensive check of your TinyCloud setup.
+
+```bash
+tc doctor
+```
+
+The doctor command checks:
+
+| Check | What it verifies |
+|-------|-----------------|
+| Node.js | Runtime version is >= 18 |
+| Profile | A profile exists and is configured |
+| Key | Key pair is present and valid |
+| Session | An active, non-expired session exists |
+| Node reachability | The configured TinyCloud node is reachable |
+| Space | A space exists for the current session |
+
+<Tabs>
+<Tab title="All passing">
+```bash
+$ tc doctor
+  TinyCloud Doctor
+
+  [check] Node.js        v20.11.0 (>= 18 required)
+  [check] Profile        "default" loaded
+  [check] Key            did:key:z6MkpTHR8VNsBxYAAWHut...
+  [check] Session        Active (expires in 23h 42m)
+  [check] Node           https://node.tinycloud.xyz (healthy)
+  [check] Space          0x1234...abcd-1-default
+
+  All checks passed.
+```
+</Tab>
+
+<Tab title="Issues found">
+```bash
+$ tc doctor
+  TinyCloud Doctor
+
+  [check] Node.js        v20.11.0 (>= 18 required)
+  [check] Profile        "default" loaded
+  [check] Key            did:key:z6MkpTHR8VNsBxYAAWHut...
+  [fail]  Session        Not signed in
+  [fail]  Node           https://node.tinycloud.xyz (unreachable)
+  [skip]  Space          Skipped (no session)
+
+  2 issues found:
+    - Run `tc auth login` to sign in
+    - Check your network connection or node URL
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc doctor --json
+{
+  "checks": [
+    { "name": "nodejs", "status": "pass", "detail": "v20.11.0" },
+    { "name": "profile", "status": "pass", "detail": "default" },
+    { "name": "key", "status": "pass", "detail": "did:key:z6Mk..." },
+    { "name": "session", "status": "fail", "detail": "Not signed in" },
+    { "name": "node", "status": "fail", "detail": "unreachable" },
+    { "name": "space", "status": "skip", "detail": "no session" }
+  ],
+  "passed": 3,
+  "failed": 2,
+  "skipped": 1
+}
+```
+</Tab>
+</Tabs>
+
+## Node Commands
+
+Check the status and health of the TinyCloud node your profile is connected to.
+
+### tc node health
+
+Check if the node is healthy and responding.
+
+```bash
+tc node health
+```
+
+```bash
+$ tc node health
+  Node:    https://node.tinycloud.xyz
+  Status:  Healthy
+  Latency: 42ms
+```
+
+### tc node version
+
+Get the node's software version.
+
+```bash
+tc node version
+```
+
+```bash
+$ tc node version
+  Node:     https://node.tinycloud.xyz
+  Version:  1.4.2
+  Commit:   abc123f
+```
+
+### tc node status
+
+Get detailed node status information.
+
+```bash
+tc node status
+```
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc node status
+  Node:       https://node.tinycloud.xyz
+  Version:    1.4.2
+  Status:     Healthy
+  Uptime:     14d 6h 32m
+  Spaces:     1,247
+  Storage:    Local filesystem
+  Database:   PostgreSQL
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc node status --json
+{
+  "host": "https://node.tinycloud.xyz",
+  "version": "1.4.2",
+  "healthy": true,
+  "uptime": "14d 6h 32m",
+  "spaces": 1247,
+  "storage": "local",
+  "database": "postgresql"
+}
+```
+</Tab>
+</Tabs>
+
+## Shell Completions
+
+Enable tab completion for `tc` commands in your shell.
+
+### tc completion bash
+
+Generate Bash completions.
+
+```bash
+tc completion bash
+```
+
+**Setup:**
+
+```bash
+# Add to ~/.bashrc
+eval "$(tc completion bash)"
+```
+
+Or save to the completions directory:
+
+```bash
+tc completion bash > /etc/bash_completion.d/tc
+```
+
+### tc completion zsh
+
+Generate Zsh completions.
+
+```bash
+tc completion zsh
+```
+
+**Setup:**
+
+```bash
+# Add to ~/.zshrc
+eval "$(tc completion zsh)"
+```
+
+Or save to the completions directory:
+
+```bash
+tc completion zsh > "${fpath[1]}/_tc"
+```
+
+### tc completion fish
+
+Generate Fish completions.
+
+```bash
+tc completion fish
+```
+
+**Setup:**
+
+```bash
+tc completion fish > ~/.config/fish/completions/tc.fish
+```
+
+<Tip>
+After adding shell completions, restart your shell or source the config file for changes to take effect.
+
+```bash
+# Bash
+source ~/.bashrc
+
+# Zsh
+source ~/.zshrc
+```
+</Tip>
