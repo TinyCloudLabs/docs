@@ -66,6 +66,44 @@
         ]
       },
       {
+        "tab": "CLI",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["cli/overview", "cli/authentication"]
+          },
+          {
+            "group": "Data",
+            "pages": ["cli/storage", "cli/spaces", "cli/secrets"]
+          },
+          {
+            "group": "Collaboration",
+            "pages": ["cli/delegations", "cli/profiles"]
+          },
+          {
+            "group": "Operations",
+            "pages": ["cli/diagnostics"]
+          }
+        ]
+      },
+      {
+        "tab": "Hosting",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["hosting/overview", "hosting/configuration"]
+          },
+          {
+            "group": "Deployment",
+            "pages": ["hosting/docker", "hosting/databases", "hosting/storage"]
+          },
+          {
+            "group": "Operations",
+            "pages": ["hosting/monitoring"]
+          }
+        ]
+      },
+      {
         "tab": "OpenKey",
         "groups": [
           {

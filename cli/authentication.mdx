@@ -1,0 +1,225 @@
+---
+title: "Authentication"
+description: "Sign in, manage sessions, and check identity"
+icon: "lock"
+sidebarTitle: "Authentication"
+---
+
+The CLI uses key-based authentication with Sign-In with Ethereum (SIWE). You generate a local key pair, then authenticate with a TinyCloud node to establish a session.
+
+## Authentication Flow
+
+<Steps>
+<Step title="Generate keys">
+`tc init` creates a new key pair and stores it in your profile directory.
+</Step>
+<Step title="Sign in">
+`tc auth login` opens a browser-based authentication flow. The node verifies your signature and issues a session token.
+</Step>
+<Step title="Session stored">
+The session is persisted locally. Subsequent commands use it automatically until it expires.
+</Step>
+</Steps>
+
+## Commands
+
+### tc init
+
+Initialize a new profile with a fresh key pair.
+
+```bash
+tc init
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name <name>` | Profile name | `default` |
+| `--key-only` | Generate keys without interactive setup | `false` |
+| `--host <url>` | Set the TinyCloud node URL | `https://node.tinycloud.xyz` |
+| `--paste` | Output the auth URL instead of opening a browser | `false` |
+
+<Tabs>
+<Tab title="Interactive">
+```bash
+$ tc init --name my-project
+  Generating key pair...
+  Profile "my-project" created.
+  Keys stored in ~/.tinycloud/profiles/my-project/
+
+  Run `tc auth login --profile my-project` to sign in.
+```
+</Tab>
+
+<Tab title="Key only">
+```bash
+$ tc init --key-only --name ci-bot
+  Generating key pair...
+  Profile "ci-bot" created (key only).
+  DID: did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuias...
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc init --name my-project --json
+{
+  "profile": "my-project",
+  "did": "did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuias...",
+  "directory": "~/.tinycloud/profiles/my-project/"
+}
+```
+</Tab>
+</Tabs>
+
+### tc auth login
+
+Sign in to a TinyCloud node and establish a session.
+
+```bash
+tc auth login
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--paste` | Print the auth URL instead of opening a browser | `false` |
+
+<Tabs>
+<Tab title="Browser flow">
+```bash
+$ tc auth login
+  Opening browser for authentication...
+  Waiting for confirmation...
+  Signed in successfully.
+  Address:  0x1234...abcd
+  Space:    0x1234...abcd-1-default
+```
+</Tab>
+
+<Tab title="Paste mode (headless)">
+Use `--paste` when running on a headless server or in SSH sessions.
+
+```bash
+$ tc auth login --paste
+  Visit this URL to authenticate:
+  https://node.tinycloud.xyz/auth/callback?token=abc123...
+
+  Waiting for confirmation...
+  Signed in successfully.
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc auth login --json
+{
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "spaceId": "0x1234...abcd-1-default",
+  "expiresAt": "2026-03-08T10:30:00.000Z"
+}
+```
+</Tab>
+</Tabs>
+
+### tc auth logout
+
+Clear the current session.
+
+```bash
+tc auth logout
+```
+
+```bash
+$ tc auth logout
+  Session cleared for profile "default".
+```
+
+### tc auth status
+
+Check the current authentication state.
+
+```bash
+tc auth status
+```
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc auth status
+  Profile:  default
+  Address:  0x1234...abcd
+  Space:    0x1234...abcd-1-default
+  Session:  Active (expires in 23h 42m)
+  Node:     https://node.tinycloud.xyz
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc auth status --json
+{
+  "profile": "default",
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "spaceId": "0x1234...abcd-1-default",
+  "session": {
+    "active": true,
+    "expiresAt": "2026-03-08T10:30:00.000Z"
+  },
+  "host": "https://node.tinycloud.xyz"
+}
+```
+</Tab>
+
+<Tab title="No session">
+```bash
+$ tc auth status
+  Profile:  default
+  Session:  Not signed in
+
+  Run `tc auth login` to sign in.
+```
+</Tab>
+</Tabs>
+
+### tc auth whoami
+
+Print your DID and address.
+
+```bash
+tc auth whoami
+```
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc auth whoami
+  Address:  0x1234...abcd
+  DID:      did:pkh:eip155:1:0x1234567890abcdef1234567890abcdef12345678
+  Key DID:  did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuias...
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc auth whoami --json
+{
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "did": "did:pkh:eip155:1:0x1234567890abcdef1234567890abcdef12345678",
+  "keyDid": "did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuias..."
+}
+```
+</Tab>
+</Tabs>
+
+## Automated Authentication
+
+For CI/CD and scripted workflows, use `TC_PRIVATE_KEY` to skip the browser flow entirely.
+
+```bash
+export TC_PRIVATE_KEY=0xabc123...
+tc auth login
+# Signs in automatically using the private key
+```
+
+<Warning>
+Keep `TC_PRIVATE_KEY` in your CI/CD secrets. Never hardcode it in scripts or commit it to version control.
+</Warning>

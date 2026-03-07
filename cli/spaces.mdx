@@ -1,0 +1,178 @@
+---
+title: "Spaces"
+description: "Create and manage data ownership containers"
+icon: "box"
+sidebarTitle: "Spaces"
+---
+
+A space is a data ownership container in TinyCloud. Each space is tied to a user identity and isolates data between applications. The `tc space` commands let you create, list, inspect, and switch between spaces.
+
+## What is a Space?
+
+Every piece of data in TinyCloud lives inside a space. When you sign in, a space is automatically created for your profile. Spaces are identified by a combination of your address, chain ID, and application prefix:
+
+```
+{address}-{chainId}-{prefix}
+```
+
+For example: `0x1234...abcd-1-my-app`
+
+<Info>
+Spaces isolate data between applications. The same wallet can have separate spaces for different apps, and data in one space is not accessible from another.
+</Info>
+
+## Commands
+
+### tc space list
+
+List all spaces associated with your identity.
+
+```bash
+tc space list
+```
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc space list
+  Spaces for 0x1234...abcd:
+
+    * 0x1234...abcd-1-default        (active)
+      0x1234...abcd-1-my-app
+      0x1234...abcd-1-staging
+
+  3 spaces total
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc space list --json
+{
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "activeSpaceId": "0x1234...abcd-1-default",
+  "spaces": [
+    {
+      "spaceId": "0x1234...abcd-1-default",
+      "prefix": "default",
+      "active": true
+    },
+    {
+      "spaceId": "0x1234...abcd-1-my-app",
+      "prefix": "my-app",
+      "active": false
+    },
+    {
+      "spaceId": "0x1234...abcd-1-staging",
+      "prefix": "staging",
+      "active": false
+    }
+  ],
+  "count": 3
+}
+```
+</Tab>
+</Tabs>
+
+### tc space create
+
+Create a new space.
+
+```bash
+tc space create <prefix>
+```
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc space create my-app
+  Space created: 0x1234...abcd-1-my-app
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc space create my-app --json
+{
+  "spaceId": "0x1234...abcd-1-my-app",
+  "prefix": "my-app",
+  "created": true
+}
+```
+</Tab>
+</Tabs>
+
+### tc space info
+
+Show details about a space.
+
+```bash
+tc space info [space-id]
+```
+
+If no space ID is given, shows information about the active space.
+
+<Tabs>
+<Tab title="Human output">
+```bash
+$ tc space info
+  Space:    0x1234...abcd-1-default
+  Prefix:   default
+  Address:  0x1234...abcd
+  Chain:    1 (mainnet)
+  Keys:     42
+  Created:  2026-01-15T08:00:00.000Z
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc space info --json
+{
+  "spaceId": "0x1234...abcd-1-default",
+  "prefix": "default",
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "chainId": 1,
+  "keyCount": 42,
+  "createdAt": "2026-01-15T08:00:00.000Z"
+}
+```
+</Tab>
+</Tabs>
+
+### tc space switch
+
+Switch the active space for the current profile.
+
+```bash
+tc space switch <space-id>
+```
+
+```bash
+$ tc space switch 0x1234...abcd-1-my-app
+  Switched to space: 0x1234...abcd-1-my-app
+```
+
+After switching, all `tc kv` commands operate on the new active space.
+
+## Working with Multiple Spaces
+
+A common pattern is to use different spaces for different environments or applications:
+
+```bash
+# Create spaces for different environments
+tc space create production
+tc space create staging
+
+# Work in staging
+tc space switch 0x1234...abcd-1-staging
+tc kv put config/feature-flag '{"newUI": true}'
+
+# Switch to production
+tc space switch 0x1234...abcd-1-production
+tc kv put config/feature-flag '{"newUI": false}'
+```
+
+<Tip>
+Combine spaces with [profiles](/cli/profiles) to manage completely separate identities and environments.
+</Tip>

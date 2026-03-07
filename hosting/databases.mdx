@@ -1,0 +1,203 @@
+---
+title: "Database Setup"
+description: "Configure SQLite, PostgreSQL, or MySQL"
+icon: "database"
+sidebarTitle: "Databases"
+---
+
+TinyCloud uses a relational database for metadata, sessions, and delegation records. Three database backends are supported.
+
+## Supported Databases
+
+| Database | Connection String | Recommended For |
+|----------|------------------|-----------------|
+| SQLite | `sqlite:./path/to/db.db` | Development, single-node |
+| PostgreSQL | `postgres://user:pass@host:5432/dbname` | Production |
+| MySQL | `mysql://user:pass@host:3306/dbname` | Production (alternative) |
+
+## SQLite
+
+SQLite is the default and requires no external dependencies. Ideal for development, testing, and single-node deployments.
+
+### Configuration
+
+```toml
+[storage]
+database = "sqlite:./data/caps.db"
+```
+
+Or use an in-memory database for testing:
+
+```toml
+[storage]
+database = "sqlite::memory:"
+```
+
+### Environment Variable
+
+```bash
+TINYCLOUD_STORAGE__DATABASE="sqlite:./data/caps.db"
+```
+
+<Note>
+SQLite stores everything in a single file. Make sure the directory exists and is writable by the TinyCloud process (UID `1000` in Docker).
+</Note>
+
+## PostgreSQL
+
+PostgreSQL is the recommended database for production deployments. It supports concurrent connections, replication, and scales well with traffic.
+
+### Configuration
+
+```toml
+[storage]
+database = "postgres://tinycloud:password@localhost:5432/tinycloud"
+```
+
+### Environment Variable
+
+```bash
+TINYCLOUD_STORAGE__DATABASE="postgres://tinycloud:password@localhost:5432/tinycloud"
+```
+
+### Setup
+
+<Steps>
+<Step title="Create the database">
+```bash
+psql -U postgres -c "CREATE USER tinycloud WITH PASSWORD 'password';"
+psql -U postgres -c "CREATE DATABASE tinycloud OWNER tinycloud;"
+```
+</Step>
+
+<Step title="Configure TinyCloud">
+Set the connection string in your config or environment:
+
+```bash
+TINYCLOUD_STORAGE__DATABASE="postgres://tinycloud:password@localhost:5432/tinycloud"
+```
+</Step>
+
+<Step title="Start TinyCloud">
+Migrations are applied automatically on startup. No manual migration step is needed.
+
+```bash
+docker compose up -d
+```
+</Step>
+</Steps>
+
+### Connection String Format
+
+```
+postgres://[user]:[password]@[host]:[port]/[database]
+```
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| `user` | Database username | `tinycloud` |
+| `password` | Database password | `password` |
+| `host` | Database host | `localhost`, `db`, `10.0.0.5` |
+| `port` | Database port | `5432` |
+| `database` | Database name | `tinycloud` |
+
+<Warning>
+In production, use strong passwords and restrict database network access. Do not expose the database port publicly.
+</Warning>
+
+## MySQL
+
+MySQL is supported as an alternative to PostgreSQL.
+
+### Configuration
+
+```toml
+[storage]
+database = "mysql://tinycloud:password@localhost:3306/tinycloud"
+```
+
+### Environment Variable
+
+```bash
+TINYCLOUD_STORAGE__DATABASE="mysql://tinycloud:password@localhost:3306/tinycloud"
+```
+
+### Setup
+
+```bash
+mysql -u root -p -e "CREATE DATABASE tinycloud;"
+mysql -u root -p -e "CREATE USER 'tinycloud'@'%' IDENTIFIED BY 'password';"
+mysql -u root -p -e "GRANT ALL PRIVILEGES ON tinycloud.* TO 'tinycloud'@'%';"
+mysql -u root -p -e "FLUSH PRIVILEGES;"
+```
+
+## Automatic Migrations
+
+TinyCloud runs database migrations automatically when the node starts. This means:
+
+- No manual migration commands are needed
+- Schema updates happen on deploy when you upgrade the node version
+- The node will exit with an error if migrations fail
+
+<Info>
+Migration logs appear at startup. Check them if the node fails to start after an upgrade.
+</Info>
+
+## Connection Pooling
+
+TinyCloud uses connection pooling to manage database connections efficiently:
+
+- **Maximum connections**: 100 (default)
+- Connections are shared across all concurrent requests
+- Idle connections are released back to the pool
+
+For high-traffic deployments, ensure your database server can handle the maximum connection count. PostgreSQL's default `max_connections` is typically 100, which you may need to increase:
+
+```sql
+-- In postgresql.conf
+-- max_connections = 200
+ALTER SYSTEM SET max_connections = 200;
+```
+
+## Choosing a Database
+
+<Tabs>
+<Tab title="SQLite">
+**Best for**: Development, testing, low-traffic single-node deployments.
+
+**Advantages**:
+- Zero configuration
+- No external dependencies
+- Single file, easy to back up
+
+**Limitations**:
+- Single writer at a time
+- Not suitable for multi-node deployments
+- Performance degrades under high concurrency
+</Tab>
+
+<Tab title="PostgreSQL">
+**Best for**: Production deployments of any scale.
+
+**Advantages**:
+- Excellent concurrent performance
+- Mature replication and backup tooling
+- Widely supported by hosting providers
+
+**Limitations**:
+- Requires a separate database server
+- More operational complexity
+</Tab>
+
+<Tab title="MySQL">
+**Best for**: Teams already using MySQL infrastructure.
+
+**Advantages**:
+- Good concurrent performance
+- Familiar tooling for MySQL shops
+
+**Limitations**:
+- Requires a separate database server
+- Some edge cases with character encoding
+</Tab>
+</Tabs>
