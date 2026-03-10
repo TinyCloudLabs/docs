@@ -1,0 +1,414 @@
+---
+title: 'CLI Reference'
+description: 'Manage secrets, vault, delegations, and more from the terminal'
+icon: 'terminal'
+sidebarTitle: 'CLI'
+---
+
+The TinyCloud CLI (`tc`) provides full access to secrets, vault, KV storage, delegations, and node management from the terminal.
+
+## Installation
+
+```bash
+npm install -g @tinycloud/cli
+```
+
+## Authentication
+
+The CLI supports two authentication modes:
+
+<Tabs>
+  <Tab title="Private Key (Headless)">
+    Set the `TC_PRIVATE_KEY` environment variable with a 64-character hex private key. This is the recommended mode for agents, CI/CD, and scripts.
+
+    ```bash
+    export TC_PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+    tc secrets list
+    ```
+
+    Or pass it per-command:
+
+    ```bash
+    tc secrets list --private-key ac09...ff80
+    ```
+  </Tab>
+  <Tab title="Browser Login">
+    Run `tc auth login` to authenticate via OpenKey in your browser. This creates a stored session.
+
+    ```bash
+    tc auth login
+    # Opens browser for OpenKey authentication
+
+    # Subsequent commands use the stored session
+    tc secrets list
+    ```
+  </Tab>
+</Tabs>
+
+## Global Options
+
+| Flag | Description |
+|------|-------------|
+| `--host <url>` | TinyCloud node URL (default: `https://node.tinycloud.xyz`) |
+| `--quiet` | Suppress banners, output JSON only |
+| `--private-key <hex>` | Ethereum private key (or set `TC_PRIVATE_KEY`) |
+| `--profile <name>` | Use a specific profile |
+| `-h, --help` | Show help |
+
+## Secrets
+
+Encrypted secrets management. Values are encrypted client-side before storage.
+
+### `tc secrets put <name> [value]`
+
+Store an encrypted secret.
+
+```bash
+# Inline value
+tc secrets put API_KEY sk-abc123
+
+# From file
+tc secrets put TLS_CERT --file ./cert.pem
+
+# From stdin
+echo "secret" | tc secrets put MY_SECRET --stdin
+```
+
+| Option | Description |
+|--------|-------------|
+| `--file <path>` | Read value from file |
+| `--stdin` | Read value from stdin |
+
+### `tc secrets get <name>`
+
+Retrieve and decrypt a secret.
+
+```bash
+# JSON output
+tc secrets get API_KEY
+# {"name":"API_KEY","value":"sk-abc123"}
+
+# Raw value only
+tc secrets get API_KEY --raw
+
+# Write to file
+tc secrets get TLS_CERT -o ./cert.pem
+```
+
+| Option | Description |
+|--------|-------------|
+| `--raw` | Output raw value without JSON wrapping |
+| `-o, --output <file>` | Write value to file |
+
+### `tc secrets list`
+
+List all secret names.
+
+```bash
+tc secrets list
+# {"secrets":["API_KEY","DATABASE_URL"],"count":2}
+```
+
+### `tc secrets delete <name>`
+
+Delete a secret.
+
+```bash
+tc secrets delete API_KEY
+# {"name":"API_KEY","deleted":true}
+```
+
+### `tc secrets manage`
+
+Open the TinyCloud Secrets Manager web app in your browser.
+
+```bash
+tc secrets manage
+```
+
+## Vault
+
+Low-level encrypted vault operations. Secrets commands are built on top of vault with a `secrets/` prefix.
+
+### `tc vault unlock`
+
+Unlock the vault (derives encryption keys from wallet signature).
+
+```bash
+tc vault unlock
+# {"unlocked":true}
+```
+
+### `tc vault put <key> [value]`
+
+Store an encrypted value at a vault key.
+
+```bash
+tc vault put config/settings '{"theme":"dark"}'
+tc vault put docs/readme --file ./README.md
+```
+
+### `tc vault get <key>`
+
+Retrieve and decrypt a vault value.
+
+```bash
+tc vault get config/settings
+tc vault get config/settings --raw
+tc vault get docs/readme -o ./README.md
+```
+
+### `tc vault delete <key>`
+
+```bash
+tc vault delete config/settings
+```
+
+### `tc vault list`
+
+List vault keys with optional prefix filtering.
+
+```bash
+tc vault list
+tc vault list --prefix config/
+```
+
+### `tc vault head <key>`
+
+Get metadata for a vault key without decrypting.
+
+```bash
+tc vault head config/settings
+```
+
+### `tc vault grant <key> --to <did>`
+
+Grant vault access to another user. Re-encrypts the data key to the recipient's X25519 public key.
+
+```bash
+tc vault grant secrets/SHARED_KEY --to did:pkh:eip155:1:0x70997970...
+# {"key":"secrets/SHARED_KEY","grantedTo":"did:pkh:...","granted":true}
+```
+
+<Note>
+The recipient must have unlocked their vault at least once to publish their public key.
+</Note>
+
+### `tc vault revoke <key> --from <did>`
+
+Revoke vault access. Rotates the data key and re-grants to remaining authorized users.
+
+```bash
+tc vault revoke secrets/SHARED_KEY --from did:pkh:eip155:1:0x70997970...
+```
+
+### `tc vault list-grants <key>`
+
+List DIDs that have been granted access to a key.
+
+```bash
+tc vault list-grants secrets/SHARED_KEY
+# {"key":"secrets/SHARED_KEY","grants":["did:pkh:..."],"count":1}
+```
+
+### `tc vault get-shared <grantor-did> <key>`
+
+Decrypt a value shared by another user. Requires a delegation token.
+
+```bash
+tc vault get-shared did:pkh:eip155:1:0xf39F... secrets/SHARED_KEY \
+  --delegation-file delegation.json
+
+# Or inline delegation JSON
+tc vault get-shared did:pkh:eip155:1:0xf39F... secrets/SHARED_KEY \
+  --delegation '{"cid":"...","delegationHeader":...}'
+```
+
+| Option | Description |
+|--------|-------------|
+| `--delegation <json>` | Serialized delegation token |
+| `--delegation-file <path>` | Read delegation from file |
+| `--raw` | Output raw value |
+| `-o, --output <file>` | Write to file |
+
+## KV Storage
+
+Plaintext key-value storage.
+
+### `tc kv put <key> <value>`
+
+```bash
+tc kv put user/name "Alice"
+tc kv put config/settings '{"theme":"dark"}'
+```
+
+### `tc kv get <key>`
+
+```bash
+tc kv get user/name
+tc kv get user/name --raw
+```
+
+### `tc kv delete <key>`
+
+```bash
+tc kv delete user/name
+```
+
+### `tc kv list`
+
+```bash
+tc kv list
+tc kv list --prefix user/
+```
+
+### `tc kv head <key>`
+
+```bash
+tc kv head user/name
+```
+
+## Variables
+
+Plaintext variables (KV with `variables/` prefix). Similar to secrets but not encrypted.
+
+### `tc vars put <name> <value>`
+
+```bash
+tc vars put APP_ENV production
+```
+
+### `tc vars get <name>`
+
+```bash
+tc vars get APP_ENV
+tc vars get APP_ENV --raw
+```
+
+### `tc vars list`
+
+```bash
+tc vars list
+```
+
+### `tc vars delete <name>`
+
+```bash
+tc vars delete APP_ENV
+```
+
+## Delegations
+
+Create and manage access delegations.
+
+### `tc delegation create`
+
+Create a delegation granting another user access to your space.
+
+```bash
+tc delegation create \
+  --to did:pkh:eip155:1:0x70997970... \
+  --path "" \
+  --actions kv/get,kv/list \
+  --expiry 24h
+```
+
+| Option | Description |
+|--------|-------------|
+| `--to <did>` | Recipient DID (required) |
+| `--path <path>` | Path scope (required) |
+| `--actions <list>` | Comma-separated actions (required) |
+| `--expiry <duration>` | Expiry duration: `1h`, `7d`, or ISO date |
+
+Actions are auto-prefixed with `tinycloud.` — use `kv/get` not `tinycloud.kv/get`.
+
+### `tc delegation list`
+
+```bash
+tc delegation list
+tc delegation list --granted  # Only delegations you created
+```
+
+### `tc delegation info <cid>`
+
+```bash
+tc delegation info bafyrei...
+```
+
+### `tc delegation revoke <cid>`
+
+```bash
+tc delegation revoke bafyrei...
+```
+
+## Profiles
+
+Manage CLI profiles for multiple identities or nodes.
+
+### `tc profile create <name>`
+
+```bash
+tc profile create staging --host https://staging.tinycloud.xyz
+```
+
+### `tc profile list`
+
+```bash
+tc profile list
+```
+
+### `tc profile switch <name>`
+
+```bash
+tc profile switch staging
+```
+
+### `tc profile show [name]`
+
+```bash
+tc profile show
+tc profile show staging
+```
+
+### `tc profile delete <name>`
+
+```bash
+tc profile delete staging
+```
+
+## Node
+
+Check node health and status.
+
+### `tc node health`
+
+```bash
+tc node health
+# {"healthy":true}
+```
+
+### `tc node status`
+
+```bash
+tc node status
+```
+
+## Other Commands
+
+| Command | Description |
+|---------|-------------|
+| `tc init` | Initialize a new profile (interactive) |
+| `tc init --key-only` | Generate a key pair without browser auth |
+| `tc doctor` | Run diagnostic checks |
+| `tc auth login` | Authenticate via browser |
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | General error |
+| `2` | Usage error (bad arguments) |
+| `3` | Authentication required |
+| `4` | Not found |
+| `5` | Vault locked |

@@ -1,0 +1,196 @@
+---
+title: 'Agent Integration'
+description: 'How to use TinyCloud secrets in your AI agent or automated workflow'
+icon: 'robot'
+sidebarTitle: 'Agent Integration'
+---
+
+This guide shows how AI agents and automated scripts can authenticate with TinyCloud and fetch secrets at runtime, with no browser or interactive prompts.
+
+## Authentication
+
+Agents authenticate using the `TC_PRIVATE_KEY` environment variable — a 64-character hex Ethereum private key.
+
+```bash
+export TC_PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+```
+
+All CLI commands automatically use this key. No browser, no prompts.
+
+## Fetching Secrets
+
+### Own Secrets
+
+If the agent has its own identity and vault, it stores and retrieves secrets directly:
+
+```bash
+# Store a secret
+tc secrets put FIREFLIES_API_KEY sk-abc123 --quiet
+
+# Fetch at runtime (raw output for piping)
+API_KEY=$(tc secrets get FIREFLIES_API_KEY --quiet --raw)
+curl -H "Authorization: Bearer $API_KEY" https://api.fireflies.ai/...
+```
+
+### Delegated Secrets (Admin to Agent)
+
+An admin can store secrets and grant access to an agent's identity. This is the recommended pattern for teams — the admin controls the secrets, agents get read-only access.
+
+<Steps>
+  <Step title="Agent: Publish Public Key">
+    The agent must unlock its vault once to publish its X25519 public key. This only needs to happen once per identity.
+
+    ```bash
+    export TC_PRIVATE_KEY=agent-private-key
+    tc vault unlock --quiet
+    ```
+  </Step>
+  <Step title="Admin: Store and Grant">
+    The admin stores the secret and grants vault access to the agent's DID.
+
+    ```bash
+    export TC_PRIVATE_KEY=admin-private-key
+
+    # Store the secret
+    tc secrets put FIREFLIES_API_KEY sk-abc123
+
+    # Grant vault access to the agent
+    tc vault grant secrets/FIREFLIES_API_KEY \
+      --to did:pkh:eip155:1:0x70997970...
+    ```
+  </Step>
+  <Step title="Admin: Create Delegation">
+    The admin creates a delegation token granting KV read access to their space.
+
+    ```bash
+    tc delegation create \
+      --to did:pkh:eip155:1:0x70997970... \
+      --path "" \
+      --actions kv/get,kv/list \
+      --expiry 24h \
+      --quiet > delegation.json
+    ```
+
+    Share `delegation.json` with the agent via a secure channel.
+  </Step>
+  <Step title="Agent: Fetch Shared Secret">
+    The agent uses the delegation token to access the admin's vault.
+
+    ```bash
+    export TC_PRIVATE_KEY=agent-private-key
+
+    API_KEY=$(tc vault get-shared \
+      did:pkh:eip155:1:0xf39Fd6e5... \
+      secrets/FIREFLIES_API_KEY \
+      --delegation-file delegation.json \
+      --quiet --raw)
+    ```
+  </Step>
+</Steps>
+
+## Startup Script
+
+Complete example for an agent that loads secrets at startup:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Validate required env vars
+: "${TC_PRIVATE_KEY:?Set TC_PRIVATE_KEY to authenticate}"
+
+# Fetch own secrets
+export FIREFLIES_API_KEY=$(tc secrets get FIREFLIES_API_KEY --quiet --raw)
+export DATABASE_URL=$(tc secrets get DATABASE_URL --quiet --raw)
+
+# Fetch delegated secrets (if delegation file exists)
+if [ -f "${TC_DELEGATION_FILE:-}" ]; then
+  ADMIN_DID="${TC_ADMIN_DID:?Set TC_ADMIN_DID for delegated secrets}"
+
+  export SHARED_SECRET=$(tc vault get-shared "$ADMIN_DID" \
+    secrets/SHARED_SECRET \
+    --delegation-file "$TC_DELEGATION_FILE" \
+    --quiet --raw)
+fi
+
+# Start the agent
+exec "$@"
+```
+
+Usage:
+
+```bash
+TC_PRIVATE_KEY=abc123... ./start.sh python agent.py
+```
+
+## Node.js Integration
+
+```typescript
+import { TinyCloudNode, PrivateKeySigner } from '@tinycloud/node-sdk';
+
+async function loadSecrets() {
+  const tc = new TinyCloudNode({
+    host: 'https://node.tinycloud.xyz',
+    privateKey: process.env.TC_PRIVATE_KEY,
+    autoCreateSpace: true,
+  });
+  await tc.signIn();
+
+  // Unlock vault
+  const signer = new PrivateKeySigner(process.env.TC_PRIVATE_KEY!);
+  await tc.vault.unlock(signer);
+
+  // Fetch secrets
+  const apiKey = await tc.vault.get<{ value: string }>('secrets/API_KEY');
+  if (apiKey.ok) {
+    process.env.API_KEY = apiKey.data.value.value;
+  }
+}
+
+await loadSecrets();
+```
+
+## Two-Layer Access Control
+
+Delegated secret access requires **both** layers:
+
+| Layer | What it does | Command |
+|-------|-------------|---------|
+| **Vault Grant** | Re-encrypts the decryption key to the agent's public key | `tc vault grant <key> --to <did>` |
+| **Delegation** | Authorizes KV read access to the admin's space | `tc delegation create --to <did> ...` |
+
+Without a vault grant, the agent can reach the encrypted data but can't decrypt it. Without a delegation, the agent can't reach the admin's space at all.
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Rotate delegation tokens regularly">
+    Set short expiry times (`--expiry 24h`) and regenerate delegation tokens on a schedule. This limits the blast radius if a token is leaked.
+  </Accordion>
+
+  <Accordion title="Scope delegations narrowly">
+    Use `--path secrets/` and minimal actions (`kv/get`) instead of granting full access to the space.
+  </Accordion>
+
+  <Accordion title="Secure the private key">
+    Store `TC_PRIVATE_KEY` in your platform's secret manager (AWS Secrets Manager, GCP Secret Manager, Vault). Don't commit it to source control.
+  </Accordion>
+
+  <Accordion title="Use separate identities per agent">
+    Each agent should have its own private key. This makes it easy to revoke access for a single agent without affecting others.
+  </Accordion>
+
+  <Accordion title="Revoke access promptly">
+    When an agent is decommissioned, revoke its vault grants (`tc vault revoke`) and delegation tokens (`tc delegation revoke`). Vault revocation rotates the data key, so even if the agent still has the old grant, it can't decrypt.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `AUTH_REQUIRED` | No private key | Set `TC_PRIVATE_KEY` |
+| `Space not found` | Space doesn't exist | Run any command once (auto-creates with `autoCreateSpace`) |
+| `PUBLIC_KEY_NOT_FOUND` | Agent hasn't unlocked vault | Agent runs `tc vault unlock` |
+| `GRANT_NOT_FOUND` | Admin hasn't granted access | Admin runs `tc vault grant` |
+| `DECRYPTION_FAILED` | Key was rotated after grant | Admin re-runs `tc vault grant` |

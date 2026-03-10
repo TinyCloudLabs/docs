@@ -1,0 +1,355 @@
+---
+title: 'Vault API Reference'
+description: 'DataVaultService and KVService API reference for SDK consumers'
+icon: 'code'
+sidebarTitle: 'Vault API'
+---
+
+## DataVaultService
+
+The `DataVaultService` provides encrypted key-value storage. Access it via `tc.vault` after signing in.
+
+### unlock
+
+Unlock the vault by deriving encryption keys from a wallet signature.
+
+```typescript
+async unlock(signer: VaultSigner): Promise<Result<void, VaultError>>
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `signer` | `VaultSigner` | Object with `signMessage(msg: string): Promise<string>` |
+
+```typescript
+import { PrivateKeySigner } from '@tinycloud/node-sdk';
+
+const signer = new PrivateKeySigner(privateKey);
+const result = await tc.vault.unlock(signer);
+
+if (!result.ok) {
+  console.error(result.error.code); // 'UNLOCK_FAILED'
+}
+```
+
+### lock
+
+Lock the vault and clear encryption keys from memory.
+
+```typescript
+async lock(): Promise<Result<void, VaultError>>
+```
+
+### put
+
+Store an encrypted value.
+
+```typescript
+async put<T = unknown>(
+  key: string,
+  value: T,
+  options?: VaultPutOptions
+): Promise<Result<void, VaultError>>
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `string` | Storage key (e.g., `'secrets/API_KEY'`) |
+| `value` | `T` | Value to encrypt and store |
+| `options.contentType` | `string` | Optional MIME type |
+| `options.serialize` | `(v: T) => Uint8Array` | Custom serializer |
+
+```typescript
+await tc.vault.put('secrets/API_KEY', {
+  value: 'sk-abc123',
+  createdAt: new Date().toISOString(),
+});
+```
+
+### get
+
+Retrieve and decrypt a value.
+
+```typescript
+async get<T = unknown>(
+  key: string,
+  options?: VaultGetOptions<T>
+): Promise<Result<VaultEntry<T>, VaultError>>
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `string` | Storage key |
+| `options.raw` | `boolean` | Return raw bytes instead of parsed value |
+| `options.deserialize` | `(bytes: Uint8Array) => T` | Custom deserializer |
+
+Returns a `VaultEntry<T>`:
+
+```typescript
+interface VaultEntry<T> {
+  value: T;
+  contentType: string;
+  headers: VaultHeaders;
+}
+```
+
+```typescript
+const result = await tc.vault.get<{ value: string }>('secrets/API_KEY');
+
+if (result.ok) {
+  console.log(result.data.value.value); // 'sk-abc123'
+  console.log(result.data.contentType); // 'application/json'
+}
+```
+
+### delete
+
+Delete an encrypted value and its data key.
+
+```typescript
+async delete(key: string): Promise<Result<void, VaultError>>
+```
+
+```typescript
+const result = await tc.vault.delete('secrets/OLD_KEY');
+```
+
+### list
+
+List vault keys with optional prefix filtering.
+
+```typescript
+async list(
+  options?: { prefix?: string }
+): Promise<Result<string[], VaultError>>
+```
+
+```typescript
+// List all keys
+const all = await tc.vault.list();
+
+// List keys with prefix (prefix is stripped from results)
+const secrets = await tc.vault.list({ prefix: 'secrets/' });
+// secrets.data = ['API_KEY', 'DATABASE_URL'] (not 'secrets/API_KEY')
+```
+
+<Warning>
+When using `prefix`, the returned keys have the prefix **stripped**. `list({ prefix: 'secrets/' })` returns `['API_KEY']`, not `['secrets/API_KEY']`. You need to re-add the prefix for `get()` calls: `vault.get('secrets/' + key)`.
+</Warning>
+
+### head
+
+Get metadata without decrypting the value.
+
+```typescript
+async head(key: string): Promise<Result<VaultHeaders, VaultError>>
+```
+
+```typescript
+const result = await tc.vault.head('secrets/API_KEY');
+
+if (result.ok) {
+  console.log(result.data.contentType);
+  console.log(result.data.contentLength);
+}
+```
+
+### grant
+
+Grant another user access to a vault key.
+
+```typescript
+async grant(
+  key: string,
+  recipientDID: string
+): Promise<Result<void, VaultError>>
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `string` | Vault key to share |
+| `recipientDID` | `string` | Recipient's DID (`did:pkh:eip155:1:0x...`) |
+
+```typescript
+const result = await tc.vault.grant(
+  'secrets/SHARED_KEY',
+  'did:pkh:eip155:1:0x70997970...'
+);
+
+if (!result.ok) {
+  // result.error.code: 'NOT_FOUND' | 'PUBLIC_KEY_NOT_FOUND'
+}
+```
+
+### revoke
+
+Revoke access and rotate the data key.
+
+```typescript
+async revoke(
+  key: string,
+  recipientDID: string
+): Promise<Result<void, VaultError>>
+```
+
+```typescript
+await tc.vault.revoke(
+  'secrets/SHARED_KEY',
+  'did:pkh:eip155:1:0x70997970...'
+);
+```
+
+### listGrants
+
+List DIDs that have been granted access to a key.
+
+```typescript
+async listGrants(
+  key: string
+): Promise<Result<string[], VaultError>>
+```
+
+```typescript
+const result = await tc.vault.listGrants('secrets/SHARED_KEY');
+
+if (result.ok) {
+  console.log(result.data);
+  // ['did:pkh:eip155:1:0x70997970...', 'did:pkh:eip155:1:0xABCD...']
+}
+```
+
+### getShared
+
+Decrypt a value shared by another user.
+
+```typescript
+async getShared<T = unknown>(
+  grantorDID: string,
+  key: string,
+  options?: VaultGetSharedOptions<T>
+): Promise<Result<VaultEntry<T>, VaultError>>
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `grantorDID` | `string` | DID of the user who granted access |
+| `key` | `string` | Vault key to read |
+| `options.kv` | `IKVService` | Delegated KV service from `useDelegation()` |
+
+```typescript
+import { deserializeDelegation } from '@tinycloud/node-sdk';
+
+const delegation = deserializeDelegation(delegationJson);
+const access = await tc.useDelegation(delegation);
+
+const result = await tc.vault.getShared(
+  'did:pkh:eip155:1:0xf39Fd6e5...',
+  'secrets/SHARED_KEY',
+  { kv: access.kv }
+);
+
+if (result.ok) {
+  console.log(result.data.value);
+}
+```
+
+## KVService
+
+The `KVService` provides plaintext key-value storage. Access it via `tc.kv` after signing in.
+
+### put
+
+```typescript
+async put<T = unknown>(
+  key: string,
+  value: T
+): Promise<Result<void, KVError>>
+```
+
+```typescript
+await tc.kv.put('user/profile', { name: 'Alice', email: 'alice@example.com' });
+```
+
+### get
+
+```typescript
+async get<T = unknown>(
+  key: string
+): Promise<Result<KVEntry<T>, KVError>>
+```
+
+```typescript
+const result = await tc.kv.get<{ name: string }>('user/profile');
+if (result.ok) {
+  console.log(result.data.data); // { name: 'Alice', ... }
+}
+```
+
+### delete
+
+```typescript
+async delete(key: string): Promise<Result<void, KVError>>
+```
+
+### list
+
+```typescript
+async list(
+  options?: { prefix?: string }
+): Promise<Result<{ keys: string[] }, KVError>>
+```
+
+### head
+
+```typescript
+async head(
+  key: string
+): Promise<Result<KVHeaders, KVError>>
+```
+
+### withPrefix
+
+Create a scoped KV instance with a key prefix.
+
+```typescript
+withPrefix(prefix: string): IKVService
+```
+
+```typescript
+const userKV = tc.kv.withPrefix('user/');
+await userKV.put('profile', { name: 'Alice' });
+// Actually stored at: user/profile
+```
+
+## Error Types
+
+### VaultError
+
+```typescript
+interface VaultError {
+  code: VaultErrorCode;
+  message: string;
+}
+
+type VaultErrorCode =
+  | 'VAULT_LOCKED'
+  | 'UNLOCK_FAILED'
+  | 'NOT_FOUND'
+  | 'KEY_NOT_FOUND'
+  | 'ENCRYPTION_FAILED'
+  | 'DECRYPTION_FAILED'
+  | 'STORAGE_ERROR'
+  | 'PUBLIC_KEY_NOT_FOUND'
+  | 'GRANT_NOT_FOUND'
+  | 'SERIALIZATION_ERROR';
+```
+
+### Result Type
+
+All operations return `Result<T, E>`:
+
+```typescript
+type Result<T, E> =
+  | { ok: true; data: T }
+  | { ok: false; error: E };
+```

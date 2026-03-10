@@ -55,9 +55,19 @@
               "guides/spaces",
               "guides/kv-storage",
               "guides/data-vault",
+              "guides/secrets",
               "guides/delegations",
-              "guides/sharing"
+              "guides/sharing",
+              "guides/agent-integration"
             ]
+          },
+          {
+            "group": "Secrets Architecture",
+            "pages": ["secrets/architecture"]
+          },
+          {
+            "group": "Reference",
+            "pages": ["reference/vault-api"]
           },
           {
             "group": "Concepts",
