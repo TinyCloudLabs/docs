@@ -55,7 +55,7 @@ $ tc init --name my-project
 $ tc init --key-only --name ci-bot
   Generating key pair...
   Profile "ci-bot" created (key only).
-  DID: did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuias...
+  DID: did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
 ```
 </Tab>
 
@@ -64,7 +64,7 @@ $ tc init --key-only --name ci-bot
 $ tc init --name my-project --json
 {
   "profile": "my-project",
-  "did": "did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuias...",
+  "did": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
   "directory": "~/.tinycloud/profiles/my-project/"
 }
 ```
@@ -90,8 +90,8 @@ $ tc auth login
   Opening browser for authentication...
   Waiting for confirmation...
   Signed in successfully.
-  Address:  0x1234...abcd
-  Space:    0x1234...abcd-1-default
+  Address:  0xd8dA...6045
+  Space:    tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default
 ```
 </Tab>
 
@@ -112,8 +112,8 @@ $ tc auth login --paste
 ```bash
 $ tc auth login --json
 {
-  "address": "0x1234567890abcdef1234567890abcdef12345678",
-  "spaceId": "0x1234...abcd-1-default",
+  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
   "expiresAt": "2026-03-08T10:30:00.000Z"
 }
 ```
@@ -146,8 +146,8 @@ tc auth status
 ```bash
 $ tc auth status
   Profile:  default
-  Address:  0x1234...abcd
-  Space:    0x1234...abcd-1-default
+  Address:  0xd8dA...6045
+  Space:    tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default
   Session:  Active (expires in 23h 42m)
   Node:     https://node.tinycloud.xyz
 ```
@@ -158,8 +158,8 @@ $ tc auth status
 $ tc auth status --json
 {
   "profile": "default",
-  "address": "0x1234567890abcdef1234567890abcdef12345678",
-  "spaceId": "0x1234...abcd-1-default",
+  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
   "session": {
     "active": true,
     "expiresAt": "2026-03-08T10:30:00.000Z"
@@ -192,9 +192,9 @@ tc auth whoami
 <Tab title="Human output">
 ```bash
 $ tc auth whoami
-  Address:  0x1234...abcd
-  DID:      did:pkh:eip155:1:0x1234567890abcdef1234567890abcdef12345678
-  Key DID:  did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuias...
+  Address:  0xd8dA...6045
+  DID:      did:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+  Key DID:  did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
 ```
 </Tab>
 
@@ -202,9 +202,9 @@ $ tc auth whoami
 ```bash
 $ tc auth whoami --json
 {
-  "address": "0x1234567890abcdef1234567890abcdef12345678",
-  "did": "did:pkh:eip155:1:0x1234567890abcdef1234567890abcdef12345678",
-  "keyDid": "did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuias..."
+  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "did": "did:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "keyDid": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK"
 }
 ```
 </Tab>

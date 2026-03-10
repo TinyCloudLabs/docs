@@ -22,23 +22,23 @@ Key properties of a space:
 Space IDs are deterministic. Given the same inputs, the same space ID is always produced:
 
 ```
-{address}-{chainId}-{prefix}
+tinycloud:pkh:eip155:{chainId}:{address}:{spaceName}
 ```
 
 | Component | Description | Example |
 |-----------|-------------|---------|
-| `address` | Ethereum address (lowercase, checksummed) | `0x1234...abcd` |
 | `chainId` | EIP-155 chain ID | `1` (mainnet), `11155111` (Sepolia) |
-| `prefix` | Application-defined identifier | `my-app` |
+| `address` | Ethereum address (checksummed) | `0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045` |
+| `spaceName` | Application-defined identifier | `my-app` |
 
 For example:
 
 ```
-0x1234567890abcdef1234567890abcdef12345678-1-my-app
+tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app
 ```
 
 <Note>
-The space ID is derived deterministically. You do not choose it -- it is computed from your wallet address, the chain you are connected to, and the prefix you configure.
+The space ID is derived deterministically. You do not choose it -- it is computed from the protocol, your wallet address, the chain you are connected to, and the space name you configure.
 </Note>
 
 ## Auto-Creation vs Manual
@@ -110,7 +110,7 @@ await tc.signIn();
 
 const spaceId = tc.userAuthorization.getSpaceId();
 console.log('Space:', spaceId);
-// "0x1234...abcd-1-my-app"
+// "tinycloud:pkh:eip155:1:0xd8dA...6045:my-app"
 ```
 
 ```typescript Node SDK
@@ -118,7 +118,7 @@ await tc.signIn();
 
 const spaceId = tc.spaceId;
 console.log('Space:', spaceId);
-// "0x1234...abcd-1-my-app"
+// "tinycloud:pkh:eip155:1:0xd8dA...6045:my-app"
 ```
 </CodeGroup>
 
@@ -138,12 +138,12 @@ const notesClient = new TinyCloudWeb({
 });
 ```
 
-For the same wallet (`0x1234...abcd`) on mainnet, this produces two distinct spaces:
+For the same wallet (`0xd8dA...6045`) on mainnet, this produces two distinct spaces:
 
 | Application | Prefix | Space ID |
 |-------------|--------|----------|
-| Game | `my-game` | `0x1234...abcd-1-my-game` |
-| Notes | `my-notes` | `0x1234...abcd-1-my-notes` |
+| Game | `my-game` | `tinycloud:pkh:eip155:1:0xd8dA...6045:my-game` |
+| Notes | `my-notes` | `tinycloud:pkh:eip155:1:0xd8dA...6045:my-notes` |
 
 <Tip>
 Use a consistent, descriptive prefix for your application. If you change the prefix, users will get a new empty space -- their existing data stays in the old space.
@@ -151,7 +151,7 @@ Use a consistent, descriptive prefix for your application. If you change the pre
 
 ## Same Wallet, Different Spaces
 
-Because the space ID is derived from `address + chainId + prefix`, a single wallet can own many independent spaces:
+Because the space ID is derived from `address + chainId + spaceName`, a single wallet can own many independent spaces:
 
 ```typescript
 // All three produce different spaces for the same wallet:

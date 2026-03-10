@@ -173,7 +173,7 @@ The `tc1:` prefix identifies a TinyCloud v1 sharing link. The payload after the 
   "version": 1,
   "key": "my-document",
   "delegation": "<signed UCAN delegation>",
-  "spaceId": "0x1234...abcd-1-my-app",
+  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA...6045:my-app",
   "host": "https://node.tinycloud.xyz",
   "sessionKey": "<ephemeral private key>"
 }
@@ -286,7 +286,7 @@ if (result.ok) {
   // 'docs/meeting-notes'
 
   console.log(result.data.spaceId);
-  // '0xAlice...address-1-my-app'
+  // 'tinycloud:pkh:eip155:1:0xAlice...address:my-app'
 } else {
   console.error('Share failed:', result.error);
   // Possible reasons: link expired, data deleted, node unreachable

@@ -107,8 +107,8 @@ When running in a terminal, output is human-friendly with colors and formatting.
 ```bash
 $ tc auth status
   Profile:  default
-  Address:  0x1234...abcd
-  Space:    0x1234...abcd-1-my-app
+  Address:  0xd8dA...6045
+  Space:    tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app
   Session:  Active (expires in 23h 42m)
 ```
 </Tab>
@@ -118,7 +118,7 @@ When output is piped to another command, the CLI automatically switches to JSON.
 
 ```bash
 $ tc auth status | jq '.address'
-"0x1234567890abcdef1234567890abcdef12345678"
+"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
 ```
 </Tab>
 
@@ -129,8 +129,8 @@ Force JSON output in any context.
 $ tc auth status --json
 {
   "profile": "default",
-  "address": "0x1234567890abcdef1234567890abcdef12345678",
-  "spaceId": "0x1234...abcd-1-my-app",
+  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app",
   "session": {
     "active": true,
     "expiresAt": "2026-03-08T10:30:00.000Z"

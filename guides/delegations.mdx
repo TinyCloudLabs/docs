@@ -220,7 +220,7 @@ TinyCloud uses two DID types:
 
 | Type | Property | Example | When to Use |
 |------|----------|---------|-------------|
-| **Primary DID** | `tc.did` (after signIn) | `did:pkh:eip155:1:0x1234...` | Delegations, user identity |
+| **Primary DID** | `tc.did` (after signIn) | `did:pkh:eip155:1:0xd8dA...` | Delegations, user identity |
 | **Session Key DID** | `tc.sessionDid` | `did:key:z6Mk...#z6Mk...` | Internal session operations |
 
 After signIn, `tc.did` returns the primary DID -- the identity that authenticated (e.g., an Ethereum wallet). Before signIn, `tc.did` returns the session key DID. The primary DID represents the user's persistent identity, while the session key DID is ephemeral and rotates on every authentication.
