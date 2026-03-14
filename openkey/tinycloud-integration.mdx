@@ -36,7 +36,7 @@ npm install @tinycloud/web-sdk @openkey/sdk
 <Step title="Connect with OpenKey">
 
 ```typescript
-import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Initialize OpenKey
@@ -50,10 +50,10 @@ console.log('Connected:', authResult.address);
 
 <Step title="Create provider and sign in to TinyCloud">
 
-Pass the `OpenKeyEIP1193Provider` directly to TinyCloudWeb — the SDK handles ethers wrapping internally.
+Pass the `OpenKeyProvider` directly to TinyCloudWeb — the SDK handles ethers wrapping internally.
 
 ```typescript
-const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+const provider = new OpenKeyProvider(openkey, authResult);
 
 const tc = new TinyCloudWeb({
   provider,
@@ -90,7 +90,7 @@ if (result.ok) {
 
 <CodeGroup>
 ```typescript Vanilla JS
-import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 async function main() {
@@ -99,7 +99,7 @@ async function main() {
   const authResult = await openkey.connect();
 
   // Step 2: Create provider and sign in
-  const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+  const provider = new OpenKeyProvider(openkey, authResult);
   const tc = new TinyCloudWeb({ provider });
   await tc.signIn();
 
@@ -116,7 +116,7 @@ main().catch(console.error);
 
 ```tsx React
 import { useState } from 'react';
-import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const openkey = new OpenKey({ appName: 'My React App' });
@@ -130,7 +130,7 @@ export default function App() {
     const authResult = await openkey.connect();
     setAddress(authResult.address);
 
-    const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+    const provider = new OpenKeyProvider(openkey, authResult);
     tc = new TinyCloudWeb({ provider });
     await tc.signIn();
   }
@@ -172,7 +172,7 @@ export default function App() {
 Check if there's an existing session before initiating a new sign-in flow:
 
 ```typescript
-import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
+import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const openkey = new OpenKey({ appName: 'My App' });
@@ -181,7 +181,7 @@ if (tc.session()) {
   console.log('Session active:', tc.address());
 } else {
   const authResult = await openkey.connect();
-  const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+  const provider = new OpenKeyProvider(openkey, authResult);
   const tc = new TinyCloudWeb({ provider });
   await tc.signIn();
 }
@@ -215,7 +215,7 @@ Use the recipient's primary DID (`tc.did` after signIn) for delegations. This ap
 | **Seed phrase** | User must back up | Not applicable |
 | **Signing UX** | Extension popup | OpenKey popup/iframe |
 | **Works on mobile** | Requires mobile wallet app | Works in any browser |
-| **TinyCloud compatibility** | Native | Via OpenKeyEIP1193Provider |
+| **TinyCloud compatibility** | Native | Via OpenKeyProvider |
 
 ## Next Steps
 
