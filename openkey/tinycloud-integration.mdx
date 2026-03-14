@@ -28,8 +28,12 @@ Instead of the wallet extension signing the SIWE message, OpenKey's TEE-managed 
 <Step title="Install dependencies">
 
 ```bash
-npm install @tinycloud/web-sdk @openkey/sdk
+npm install @tinycloud/web-sdk @openkey/sdk ethers@5
 ```
+
+<Warning>
+`ethers` v5 is a required peer dependency. TinyCloudWeb uses ethers v5 internally, so you must install it even if you do not use ethers directly. Ethers v6 is **not** compatible.
+</Warning>
 </Step>
 
 <Step title="Initialize OpenKey and TinyCloud">
@@ -37,6 +41,7 @@ npm install @tinycloud/web-sdk @openkey/sdk
 ```typescript
 import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
+import { providers } from 'ethers';
 
 const openkey = new OpenKey({
   appName: 'My TinyCloud App',
@@ -46,33 +51,47 @@ const openkey = new OpenKey({
 
 <Step title="Connect with OpenKey and create provider">
 
-Use OpenKey to get the user's Ethereum address and create an EIP-1193 provider.
+Use OpenKey to get the user's Ethereum address, create an EIP-1193 provider, and wrap it in an ethers `Web3Provider`.
 
 ```typescript
 // Connect with OpenKey (passkey auth + key selection)
 const authResult = await openkey.connect();
 console.log('OpenKey address:', authResult.address);
 
-// Create EIP-1193 provider from OpenKey
-const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+// Create EIP-1193 provider and wrap in ethers Web3Provider
+const eip1193Provider = new OpenKeyEIP1193Provider(openkey, authResult);
+const web3Provider = new providers.Web3Provider(eip1193Provider as any);
 ```
+
+<Warning>
+You **must** wrap `OpenKeyEIP1193Provider` in `ethers.providers.Web3Provider`. Passing the EIP-1193 provider directly to TinyCloudWeb will cause garbled SIWE messages because TinyCloudWeb expects an ethers-compatible provider internally.
+</Warning>
 </Step>
 
 <Step title="Initialize TinyCloud with OpenKey provider">
 
-Pass the OpenKey provider to TinyCloud and sign in.
+Pass the ethers `Web3Provider` to TinyCloud and sign in. There are two ways to pass the provider:
 
 ```typescript
-// Initialize TinyCloud with the OpenKey provider
+// Option 1: Full form
 const tc = new TinyCloudWeb({
-  providers: { web3: { driver: provider } },
+  providers: { web3: { driver: web3Provider } },
 });
 
-// Sign in - TinyCloud uses OpenKey for signing automatically
+// Option 2: Shorthand (web-sdk 1.7.2+)
+const tc = new TinyCloudWeb({
+  provider: web3Provider,
+});
+
+// Sign in - TinyCloud handles SIWE automatically
 await tc.signIn();
 
 console.log('TinyCloud session:', tc.address());
 ```
+
+<Note>
+`tc.signIn()` constructs and signs the SIWE message automatically. Do not manually create SIWE messages -- TinyCloudWeb handles this for you.
+</Note>
 </Step>
 
 <Step title="Use TinyCloud normally">
@@ -101,6 +120,7 @@ if (getResult.ok) {
 ```typescript Vanilla JS
 import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
+import { providers } from 'ethers';
 
 async function main() {
   const openkey = new OpenKey({ appName: 'My App' });
@@ -109,17 +129,20 @@ async function main() {
   const authResult = await openkey.connect();
   console.log('Connected via OpenKey:', authResult.address);
 
-  // Step 2: Create EIP-1193 provider and initialize TinyCloud
-  const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+  // Step 2: Create EIP-1193 provider and wrap in ethers Web3Provider
+  const eip1193Provider = new OpenKeyEIP1193Provider(openkey, authResult);
+  const web3Provider = new providers.Web3Provider(eip1193Provider as any);
+
+  // Step 3: Initialize TinyCloud with the ethers provider
   const tc = new TinyCloudWeb({
-    providers: { web3: { driver: provider } },
+    provider: web3Provider,
   });
 
-  // Step 3: Sign in to TinyCloud
+  // Step 4: Sign in to TinyCloud (SIWE handled automatically)
   await tc.signIn();
   console.log('TinyCloud session active:', tc.address());
 
-  // Step 4: Use TinyCloud KV storage
+  // Step 5: Use TinyCloud KV storage
   await tc.kv.put('settings', { theme: 'dark', lang: 'en' });
   const result = await tc.kv.get('settings');
   if (result.ok) {
@@ -134,6 +157,7 @@ main().catch(console.error);
 import { useState } from 'react';
 import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
+import { providers } from 'ethers';
 
 const openkey = new OpenKey({ appName: 'My React App' });
 let tc: TinyCloudWeb | null = null;
@@ -147,13 +171,15 @@ export default function App() {
     const authResult = await openkey.connect();
     setAddress(authResult.address);
 
-    // Create EIP-1193 provider and initialize TinyCloud
-    const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+    // Wrap EIP-1193 provider in ethers Web3Provider
+    const eip1193Provider = new OpenKeyEIP1193Provider(openkey, authResult);
+    const web3Provider = new providers.Web3Provider(eip1193Provider as any);
+
     tc = new TinyCloudWeb({
-      providers: { web3: { driver: provider } },
+      provider: web3Provider,
     });
 
-    // Sign in to TinyCloud
+    // Sign in to TinyCloud (SIWE handled automatically)
     await tc.signIn();
   }
 
@@ -196,6 +222,7 @@ Check if there's an existing session before initiating a new sign-in flow:
 ```typescript
 import { OpenKey, OpenKeyEIP1193Provider } from '@openkey/sdk';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
+import { providers } from 'ethers';
 
 const openkey = new OpenKey({ appName: 'My App' });
 
@@ -205,10 +232,11 @@ if (tc.session()) {
 } else {
   // Need to connect with OpenKey and sign in
   const authResult = await openkey.connect();
-  const provider = new OpenKeyEIP1193Provider(openkey, authResult);
+  const eip1193Provider = new OpenKeyEIP1193Provider(openkey, authResult);
+  const web3Provider = new providers.Web3Provider(eip1193Provider as any);
 
   const tc = new TinyCloudWeb({
-    providers: { web3: { driver: provider } },
+    provider: web3Provider,
   });
 
   await tc.signIn();
