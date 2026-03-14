@@ -70,15 +70,9 @@ You **must** wrap `OpenKeyEIP1193Provider` in `ethers.providers.Web3Provider`. P
 
 <Step title="Initialize TinyCloud with OpenKey provider">
 
-Pass the ethers `Web3Provider` to TinyCloud and sign in. There are two ways to pass the provider:
+Pass the ethers `Web3Provider` to TinyCloud and sign in:
 
 ```typescript
-// Option 1: Full form
-const tc = new TinyCloudWeb({
-  providers: { web3: { driver: web3Provider } },
-});
-
-// Option 2: Shorthand (web-sdk 1.7.2+)
 const tc = new TinyCloudWeb({
   provider: web3Provider,
 });
