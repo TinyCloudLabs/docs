@@ -12,20 +12,21 @@ TinyCloud nodes are configured through a combination of a TOML config file and e
 Configuration is resolved in this order, with later sources overriding earlier ones:
 
 <Steps>
-<Step title="Built-in defaults">
-Sensible defaults for all settings.
-</Step>
-<Step title="tinycloud.toml">
-File-based configuration in the working directory.
-</Step>
-<Step title="Environment variables">
-Override any setting with `TINYCLOUD_` prefixed environment variables.
-</Step>
+  <Step title="Built-in defaults">Sensible defaults for all settings.</Step>
+  <Step title="tinycloud.toml">
+    File-based configuration in the working directory.
+  </Step>
+  <Step title="Environment variables">
+    Override config values with `TINYCLOUD_` environment variables. Top-level
+    settings use plain names like `TINYCLOUD_PORT`; nested settings use double
+    underscores, like `TINYCLOUD_STORAGE__DATABASE` and
+    `TINYCLOUD_HOOKS__MAX_TICKET_TTL_SECONDS`.
+  </Step>
 </Steps>
 
 ## Environment Variable Pattern
 
-Any config setting can be overridden with an environment variable. Nested keys use double underscores (`__`):
+Nested config keys use double underscores (`__`):
 
 ```bash
 # port = 8000
@@ -38,6 +39,10 @@ TINYCLOUD_STORAGE__DATABASE="postgres://user:pass@localhost:5432/tinycloud"
 # [keys]
 # secret = "..."
 TINYCLOUD_KEYS__SECRET="your-base64url-secret-key"
+
+# [hooks]
+# max_ticket_ttl_seconds = 300
+TINYCLOUD_HOOKS__MAX_TICKET_TTL_SECONDS=300
 ```
 
 ## Configuration Reference
@@ -46,12 +51,12 @@ TINYCLOUD_KEYS__SECRET="your-base64url-secret-key"
 
 Top-level server settings.
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `port` | integer | `8000` | HTTP API port |
-| `address` | string | `127.0.0.1` | Bind address |
-| `cors` | string | `*` | CORS allowed origins |
-| `log_level` | string | `info` | Log level (`trace`, `debug`, `info`, `warn`, `error`) |
+| Setting     | Type    | Default     | Description                                           |
+| ----------- | ------- | ----------- | ----------------------------------------------------- |
+| `port`      | integer | `8000`      | HTTP API port                                         |
+| `address`   | string  | `127.0.0.1` | Bind address                                          |
+| `cors`      | string  | `*`         | CORS allowed origins                                  |
+| `log_level` | string  | `info`      | Log level (`trace`, `debug`, `info`, `warn`, `error`) |
 
 ```toml
 port = 8000
@@ -61,7 +66,8 @@ log_level = "info"
 ```
 
 <Warning>
-In production, set `cors` to your specific domain(s) instead of `*`. A wildcard CORS policy allows any website to make requests to your node.
+  In production, set `cors` to your specific domain(s) instead of `*`. A
+  wildcard CORS policy allows any website to make requests to your node.
 </Warning>
 
 ### Storage
@@ -70,8 +76,8 @@ Configure the metadata database and block storage backend.
 
 #### Database
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
+| Setting            | Type   | Default                 | Description                |
+| ------------------ | ------ | ----------------------- | -------------------------- |
 | `storage.database` | string | `sqlite:./data/caps.db` | Database connection string |
 
 Supported connection strings:
@@ -94,12 +100,12 @@ See the [Database Setup](/hosting/databases) guide for detailed instructions.
 
 #### Block Storage
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `storage.blocks.type` | string | `Local` | Storage backend (`Local` or `S3`) |
-| `storage.blocks.path` | string | `./data/blocks` | Local storage path (when type = `Local`) |
-| `storage.blocks.bucket` | string | -- | S3 bucket name (when type = `S3`) |
-| `storage.blocks.endpoint` | string | -- | S3 endpoint URL (for S3-compatible services) |
+| Setting                   | Type   | Default         | Description                                  |
+| ------------------------- | ------ | --------------- | -------------------------------------------- |
+| `storage.blocks.type`     | string | `Local`         | Storage backend (`Local` or `S3`)            |
+| `storage.blocks.path`     | string | `./data/blocks` | Local storage path (when type = `Local`)     |
+| `storage.blocks.bucket`   | string | --              | S3 bucket name (when type = `S3`)            |
+| `storage.blocks.endpoint` | string | --              | S3 endpoint URL (for S3-compatible services) |
 
 <Tabs>
 <Tab title="Local filesystem">
@@ -119,11 +125,13 @@ bucket = "tinycloud-blocks"
 ```
 
 S3 credentials are configured via environment variables:
+
 ```bash
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_DEFAULT_REGION=us-east-1
 ```
+
 </Tab>
 </Tabs>
 
@@ -133,10 +141,10 @@ See the [Block Storage](/hosting/storage) guide for more details.
 
 Staging storage is used for temporary data during uploads.
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
+| Setting                | Type   | Default  | Description                                |
+| ---------------------- | ------ | -------- | ------------------------------------------ |
 | `storage.staging.type` | string | `Memory` | Staging backend (`Memory` or `FileSystem`) |
-| `storage.staging.path` | string | -- | Path for filesystem staging |
+| `storage.staging.path` | string | --       | Path for filesystem staging                |
 
 ```toml
 # In-memory (default, faster, uses RAM)
@@ -153,10 +161,10 @@ path = "./data/staging"
 
 Configure the node's signing key.
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `keys.type` | string | `Static` | Key management type |
-| `keys.secret` | string | -- | Base64url-encoded secret (minimum 32 bytes) |
+| Setting       | Type   | Default  | Description                                 |
+| ------------- | ------ | -------- | ------------------------------------------- |
+| `keys.type`   | string | `Static` | Key management type                         |
+| `keys.secret` | string | --       | Base64url-encoded secret (minimum 32 bytes) |
 
 ```toml
 [keys]
@@ -173,13 +181,14 @@ openssl rand -base64 32
 ```
 
 Always set this via the `TINYCLOUD_KEYS__SECRET` environment variable, never in the config file.
+
 </Warning>
 
 ### Spaces
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `spaces.allowlist` | string | -- | URL to a space allowlist (optional) |
+| Setting            | Type   | Default | Description                         |
+| ------------------ | ------ | ------- | ----------------------------------- |
+| `spaces.allowlist` | string | --      | URL to a space allowlist (optional) |
 
 ```toml
 [spaces]
@@ -190,15 +199,15 @@ When set, only spaces listed at the allowlist URL can be created on this node.
 
 ### Hooks
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `hooks.max_ticket_ttl_seconds` | integer | `300` | Maximum SSE ticket lifetime in seconds |
-| `hooks.max_scopes_per_ticket` | integer | `32` | Maximum subscriptions per SSE ticket |
-| `hooks.max_active_sse_streams` | integer | `100` | Maximum concurrent live hook streams |
-| `hooks.sse_broadcast_capacity` | integer | `1024` | Broadcast buffer size for write events |
-| `hooks.max_webhook_subscriptions_per_space` | integer | `5` | Maximum active webhook subscriptions per space |
-| `hooks.webhook_timeout_seconds` | integer | `10` | HTTP timeout for webhook delivery |
-| `hooks.webhook_max_attempts` | integer | `5` | Maximum delivery attempts before dead-letter |
+| Setting                                     | Type    | Default | Description                                    |
+| ------------------------------------------- | ------- | ------- | ---------------------------------------------- |
+| `hooks.max_ticket_ttl_seconds`              | integer | `300`   | Maximum SSE ticket lifetime in seconds         |
+| `hooks.max_scopes_per_ticket`               | integer | `32`    | Maximum subscriptions per SSE ticket           |
+| `hooks.max_active_sse_streams`              | integer | `100`   | Maximum concurrent live hook streams           |
+| `hooks.sse_broadcast_capacity`              | integer | `1024`  | Broadcast buffer size for write events         |
+| `hooks.max_webhook_subscriptions_per_space` | integer | `5`     | Maximum active webhook subscriptions per space |
+| `hooks.webhook_timeout_seconds`             | integer | `10`    | HTTP timeout for webhook delivery              |
+| `hooks.webhook_max_attempts`                | integer | `5`     | Maximum delivery attempts before dead-letter   |
 
 ```toml
 [hooks]
@@ -213,10 +222,10 @@ webhook_max_attempts = 5
 
 ### Logging
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `logging.format` | string | `Text` | Log format (`Text` or `Json`) |
-| `logging.tracing` | string | -- | Tracing backend (`OpenTelemetry` or `Jaeger`) |
+| Setting           | Type   | Default | Description                                   |
+| ----------------- | ------ | ------- | --------------------------------------------- |
+| `logging.format`  | string | `Text`  | Log format (`Text` or `Json`)                 |
+| `logging.tracing` | string | --      | Tracing backend (`OpenTelemetry` or `Jaeger`) |
 
 ```toml
 # Human-readable logs (development)
@@ -231,9 +240,9 @@ tracing = "OpenTelemetry"
 
 ### Prometheus
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `prometheus.port` | integer | `8001` | Prometheus metrics port |
+| Setting           | Type    | Default | Description             |
+| ----------------- | ------- | ------- | ----------------------- |
+| `prometheus.port` | integer | `8001`  | Prometheus metrics port |
 
 ```toml
 [prometheus]
@@ -242,10 +251,10 @@ port = 8001
 
 ### Relay
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `relay.address` | string | `127.0.0.1` | Relay bind address |
-| `relay.port` | integer | `8081` | Relay port |
+| Setting         | Type    | Default     | Description        |
+| --------------- | ------- | ----------- | ------------------ |
+| `relay.address` | string  | `127.0.0.1` | Relay bind address |
+| `relay.port`    | integer | `8081`      | Relay port         |
 
 ```toml
 [relay]
@@ -292,9 +301,7 @@ port = 8081
 
 ## Security Checklist
 
-<Info>
-Before deploying to production, verify the following:
-</Info>
+<Info>Before deploying to production, verify the following:</Info>
 
 - Secret key is set via environment variable, not in the config file
 - CORS is restricted to your application domain(s)
