@@ -188,6 +188,29 @@ allowlist = "https://example.com/allowed-spaces.json"
 
 When set, only spaces listed at the allowlist URL can be created on this node.
 
+### Hooks
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `hooks.max_ticket_ttl_seconds` | integer | `300` | Maximum SSE ticket lifetime in seconds |
+| `hooks.max_scopes_per_ticket` | integer | `32` | Maximum subscriptions per SSE ticket |
+| `hooks.max_active_sse_streams` | integer | `100` | Maximum concurrent live hook streams |
+| `hooks.sse_broadcast_capacity` | integer | `1024` | Broadcast buffer size for write events |
+| `hooks.max_webhook_subscriptions_per_space` | integer | `5` | Maximum active webhook subscriptions per space |
+| `hooks.webhook_timeout_seconds` | integer | `10` | HTTP timeout for webhook delivery |
+| `hooks.webhook_max_attempts` | integer | `5` | Maximum delivery attempts before dead-letter |
+
+```toml
+[hooks]
+max_ticket_ttl_seconds = 300
+max_scopes_per_ticket = 32
+max_active_sse_streams = 100
+sse_broadcast_capacity = 1024
+max_webhook_subscriptions_per_space = 5
+webhook_timeout_seconds = 10
+webhook_max_attempts = 5
+```
+
 ### Logging
 
 | Setting | Type | Default | Description |

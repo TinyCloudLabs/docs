@@ -188,6 +188,10 @@ path = "./data/staging"
 Use `Memory` staging unless you're running on a very constrained instance or handling exceptionally large uploads. The in-memory path is significantly faster.
 </Tip>
 
+<Note>
+If you use filesystem-based staging or temp-file + rename flows on a mounted volume, keep `TMPDIR` on the same filesystem as the node data directory so local writes do not cross devices and fail with `EXDEV`.
+</Note>
+
 ## Per-Space Storage Limits
 
 Nodes can enforce storage limits per space to prevent any single user from consuming excessive resources. This is configured at the node level and applies to all spaces hosted on the node.
