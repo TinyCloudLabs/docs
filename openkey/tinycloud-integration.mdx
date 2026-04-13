@@ -1,10 +1,10 @@
 ---
 title: "TinyCloud Integration"
-description: "Use OpenKey as the wallet provider for TinyCloud Web SDK"
+description: "Use OpenKey as the signer/provider for TinyCloud Web SDK"
 icon: "cloud"
 ---
 
-OpenKey can replace browser wallet extensions (MetaMask, WalletConnect, etc.) as the signer for TinyCloud Web SDK. This means users can authenticate to TinyCloud using their OpenKey-managed Ethereum keys, with passkey-based login instead of a browser extension.
+OpenKey can replace browser wallet extensions (MetaMask, WalletConnect, etc.) as the signer for TinyCloud's SIWE sign-in flow. TinyCloud still uses SIWE for authentication; OpenKey supplies the Ethereum signer so users can authenticate with passkeys instead of a browser extension.
 
 ## Why Use OpenKey with TinyCloud
 
@@ -21,6 +21,10 @@ OpenKey can replace browser wallet extensions (MetaMask, WalletConnect, etc.) as
 </Frame>
 
 Instead of the wallet extension signing the SIWE message, OpenKey's TEE-managed key signs it. From TinyCloud's perspective, the signature is indistinguishable from one produced by MetaMask.
+
+<Note>
+TinyCloud's default nonce behavior is fine for standard sign-in flows. If your app is a relying party that needs to verify a nonce, issue a one-time nonce from your server and thread it through the auth request. Do not generate nonces in the browser.
+</Note>
 
 ## Setup
 
@@ -50,7 +54,7 @@ console.log('Connected:', authResult.address);
 
 <Step title="Create provider and sign in to TinyCloud">
 
-Pass the `OpenKeyProvider` directly to TinyCloudWeb — the SDK handles ethers wrapping internally.
+Pass the `OpenKeyProvider` directly via TinyCloudWeb's `provider` property shorthand. The SDK handles ethers wrapping internally.
 
 ```typescript
 const provider = new OpenKeyProvider(openkey, authResult);
@@ -215,7 +219,7 @@ Use the recipient's primary DID (`tc.did` after signIn) for delegations. This ap
 | **Seed phrase** | User must back up | Not applicable |
 | **Signing UX** | Extension popup | OpenKey popup/iframe |
 | **Works on mobile** | Requires mobile wallet app | Works in any browser |
-| **TinyCloud compatibility** | Native | Via OpenKeyProvider |
+| **TinyCloud compatibility** | Native | Via `OpenKeyProvider` |
 
 ## Next Steps
 
@@ -224,7 +228,7 @@ Use the recipient's primary DID (`tc.did` after signIn) for delegations. This ap
     Learn more about the OpenKey widget for connect and sign flows.
   </Card>
   <Card title="OAuth Provider" icon="lock" href="/openkey/oauth">
-    Use OpenKey as an OAuth provider for server-side apps.
+    Use OpenKey OAuth for token-based apps. TinyCloud itself uses SIWE, not OAuth.
   </Card>
   <Card title="Authentication Guide" icon="key" href="/guides/authentication">
     Learn more about TinyCloud's SIWE authentication model.

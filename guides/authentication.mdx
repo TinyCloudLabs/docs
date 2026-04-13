@@ -7,6 +7,8 @@ sidebarTitle: 'Authentication'
 
 TinyCloud uses Sign-In with Ethereum (SIWE) for authentication. Users prove wallet ownership to establish sessions that authorize access to their space.
 
+OpenKey can supply the signer for this SIWE flow in TinyCloud, but OpenKey OAuth is a separate token-based integration. If you are connecting OpenKey to TinyCloud, see [TinyCloud Integration](/openkey/tinycloud-integration).
+
 ## How SIWE Works
 
 The authentication flow follows three steps regardless of which SDK you use:
@@ -22,6 +24,10 @@ The authentication flow follows three steps regardless of which SDK you use:
   TinyCloud verifies the signature, creates the user's space if needed, and issues a session. The session key can perform operations on behalf of the user until it expires.
 </Step>
 </Steps>
+
+<Note>
+TinyCloud's default nonce behavior is sufficient when no relying-party challenge is needed. If you need to verify a nonce in your own auth flow, issue a one-time nonce from your server and pass that through the request. Do not generate nonces in the browser.
+</Note>
 
 <Frame>
   <img src="/images/diagrams/auth-siwe-flow.svg" alt="SIWE authentication flow" />
