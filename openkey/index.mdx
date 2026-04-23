@@ -56,7 +56,9 @@ OpenKey also functions as an OAuth 2.1 provider, allowing third-party applicatio
 
 ## How OpenKey Relates to TinyCloud
 
-TinyCloud uses Sign-In with Ethereum (SIWE) for authentication, which traditionally requires a browser wallet extension like MetaMask. OpenKey provides an alternative: users get an Ethereum key managed by OpenKey and authenticate to TinyCloud without installing any extension. This lowers the barrier to entry for non-crypto-native users while preserving the same cryptographic guarantees.
+TinyCloud uses Sign-In with Ethereum (SIWE) for authentication, which traditionally requires a browser wallet extension like MetaMask. OpenKey provides an alternative signer for that SIWE flow: users get an Ethereum key managed by OpenKey and authenticate to TinyCloud without installing any extension. This lowers the barrier to entry for non-crypto-native users while preserving the same cryptographic guarantees.
+
+OpenKey OAuth is a separate flow for token-based access to your own application. Use [TinyCloud Integration](/openkey/tinycloud-integration) when you want OpenKey to sign TinyCloud's SIWE session flow, and use [OAuth Provider](/openkey/oauth) when you need OAuth 2.1 tokens.
 
 See [TinyCloud Integration](/openkey/tinycloud-integration) for setup details.
 
@@ -73,6 +75,6 @@ See [TinyCloud Integration](/openkey/tinycloud-integration) for setup details.
     Use OpenKey as an OAuth 2.1 provider for your app.
   </Card>
   <Card title="TinyCloud Integration" icon="cloud" href="/openkey/tinycloud-integration">
-    Use OpenKey as the wallet provider for TinyCloud SDK.
+    Use OpenKey as the signer for TinyCloud's SIWE flow.
   </Card>
 </CardGroup>
