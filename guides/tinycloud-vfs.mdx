@@ -1,0 +1,125 @@
+---
+title: "TinyCloud VFS"
+description: "Mount TinyCloud KV as a Node.js virtual file system"
+icon: "folder-tree"
+sidebarTitle: "TinyCloud VFS"
+---
+
+`@tinycloud/vfs` mounts TinyCloud data as a Node.js virtual file system. In this first cut it is KV-only: files and directories are backed by TinyCloud KV in the underlying space or delegated subtree. It is meant for Node runtimes, not the browser.
+
+## Access Modes
+
+TinyCloud VFS supports two entry points:
+
+- **Owner access** uses an authenticated `TinyCloudNode` instance and mounts your own space
+- **Delegated access** uses a portable delegation and mounts the delegator's scoped subtree
+
+The delegated factory is async because it resolves the delegation before building the mounted VFS: `await createTinyCloudDelegatedVfs(...)`.
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @tinycloud/node-sdk @tinycloud/vfs
+```
+
+```bash bun
+bun add @tinycloud/node-sdk @tinycloud/vfs
+```
+</CodeGroup>
+
+## Owner Usage
+
+Use `createTinyCloudVfsFromNode(node)` when the process owns the TinyCloud session.
+
+<CodeGroup>
+```typescript
+import fs from "node:fs";
+import { TinyCloudNode } from "@tinycloud/node-sdk";
+import { createTinyCloudVfsFromNode } from "@tinycloud/vfs";
+
+const owner = new TinyCloudNode({
+  privateKey: process.env.TINYCLOUD_PRIVATE_KEY!,
+  host: "https://node.tinycloud.xyz",
+  autoCreateSpace: true,
+});
+
+await owner.signIn();
+
+const { provider, vfs } = createTinyCloudVfsFromNode(owner);
+vfs.mount("/tmp/tinycloud-owner");
+
+try {
+  fs.writeFileSync("/tmp/tinycloud-owner/hello.txt", "hello from owner");
+  console.log(fs.readFileSync("/tmp/tinycloud-owner/hello.txt", "utf8"));
+} finally {
+  vfs.unmount();
+  provider.close();
+}
+```
+</CodeGroup>
+
+## Delegated Usage
+
+Use `await createTinyCloudDelegatedVfs({ node, delegation })` when you want to mount a path that was granted through delegation.
+
+<CodeGroup>
+```typescript
+import fs from "node:fs";
+import { TinyCloudNode } from "@tinycloud/node-sdk";
+import { createTinyCloudDelegatedVfs } from "@tinycloud/vfs";
+
+const alice = new TinyCloudNode({
+  privateKey: process.env.ALICE_PRIVATE_KEY!,
+  host: "https://node.tinycloud.xyz",
+  autoCreateSpace: true,
+});
+const bob = new TinyCloudNode({
+  privateKey: process.env.BOB_PRIVATE_KEY!,
+  host: "https://node.tinycloud.xyz",
+  autoCreateSpace: true,
+});
+
+await alice.signIn();
+await bob.signIn();
+
+const delegation = await alice.createDelegation({
+  delegateDID: bob.did,
+  path: "shared/",
+  actions: [
+    "tinycloud.kv/get",
+    "tinycloud.kv/put",
+    "tinycloud.kv/list",
+    "tinycloud.kv/del",
+    "tinycloud.kv/metadata",
+  ],
+});
+
+const { provider, vfs } = await createTinyCloudDelegatedVfs({ node: bob, delegation });
+vfs.mount("/tmp/tinycloud-delegated");
+
+try {
+  fs.writeFileSync("/tmp/tinycloud-delegated/bob-note.txt", "written through delegation");
+  console.log(fs.readFileSync("/tmp/tinycloud-delegated/bob-note.txt", "utf8"));
+} finally {
+  vfs.unmount();
+  provider.close();
+}
+```
+</CodeGroup>
+
+## Live-Tested Behavior
+
+These examples were validated against the live Node coverage added in js-sdk PR #194.
+
+- Owner mounts support read, write, stat, list, rename, unlink, and `rmdir`
+- Delegated mounts can read and write within the delegated subtree
+- Read-only delegations reject writes with `EACCES`
+
+## Cleanup
+
+The current examples explicitly call `vfs.unmount()` and then `provider.close()`. Keep that order in your own code: unmount first, then close the provider.
+
+<Tip>
+If you are writing a long-lived service, treat the provider as a resource that should be closed on shutdown even after the VFS has been unmounted.
+</Tip>
