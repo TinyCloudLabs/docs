@@ -75,7 +75,7 @@
           },
           {
             "group": "Data",
-            "pages": ["cli/storage", "cli/spaces", "cli/secrets"]
+            "pages": ["cli/storage", "cli/sql", "cli/spaces", "cli/secrets"]
           },
           {
             "group": "Collaboration",
