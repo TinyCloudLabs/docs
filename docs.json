@@ -63,7 +63,11 @@
           },
           {
             "group": "Concepts",
-            "pages": ["concepts/did-formats", "concepts/capabilities"]
+            "pages": [
+              "concepts/did-formats",
+              "concepts/capabilities",
+              "concepts/app-manifests"
+            ]
           }
         ]
       },

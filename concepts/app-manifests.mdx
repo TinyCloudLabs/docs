@@ -1,0 +1,145 @@
+---
+title: "App manifests"
+description: "Describe a TinyCloud app, its data surface, and the permissions its session needs."
+---
+
+TinyCloud app manifests are user-facing app and data descriptors. A manifest
+answers three questions:
+
+- What app is this?
+- What kind of user data does it own?
+- Which TinyCloud capabilities should the user grant to the app session?
+
+The manifest is not a backend configuration file. Backend, agent, and peer
+delegation are app logic: an app can delegate a subset of the capabilities
+already granted by the manifest-backed session, but those delegation choices do
+not require a private `backend` section in the manifest.
+
+## Manifest v1 shape
+
+```json
+{
+  "manifest_version": 1,
+  "id": "com.tinycloud.conversation-sync",
+  "name": "Conversation Sync",
+  "description": "Sync Fireflies and Google Meet transcripts into a TinyCloud space.",
+  "defaults": true,
+  "permissions": [
+    {
+      "service": "tinycloud.hooks",
+      "space": "default",
+      "path": "sql/com.tinycloud.conversation-sync/conversations/conversation",
+      "actions": ["subscribe"],
+      "skipPrefix": true,
+      "description": "Subscribe to conversation row write events for live updates."
+    }
+  ]
+}
+```
+
+`manifest_version` is optional for v1. If the field is missing, readers should
+assume version 1. The field is separate from app release version, following the
+Chrome extension manifest convention.
+
+## Fields
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `manifest_version` | No | Manifest schema version. Missing means `1`. |
+| `id` | Yes | Stable reverse-DNS app id. Also the default path prefix. |
+| `name` | Yes | User-facing app name. |
+| `description` | No | Human and agent-readable description of what the app does and the data it owns. |
+| `defaults` | No | Default TinyCloud permission tier. Missing means `true`. |
+| `permissions` | No | Additional or special permissions beyond defaults. |
+| `prefix` | No | Path prefix override. Missing means `id`; `""` disables prefixing. |
+| `includePublicSpace` | No | Whether to include public-space companion capabilities. Missing means `true`. |
+
+## Permission entries
+
+Permission entries identify TinyCloud resources by service, space, path, and
+actions. They may include a `description` that explains the data or workflow
+behind the capability.
+
+```json
+{
+  "service": "tinycloud.sql",
+  "space": "default",
+  "path": "conversations",
+  "actions": ["read", "write"],
+  "description": "Read and write normalized conversation records created from transcript sync."
+}
+```
+
+`path` is app-relative by default. With `id:
+"com.tinycloud.conversation-sync"`, the SQL entry above resolves to
+`com.tinycloud.conversation-sync/conversations`. Set `skipPrefix: true` for
+paths that are already fully scoped or use service-specific addressing.
+
+Descriptions are metadata. They do not change authorization, but they are useful
+for consent UI, app registries, and agents that need to understand where an
+app's data lives.
+
+## Defaults
+
+`defaults: true` means the SDK includes the standard app-scoped TinyCloud
+permissions:
+
+- `tinycloud.kv` under the app prefix with `get`, `put`, `del`, `list`, and
+  `metadata`
+- `tinycloud.sql` under the app prefix with `read` and `write`
+- `tinycloud.capabilities` under the app prefix with `read`
+
+Apps should keep defaults enabled unless they intentionally need a narrower or
+custom permission surface. Use explicit `permissions` for capabilities that the
+default set does not describe, such as hooks, cross-space resources, or
+`skipPrefix` paths.
+
+## Delegation
+
+Delegation is separate from the manifest. A backend or agent can advertise the
+app-relative permissions it needs through an app-defined channel, such as
+`/api/server-info`. The frontend resolves those permissions against the
+manifest before creating the delegation.
+
+```ts
+const appManifest = await loadAppManifest("/api/manifest");
+const info = await fetch("/api/server-info").then((res) => res.json());
+
+const { tcw } = await createAndSignIn(web3Provider, {
+  nonce,
+  manifest: appManifest,
+});
+
+const backendPermissions = resolveManifestPermissions(
+  appManifest,
+  info.permissions,
+);
+
+const { serialized, prompted } = await createManifestDelegation(
+  tcw,
+  info.did,
+  backendPermissions,
+);
+```
+
+When `backendPermissions` are a subset of the current session's manifest-backed
+ReCap, `tcw.delegateTo` creates a session-key-signed UCAN and `prompted` is
+`false`. If the backend or agent asks for capabilities outside the manifest
+session, the SDK raises a capability error rather than silently expanding
+access.
+
+## SDK behavior
+
+The SDK accepts a manifest object directly or loads one with `loadManifest(url)`.
+It validates `id`, `name`, and permission structure, then `resolveManifest`
+expands the manifest into concrete capabilities:
+
+- default permissions are added when `defaults` is omitted or `true`
+- paths are prefixed with `prefix` or `id`, unless `skipPrefix` is true
+- short actions like `read` become full action URNs like `tinycloud.sql/read`
+- top-level `permissions` become session resources
+- manifest-declared `delegations`, if present, become additional ReCap entries
+
+Manifest-declared `delegations` remain a lower-level capability-chain feature,
+but apps do not need them for their own backend. The recommended v1 pattern is
+top-level app permissions plus app-logic delegation of subsets.
