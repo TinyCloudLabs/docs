@@ -1,0 +1,243 @@
+---
+title: "App manifests"
+description: "Describe a TinyCloud app, its data surface, and the capabilities its session needs."
+---
+
+TinyCloud app manifests are app and data descriptors. They give users,
+wallets, and agents a stable way to understand what an app does, where its
+data lives, and which TinyCloud capabilities the app asks the user to grant.
+
+A manifest answers:
+
+- What app is this?
+- What data does it store or operate on?
+- Which TinyCloud services, spaces, paths, and actions does it need?
+- Which other principals can receive derived delegations after sign-in?
+
+The manifest is not backend configuration. Fetching manifests is app logic.
+Delivering materialized delegations is app logic. The SDK owns validation,
+composition, the single signed capability request, and delegation
+materialization.
+
+## Manifest v1 shape
+
+`manifest_version` is optional for v1. If it is missing, SDKs should treat the
+manifest as version 1.
+
+```json
+{
+  "manifest_version": 1,
+  "app_id": "com.tinycloud.conversation-sync",
+  "name": "Conversation Sync",
+  "description": "Sync meeting transcripts into TinyCloud.",
+  "defaults": true,
+  "permissions": [
+    {
+      "service": "tinycloud.hooks",
+      "path": "sql/com.tinycloud.conversation-sync/conversations/conversation",
+      "actions": ["subscribe"],
+      "skipPrefix": true,
+      "description": "Subscribe to conversation row write events for live updates."
+    }
+  ]
+}
+```
+
+There is no `backend` section and no `delegations[]` section in manifest v1.
+Backends, agents, workers, and peers can each provide their own manifest. Apps
+compose those manifests before sign-in.
+
+## Fields
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `manifest_version` | No | Schema version. Missing means `1`. |
+| `app_id` | Yes | Stable app namespace. Also the default path prefix. |
+| `name` | Yes | Human-readable app or delegate name. |
+| `description` | No | Human and agent-readable description of what the app does and what its data means. |
+| `did` | No | Delegate DID for this manifest. If absent, permissions can still be requested, but no delegation target is created automatically. |
+| `space` | No | Default TinyCloud space for this manifest. Missing means `applications`. |
+| `prefix` | No | Path prefix override. Missing means `app_id`; `""` disables prefixing. |
+| `defaults` | No | Default TinyCloud permission tier. Missing means `true`. |
+| `expiry` | No | Default permission expiry, using `ms` format such as `30d` or `2h`. |
+| `permissions` | No | Explicit permissions beyond defaults. |
+| `includePublicSpace` | No | Whether to include the public-space companion behavior. Missing means `true`. |
+
+## Permission entries
+
+Permission entries identify TinyCloud resources by service, space, path, and
+actions.
+
+```json
+{
+  "service": "tinycloud.sql",
+  "path": "conversations",
+  "actions": ["read", "write"],
+  "description": "Read and write normalized conversation records created from transcript sync."
+}
+```
+
+`space` is optional. If omitted, it inherits the manifest `space`, which itself
+defaults to `applications`.
+
+`path` is app-relative by default. With
+`app_id: "com.tinycloud.conversation-sync"`, the SQL entry above resolves to
+`com.tinycloud.conversation-sync/conversations`. Set `skipPrefix: true` when a
+path is already fully scoped in the target service namespace.
+
+Actions can be short names like `get`, `put`, `read`, and `write`. The SDK
+expands them into full TinyCloud action URNs when it resolves the manifest.
+
+Descriptions are metadata. They do not affect authorization, but they give
+consent UIs and agents context for why a permission exists.
+
+## Defaults
+
+`defaults` defaults to `true`. The standard default tier includes app-scoped:
+
+- `tinycloud.kv` with `get`, `put`, `del`, `list`, and `metadata`
+- `tinycloud.sql` with `read` and `write`
+- `tinycloud.capabilities` with `read`
+
+The SDK also supports higher tiers such as `admin` and `all`. Use
+`defaults: false` when an app wants every requested permission to be explicit.
+
+## Spaces
+
+The manifest default space is `applications`. This means app data is scoped to
+the user's application space instead of the legacy/default user space.
+
+When multiple manifests are composed, each manifest keeps its own `app_id` and
+space defaults. If two manifests share an `app_id`, their permissions are
+merged and deduped under the same app namespace. If they use different
+`app_id` values, the composed request preserves those distinct namespaces.
+
+## Account registry
+
+The SDK can include an implicit account-space registry grant. This is enabled
+by default when composing manifests:
+
+```ts
+const request = composeManifestRequest(manifests, {
+  includeAccountRegistryPermissions: true,
+});
+```
+
+The registry permission targets:
+
+```text
+space: account
+service: tinycloud.kv
+path: applications/
+actions: get, put, list
+```
+
+After successful sign-in, the SDK writes registry records at:
+
+```text
+applications/{app_id}
+```
+
+Those records let agents discover which applications a user has signed into
+and inspect the latest manifests for those apps.
+
+Set `includeAccountRegistryPermissions: false` to omit this implicit account
+registry grant.
+
+## Composing manifests
+
+Apps pass already-loaded manifests to the SDK. Network discovery is out of
+scope for the composer.
+
+```ts
+import { composeManifestRequest } from "@tinycloud/sdk-core";
+
+const request = composeManifestRequest([appManifest, backendManifest], {
+  includeAccountRegistryPermissions: true,
+});
+```
+
+The composer:
+
+- validates all manifests as v1
+- expands default and explicit permissions
+- applies `app_id`/`prefix` path prefixing
+- defaults missing spaces to `applications`
+- dedupes equivalent permissions
+- adds account registry permissions unless disabled
+- records delegation targets for manifests that include `did`
+
+The result is one capability request for one wallet prompt.
+
+## Sign-in and delegation materialization
+
+Use the composed request when signing in:
+
+```ts
+import { TinyCloudWeb, serializeDelegation } from "@tinycloud/web-sdk";
+
+const tcw = new TinyCloudWeb({
+  capabilityRequest: request,
+});
+
+await tcw.signIn();
+```
+
+After sign-in, any manifest with `did` can be materialized into a delegation:
+
+```ts
+if (!backendManifest.did) {
+  throw new Error("Backend manifest did is required for delegation");
+}
+
+const result = await tcw.materializeDelegation(backendManifest.did, request);
+const serialized = serializeDelegation(result.delegation);
+
+await fetch("/api/delegations", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ serialized }),
+});
+```
+
+`materializeDelegation` creates a session-key-signed UCAN when the target
+permissions are a subset of the signed session grant. It does not fetch a
+manifest and it does not deliver the delegation. Transport remains app logic:
+POST to a backend, hand to an agent, send over a local channel, or any other
+application-specific route.
+
+## SDK helpers
+
+Core helpers:
+
+```ts
+loadManifest(url)
+validateManifest(input)
+resolveManifest(manifest)
+composeManifestRequest(manifests, options)
+resourceCapabilitiesToSpaceAbilitiesMap(resources)
+isCapabilitySubset(requested, granted)
+```
+
+Web and Node SDK config:
+
+```ts
+new TinyCloudWeb({
+  manifest,
+  capabilityRequest,
+  includeAccountRegistryPermissions: true,
+});
+```
+
+`capabilityRequest` takes precedence over `manifest`. If only `manifest` is
+provided, the SDK composes it before sign-in.
+
+Delegation helpers:
+
+```ts
+await tcw.materializeDelegation(did, request);
+await tcw.materializeDelegations(request);
+```
+
+These helpers create delegations only for targets declared by manifests with a
+`did`.
