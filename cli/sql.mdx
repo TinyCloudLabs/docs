@@ -1,0 +1,202 @@
+---
+title: "SQL"
+description: "Query and manage SQLite databases from the TinyCloud CLI"
+icon: "table"
+sidebarTitle: "SQL"
+---
+
+The `tc sql` commands let you query, update, and export SQLite databases in your TinyCloud space. Each space can use the default database or named databases with `--db`.
+
+## Commands
+
+### tc sql query
+
+Run a read-only `SELECT` query.
+
+```bash
+tc sql query <sql>
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--db <name>` | SQLite database name within the current space | `default` |
+| `--params <json>` | JSON array of bind parameters for `?` placeholders | None |
+
+<Tabs>
+<Tab title="List rows">
+```bash
+$ tc sql query "SELECT id, body FROM notes ORDER BY id"
+  id  body
+  1   ship docs
+  2   test help
+
+  2 rows returned
+```
+</Tab>
+
+<Tab title="Bind params">
+```bash
+$ tc sql query "SELECT * FROM notes WHERE id = ?" --params '[1]'
+  id  body
+  1   ship docs
+
+  1 row returned
+```
+</Tab>
+
+<Tab title="Named database">
+```bash
+$ tc sql query "SELECT type, count(*) AS total FROM events GROUP BY type" --db analytics
+  type    total
+  signup  42
+  view    319
+```
+</Tab>
+
+<Tab title="JSON output">
+```bash
+$ tc sql query "SELECT id, body FROM notes" --json
+{
+  "columns": ["id", "body"],
+  "rows": [[1, "ship docs"]],
+  "rowCount": 1
+}
+```
+</Tab>
+</Tabs>
+
+### tc sql execute
+
+Run a write or schema statement such as `CREATE TABLE`, `INSERT`, `UPDATE`, `DELETE`, or `DROP TABLE`.
+
+```bash
+tc sql execute <sql>
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--db <name>` | SQLite database name within the current space | `default` |
+| `--params <json>` | JSON array of bind parameters for `?` placeholders | None |
+
+<Tabs>
+<Tab title="Create table">
+```bash
+$ tc sql execute "CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, body TEXT)"
+{
+  "changes": 0,
+  "lastInsertRowId": null
+}
+```
+</Tab>
+
+<Tab title="Insert row">
+```bash
+$ tc sql execute "INSERT INTO notes (body) VALUES (?)" --params '["ship docs"]'
+{
+  "changes": 1,
+  "lastInsertRowId": 1
+}
+```
+</Tab>
+
+<Tab title="Update row">
+```bash
+$ tc sql execute "UPDATE notes SET body = ? WHERE id = ?" --params '["test help", 1]'
+{
+  "changes": 1,
+  "lastInsertRowId": null
+}
+```
+</Tab>
+</Tabs>
+
+### tc sql export
+
+Download the raw SQLite database file.
+
+```bash
+tc sql export
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--db <name>` | SQLite database name within the current space | `default` |
+| `-o, --output <file>` | Output file path | `export.db` |
+
+<Tabs>
+<Tab title="Default database">
+```bash
+$ tc sql export
+{
+  "file": "/Users/alice/project/export.db",
+  "size": 16384,
+  "sizeHuman": "16 KB"
+}
+```
+</Tab>
+
+<Tab title="Named database">
+```bash
+$ tc sql export --db analytics --output analytics.db
+{
+  "file": "/Users/alice/project/analytics.db",
+  "size": 32768,
+  "sizeHuman": "32 KB"
+}
+```
+</Tab>
+</Tabs>
+
+## Parameter Binding
+
+Use `--params` for dynamic values instead of string interpolation. The value must be a JSON array, and values bind to `?` placeholders in order.
+
+```bash
+tc sql execute \
+  "INSERT INTO notes (body, priority) VALUES (?, ?)" \
+  --params '["ship docs", 2]'
+```
+
+```bash
+tc sql query \
+  "SELECT * FROM notes WHERE priority >= ?" \
+  --params '[2]'
+```
+
+<Tip>
+Quote SQL strings so your shell passes the statement as one argument. Quote JSON params with single quotes when possible so double quotes inside the JSON are preserved.
+</Tip>
+
+## Named Databases
+
+Use `--db` when an app needs separate SQLite databases within the same space.
+
+<CodeGroup>
+```bash Default app database
+tc sql execute "CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT)"
+```
+
+```bash Analytics database
+tc sql execute \
+  "CREATE TABLE events (id INTEGER PRIMARY KEY, type TEXT, created_at TEXT)" \
+  --db analytics
+```
+
+```bash Query analytics
+tc sql query \
+  "SELECT type, count(*) AS total FROM events GROUP BY type" \
+  --db analytics
+```
+</CodeGroup>
+
+## Scripting
+
+Add `--json` for stable machine-readable output, or pipe output to another command.
+
+```bash
+tc sql query "SELECT id, body FROM notes" --json | jq '.rows[]'
+```
+
+```bash
+tc sql execute "DELETE FROM notes WHERE id = ?" --params '[1]' --json | jq '.changes'
+```
