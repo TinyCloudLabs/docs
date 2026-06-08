@@ -112,7 +112,7 @@ Authenticate with the TinyCloud network.
     // After sign-in, your space ID and DID are available
     console.log('Space:', tc.spaceId);
 
-    // tc.did returns your primary DID (user identity)
+    // tc.did returns your owner DID (user identity)
     console.log('DID:', tc.did); // did:pkh:eip155:1:0x...
     ```
   </Tab>
@@ -303,7 +303,7 @@ You can create a TinyCloud instance without a private key. This is useful for cl
     const bob = new TinyCloudNode();
 
     // In session-only mode, .did returns a session key DID
-    // (since there is no primary identity to authenticate with)
+    // (since there is no owner identity to authenticate with)
     console.log(bob.did);            // did:key:z6Mk...
     console.log(bob.isSessionOnly);  // true
 
@@ -323,7 +323,7 @@ You can create a TinyCloud instance without a private key. This is useful for cl
 Grant another user or service scoped access to your space.
 
 <Note>
-  After signIn, `tc.did` returns your primary DID (the identity you authenticated with). Before signIn, it returns your session key DID. For delegations, always use the recipient's primary DID (their `tc.did` after they've signed in).
+  After signIn, `tc.did` returns your owner DID (the identity you authenticated with). Before signIn, it returns your session key DID. For delegations, always use the recipient's owner DID (their `tc.did` after they've signed in).
 </Note>
 
 <Tabs>
@@ -348,7 +348,7 @@ Grant another user or service scoped access to your space.
     ```typescript
     // Alice grants Bob access to her 'shared/' prefix
     const delegation = await alice.createDelegation({
-      // Bob's primary DID (tc.did after signIn)
+      // Bob's owner DID (tc.did after signIn)
       // This is the identity Bob authenticated with
       delegateDID: bob.did,
 
@@ -381,7 +381,7 @@ The Node SDK exposes different DIDs depending on authentication state:
 
 | Property | Before signIn | After signIn | Session-only mode |
 |----------|---------------|--------------|-------------------|
-| `tc.did` | Session DID | Primary DID | Session DID |
+| `tc.did` | Session DID | Owner DID | Session DID |
 | `tc.sessionDid` | Session DID | Session DID | Session DID |
 
 <Note>

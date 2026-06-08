@@ -19,7 +19,7 @@ Delegations allow you to grant other users or services scoped, time-limited acce
 Grant another user access to paths in your space by specifying their DID, the actions they can perform, and the paths they can access.
 
 <Warning>
-**Critical**: For delegations, use the recipient's primary DID (`tc.did` after signIn). After signIn, `tc.did` returns the primary DID -- the identity that authenticated. Before signIn, it returns the session key DID. See [DID Formats](/concepts/did-formats) for details.
+**Critical**: For delegations, use the recipient's owner DID (`tc.did` after signIn). After signIn, `tc.did` returns the owner DID -- the identity that authenticated. Before signIn, it returns the session key DID. See [DID Formats](/concepts/did-formats) for details.
 </Warning>
 
 <Tabs>
@@ -28,7 +28,7 @@ Grant another user access to paths in your space by specifying their DID, the ac
 ```typescript Web SDK
 // Alice delegates read access to Bob
 const delegation = await tc.kv.delegate({
-  delegateDID: bob.did,  // Bob's primary DID (after signIn)
+  delegateDID: bob.did,  // Bob's owner DID (after signIn)
   actions: ['read'],
   paths: ['documents/*'],
   expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -41,7 +41,7 @@ console.log(delegation.portable);
 ```typescript Node SDK
 // Alice delegates read + write access to Bob
 const delegation = await alice.createDelegation({
-  delegateDID: bob.did,  // Bob's primary DID (after signIn)
+  delegateDID: bob.did,  // Bob's owner DID (after signIn)
   path: 'shared/',
   actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
 });
@@ -54,8 +54,8 @@ console.log(delegation.portable);
 <Tab title="Explained">
 ```typescript
 const delegation = await alice.createDelegation({
-  // The recipient's primary DID (e.g., did:pkh:eip155:{chainId}:{address})
-  // After signIn, tc.did returns the primary DID (the identity that authenticated)
+  // The recipient's owner DID (e.g., did:pkh:eip155:{chainId}:{address})
+  // After signIn, tc.did returns the owner DID (the identity that authenticated)
   delegateDID: bob.did,
 
   // Actions the recipient can perform
@@ -137,7 +137,7 @@ Recipients can further delegate their access to others. Sub-delegations must be 
 ```typescript Web SDK
 // Bob creates a sub-delegation for Carol
 const subDelegation = await tc.kv.delegate({
-  delegateDID: carol.did,        // Carol's primary DID (after signIn)
+  delegateDID: carol.did,        // Carol's owner DID (after signIn)
   actions: ['read'],             // Must be subset of Bob's actions
   paths: ['documents/public/*'], // Must be within Bob's paths
   expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // Must expire before Bob's delegation
@@ -150,7 +150,7 @@ const subDelegation = await bob.createSubDelegation({
   // The delegation Bob received from Alice
   parentDelegation: aliceDelegation,
 
-  // Carol's primary DID (after signIn)
+  // Carol's owner DID (after signIn)
   delegateDID: carol.did,
 
   // Subset of actions Bob has
@@ -186,7 +186,7 @@ Every sub-delegation must be a strict subset of its parent. The server enforces 
 
 await bob.createSubDelegation({
   parentDelegation,
-  delegateDID: carol.did,         // Carol's primary DID (after signIn)
+  delegateDID: carol.did,         // Carol's owner DID (after signIn)
   actions: ['tinycloud.kv/get'],  // Subset of [get, put]
   path: 'data/public/',           // Within data/*
   expiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Before 7 days
@@ -213,22 +213,22 @@ await bob.createSubDelegation({
 ## DID Format
 
 <Warning>
-This is the most common source of delegation failures. Use the recipient's primary DID (`tc.did` after signIn), not the session key DID.
+This is the most common source of delegation failures. Use the recipient's owner DID (`tc.did` after signIn), not the session key DID.
 </Warning>
 
 TinyCloud uses two DID types:
 
 | Type | Property | Example | When to Use |
 |------|----------|---------|-------------|
-| **Primary DID** | `tc.did` (after signIn) | `did:pkh:eip155:1:0xd8dA...` | Delegations, user identity |
+| **Owner DID** | `tc.did` (after signIn) | `did:pkh:eip155:1:0xd8dA...` | Delegations, user identity |
 | **Session Key DID** | `tc.sessionDid` | `did:key:z6Mk...#z6Mk...` | Internal session operations |
 
-After signIn, `tc.did` returns the primary DID -- the identity that authenticated (e.g., an Ethereum wallet). Before signIn, `tc.did` returns the session key DID. The primary DID represents the user's persistent identity, while the session key DID is ephemeral and rotates on every authentication.
+After signIn, `tc.did` returns the owner DID -- the identity that authenticated (e.g., an Ethereum wallet). Before signIn, `tc.did` returns the session key DID. The owner DID represents the user's persistent identity, while the session key DID is ephemeral and rotates on every authentication.
 
 ```typescript
 // Correct: use tc.did for delegations (after signIn)
 await alice.createDelegation({
-  delegateDID: bob.did,  // did:pkh:eip155:1:0x... (Bob's primary DID after signIn)
+  delegateDID: bob.did,  // did:pkh:eip155:1:0x... (Bob's owner DID after signIn)
   actions: ['tinycloud.kv/get'],
 });
 
@@ -246,7 +246,7 @@ Delegations are serialized as `PortableDelegation` for transport between users. 
 ```typescript
 // Create and serialize
 const delegation = await alice.createDelegation({
-  delegateDID: bob.did,  // Bob's primary DID (after signIn)
+  delegateDID: bob.did,  // Bob's owner DID (after signIn)
   actions: ['tinycloud.kv/get'],
   path: 'shared/',
 });
@@ -301,7 +301,7 @@ Currently, delegations expire automatically based on their `expiresIn` value. Fo
 ```typescript
 // Short-lived delegation that must be refreshed
 const delegation = await alice.createDelegation({
-  delegateDID: bob.did,  // Bob's primary DID (after signIn)
+  delegateDID: bob.did,  // Bob's owner DID (after signIn)
   actions: ['tinycloud.kv/get'],
   path: 'shared/',
   expiry: new Date(Date.now() + 60 * 60 * 1000), // Expires in 1 hour
@@ -320,7 +320,7 @@ Alice shares a document folder with Bob, who then shares a subset with Carol.
 ```typescript
 // Alice's client
 const aliceToBob = await alice.createDelegation({
-  delegateDID: bob.did,  // Bob's primary DID (after signIn)
+  delegateDID: bob.did,  // Bob's owner DID (after signIn)
   actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
   path: 'documents/',
   expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -353,7 +353,7 @@ await access.kv.put('documents/feedback.json', {
 // Bob sub-delegates read-only access to a narrower path
 const bobToCarol = await bob.createSubDelegation({
   parentDelegation: aliceToBobPortable,
-  delegateDID: carol.did,              // Carol's primary DID (after signIn)
+  delegateDID: carol.did,              // Carol's owner DID (after signIn)
   actions: ['tinycloud.kv/get'],       // Read only (subset of Bob's get+put)
   path: 'documents/public/',           // Narrower scope
   expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Shorter than Bob's 30 days

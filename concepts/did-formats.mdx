@@ -1,6 +1,6 @@
 ---
 title: "DID Formats"
-description: "Understanding primary and session DIDs in TinyCloud"
+description: "Understanding owner and session DIDs in TinyCloud"
 icon: "fingerprint"
 ---
 
@@ -25,9 +25,9 @@ const sessionDid = tc.sessionDid;
 // Returns: did:key:z6Mk...#z6Mk...
 ```
 
-### Primary DID (User Identity)
+### Owner DID (User Identity)
 
-The **Primary DID** represents the user's persistent identity, derived from the authentication method they used. For Ethereum wallets, this is a `did:pkh` (Public Key Hash) DID:
+The **Owner DID** represents the user's persistent identity, derived from the authentication method they used. For Ethereum wallets, this is a `did:pkh` (Public Key Hash) DID:
 
 ```
 did:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
@@ -41,13 +41,13 @@ The `tc.did` property returns different values depending on the authentication s
 
 <Tabs>
 <Tab title="After signIn()">
-After calling `signIn()`, `tc.did` returns the **primary DID** (persistent identity):
+After calling `signIn()`, `tc.did` returns the **owner DID** (persistent identity):
 
 ```typescript
 await tc.signIn();
 
 console.log(tc.did);
-// did:pkh:eip155:1:0xd8dA...6045 (primary DID)
+// did:pkh:eip155:1:0xd8dA...6045 (owner DID)
 
 console.log(tc.sessionDid);
 // did:key:z6Mk...#z6Mk... (session key DID)
@@ -76,18 +76,18 @@ In this mode, both getters return the same value because there is no authenticat
 
 | Use Case | What to Use | Returns |
 |----------|-------------|---------|
-| User-to-user delegations | `tc.did` | Primary DID (after signIn) |
-| Identifying a user persistently | `tc.did` | Primary DID (after signIn) |
+| User-to-user delegations | `tc.did` | Owner DID (after signIn) |
+| Identifying a user persistently | `tc.did` | Owner DID (after signIn) |
 | Debugging session key issues | `tc.sessionDid` | Session Key DID |
 | Logging internal session state | `tc.sessionDid` | Session Key DID |
 
 <Tip>
-After `signIn()`, use `tc.did` for delegations. It returns the primary DID, which is what the server expects. Use `tc.sessionDid` only when you need to inspect the ephemeral session key for debugging.
+After `signIn()`, use `tc.did` for delegations. It returns the owner DID, which is what the server expects. Use `tc.sessionDid` only when you need to inspect the ephemeral session key for debugging.
 </Tip>
 
 ## The Common Mistake
 
-When Alice wants to delegate capabilities to Bob, developers sometimes use the session DID directly instead of the primary identity:
+When Alice wants to delegate capabilities to Bob, developers sometimes use the session DID directly instead of the owner identity:
 
 ```typescript
 // WRONG - using sessionDid for delegations will fail server validation
@@ -101,9 +101,9 @@ await alice.createDelegation({
 The correct approach:
 
 ```typescript
-// CORRECT - use tc.did (which returns primary DID after signIn)
+// CORRECT - use tc.did (which returns owner DID after signIn)
 await alice.createDelegation({
-  delegateDID: bob.did,  // Primary DID after signIn
+  delegateDID: bob.did,  // Owner DID after signIn
   abilities: ["tinycloud.kv/get", "tinycloud.kv/put"]
 });
 ```
@@ -111,9 +111,9 @@ await alice.createDelegation({
 <Warning>
 **This is the #1 pitfall in TinyCloud SDK usage.**
 
-After signIn, the `.did` property returns your primary DID. This is the DID others should use when creating delegations to you. A delegation targeting a session key DID will always fail because:
+After signIn, the `.did` property returns your owner DID. This is the DID others should use when creating delegations to you. A delegation targeting a session key DID will always fail because:
 
-1. The server expects the primary DID format for the delegatee field
+1. The server expects the owner DID format for the delegatee field
 2. Session DIDs are ephemeral and rotate on each authentication
 3. A delegation to Bob's session DID becomes invalid the moment Bob re-authenticates
 </Warning>
@@ -123,23 +123,23 @@ After signIn, the `.did` property returns your primary DID. This is the DID othe
 The TinyCloud server performs strict validation on delegation chains:
 
 1. **Delegatee matching**: When Bob uses a delegation from Alice, the server checks that the `delegatee` field in Alice's delegation matches Bob's identity
-2. **Primary DID expected**: The server expects the delegatee to be the primary DID (e.g., `did:pkh:eip155:...` for Ethereum wallets)
+2. **Owner DID expected**: The server expects the delegatee to be the owner DID (e.g., `did:pkh:eip155:...` for Ethereum wallets)
 3. **Session DIDs are ephemeral**: Bob's session DID changes with each authentication, so a delegation to `bob.sessionDid` would be invalid after Bob re-authenticates
 
-The primary DID remains constant as long as Bob uses the same authentication method (e.g., same wallet address), making it the correct identifier for persistent user-to-user relationships.
+The owner DID remains constant as long as Bob uses the same authentication method (e.g., same wallet address), making it the correct identifier for persistent user-to-user relationships.
 
 ## Quick Reference
 
 ```typescript
 // After signIn():
 console.log("User identity (for delegations):", tc.did);
-// -> did:pkh:eip155:1:0xabc... (primary DID)
+// -> did:pkh:eip155:1:0xabc... (owner DID)
 
 console.log("Session key (for debugging):", tc.sessionDid);
 // -> did:key:z6Mk...#z6Mk...
 
 // Summary:
-// tc.did        = Primary DID after signIn, session DID before signIn
+// tc.did        = Owner DID after signIn, session DID before signIn
 // tc.sessionDid = Always session key DID
 ```
 
