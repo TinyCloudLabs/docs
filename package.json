@@ -1,6 +1,7 @@
 {
   "name": "tinycloud-docs",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "scripts": {
     "render-diagrams": "node scripts/render-diagrams.mjs"
