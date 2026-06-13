@@ -62,7 +62,7 @@ await tc.signIn();
 const tc = new TinyCloudNode({
   privateKey: process.env.WALLET_PRIVATE_KEY,
   prefix: 'my-app',
-  autoCreateSpace: true, // default
+  autoCreateSpace: true,
 });
 
 await tc.signIn();
@@ -108,7 +108,7 @@ After sign-in, you can retrieve the space ID for the current session. The access
 ```typescript Web SDK
 await tc.signIn();
 
-const spaceId = tc.userAuthorization.getSpaceId();
+const spaceId = tc.spaceId;
 console.log('Space:', spaceId);
 // "tinycloud:pkh:eip155:1:0xd8dA...6045:my-app"
 ```

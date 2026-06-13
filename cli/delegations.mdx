@@ -33,7 +33,7 @@ Actions follow the `{namespace}/{action}` format. You can use the full or short 
 |-----------|------------|-------------|
 | `tinycloud.kv/get` | `kv/get` | Read a key |
 | `tinycloud.kv/put` | `kv/put` | Write a key |
-| `tinycloud.kv/delete` | `kv/delete` | Delete a key |
+| `tinycloud.kv/del` | `kv/del` | Delete a key |
 | `tinycloud.kv/list` | `kv/list` | List keys |
 | `tinycloud.space/host` | `space/host` | Host a space |
 
@@ -106,7 +106,7 @@ $ tc delegation list
       Expires:  2026-03-14
 
     del_def456  ->  did:pkh:eip155:1:0x9012...ijkl
-      Actions:  kv/get, kv/put, kv/delete
+      Actions:  kv/get, kv/put, kv/del
       Paths:    shared/*
       Expires:  2026-04-07
 

@@ -80,15 +80,15 @@
           },
           {
             "group": "Data",
-            "pages": ["cli/storage", "cli/sql", "cli/spaces", "cli/secrets"]
+            "pages": ["cli/storage", "cli/sql", "cli/duckdb", "cli/spaces", "cli/secrets"]
           },
           {
             "group": "Collaboration",
-            "pages": ["cli/delegations", "cli/profiles"]
+            "pages": ["cli/delegations", "cli/auth-artifacts", "cli/profiles"]
           },
           {
             "group": "Operations",
-            "pages": ["cli/diagnostics"]
+            "pages": ["cli/status", "cli/manifest", "cli/diagnostics"]
           }
         ]
       },

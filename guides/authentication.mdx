@@ -44,11 +44,12 @@ import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb({
   notifications: { popups: true },
-  persistence: { autoResumeSession: true },
+  persistSession: true,
 });
 
-await tc.signIn();
-console.log('Signed in:', tc.userAuthorization.getSpaceId());
+const session = await tc.signIn();
+console.log('Signed in:', session.address);
+console.log('Space:', tc.spaceId);
 ```
 </Tab>
 <Tab title="Explained">
@@ -72,8 +73,11 @@ const tc = new TinyCloudWeb({
   // Show popup notifications for sign-in events
   notifications: { popups: true },
 
-  // Automatically resume sessions on page reload
-  persistence: { autoResumeSession: true },
+  // Persist the session in browser storage
+  persistSession: true,
+
+  // Prefix for browser storage keys
+  sessionStorageKeyPrefix: 'my-app',
 });
 
 // Triggers the wallet popup:
@@ -93,6 +97,10 @@ console.log('Signed in as:', session.address);
 | `spacePrefix` | `string` | `''` | Prefix for space ID derivation |
 | `autoCreateSpace` | `boolean` | `true` | Create space on first sign-in |
 | `kvPrefix` | `string` | `''` | Prefix prepended to all KV keys |
+| `persistSession` | `boolean` | `true` | Persist session data in browser storage. Set `false` to disable. |
+| `sessionStorage` | `ISessionStorage` | `BrowserSessionStorage` | Custom storage backend for persisted sessions |
+| `sessionStorageKeyPrefix` | `string` | `'tinycloud:session:'` | Prefix used for persisted session keys |
+| `sessionExpirationMs` | `number` | `604800000` (7d) | Requested session TTL in milliseconds |
 
 ## Node SDK Sign-In
 
@@ -150,7 +158,7 @@ console.log('Signed in:', tc.spaceId);
 | `host` | `string` | `'https://node.tinycloud.xyz'` | TinyCloud node endpoint |
 | `prefix` | `string` | `''` | Prefix for space ID derivation |
 | `autoCreateSpace` | `boolean` | `true` | Create space on first sign-in |
-| `sessionExpirationMs` | `number` | `86400000` (24h) | Session TTL in milliseconds |
+| `sessionExpirationMs` | `number` | `604800000` (7d) | Session TTL in milliseconds |
 
 <Warning>
 Never hardcode private keys in source code. Always use environment variables or a secrets manager.
@@ -188,28 +196,28 @@ Sessions can be persisted so users do not need to re-authenticate on every page 
 The Web SDK supports three storage backends:
 
 ```typescript
+import { BrowserSessionStorage, TinyCloudWeb } from '@tinycloud/web-sdk';
+
 const tc = new TinyCloudWeb({
-  persistence: {
-    autoResumeSession: true,
-  },
-  sessionConfig: {
-    // 'localStorage' - persists across tabs and browser sessions
-    // 'sessionStorage' - clears when the tab closes
-    // 'memory' - clears on page reload (default)
-    storageType: 'localStorage',
-  },
+  persistSession: true,
+  // Use sessionStorage if the session should clear when the tab closes.
+  sessionStorage: new BrowserSessionStorage({ storage: globalThis.sessionStorage }),
+  sessionStorageKeyPrefix: 'my-app',
 });
 
-// On subsequent page loads, the session is automatically restored
-// if autoResumeSession is true and a valid session exists
+// On subsequent page loads, restore a valid persisted session.
+const restored = await tc.restoreSession();
+if (restored.status === 'restored') {
+  console.log('Session restored:', restored.session.address);
+}
 ```
 
 You can also manually check for an existing session:
 
 ```typescript
-const resumed = await tc.tryResumeSession();
+const restored = await tc.restoreSession();
 
-if (resumed) {
+if (restored.status === 'restored') {
   console.log('Session restored');
 } else {
   await tc.signIn(); // Fresh sign-in required
@@ -263,14 +271,13 @@ Sessions have a limited lifetime. When a session expires, operations will fail a
 ```typescript Web SDK
 // Configure expiry duration
 const tc = new TinyCloudWeb({
-  sessionConfig: {
-    storageType: 'localStorage',
-    expirationTime: '24h', // Session duration
-  },
+  persistSession: true,
+  sessionExpirationMs: 24 * 60 * 60 * 1000, // 24 hours
 });
 
-// Check if the current session is still valid
-if (tc.isSessionExpired()) {
+// Restore a persisted session if it is still valid.
+const restored = await tc.restoreSession();
+if (restored.status !== 'restored') {
   await tc.signIn(); // Re-authenticate
 }
 ```
@@ -317,62 +324,6 @@ await tc.signOut();
 After signing out, all operations will fail until a new `signIn()` is completed. Persisted sessions are deleted permanently.
 </Warning>
 
-## Node SDK Sign Strategies
-
-The Node SDK supports multiple strategies for how the SIWE message is signed, giving you control over the approval flow.
-
-<Tabs>
-<Tab title="Auto-sign (default)">
-Signs immediately using the provided private key. Best for automated services.
-
-```typescript
-const tc = new TinyCloudNode({
-  privateKey: process.env.WALLET_PRIVATE_KEY,
-  // signStrategy defaults to 'auto'
-});
-
-await tc.signIn(); // Signs instantly, no interaction
-```
-</Tab>
-
-<Tab title="Callback">
-Provide a callback to intercept and approve sign requests. Useful for custom approval flows or logging.
-
-```typescript
-const tc = new TinyCloudNode({
-  privateKey: process.env.WALLET_PRIVATE_KEY,
-  signStrategy: 'callback',
-  onSignRequest: async (message) => {
-    console.log('Signing SIWE message:', message);
-    // Custom logic: check rate limits, log audit trail, etc.
-    return true; // Return true to proceed, false to reject
-  },
-});
-
-await tc.signIn();
-```
-</Tab>
-
-<Tab title="Event Emitter">
-Use events for fully decoupled signing workflows. Useful for multi-step approval pipelines.
-
-```typescript
-const tc = new TinyCloudNode({
-  privateKey: process.env.WALLET_PRIVATE_KEY,
-  signStrategy: 'event-emitter',
-});
-
-tc.on('signRequest', async (message, approve) => {
-  console.log('Sign request received:', message);
-  // Perform async checks, user confirmation, etc.
-  approve(); // Call to proceed with signing
-});
-
-await tc.signIn();
-```
-</Tab>
-</Tabs>
-
 ## Complete Example
 
 A full authentication flow with session persistence and expiry handling:
@@ -386,20 +337,21 @@ const tc = new TinyCloudWeb({
   spacePrefix: 'my-app',
   autoCreateSpace: true,
   notifications: { popups: true },
-  persistence: { autoResumeSession: true },
-  sessionConfig: { storageType: 'localStorage' },
+  persistSession: true,
+  sessionStorage: 'localStorage',
+  sessionStorageKeyPrefix: 'my-app',
 });
 
 async function ensureAuthenticated() {
   // Try to resume an existing session first
-  const resumed = await tc.tryResumeSession();
+  const restored = await tc.restoreSession();
 
-  if (!resumed || tc.isSessionExpired()) {
+  if (restored.status !== 'restored') {
     // No valid session -- trigger wallet sign-in
     await tc.signIn();
   }
 
-  console.log('Space:', tc.userAuthorization.getSpaceId());
+  console.log('Space:', tc.spaceId);
 }
 
 async function handleSignOut() {
@@ -421,11 +373,7 @@ const tc = new TinyCloudNode({
 });
 
 async function ensureAuthenticated() {
-  const resumed = await tc.tryResumeSession();
-
-  if (!resumed) {
-    await tc.signIn();
-  }
+  await tc.signIn();
 
   console.log('Space:', tc.spaceId);
 }

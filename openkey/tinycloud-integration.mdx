@@ -63,8 +63,8 @@ const tc = new TinyCloudWeb({
   provider,
 });
 
-await tc.signIn();
-console.log('TinyCloud session:', tc.address());
+const session = await tc.signIn();
+console.log('TinyCloud session:', session.address);
 ```
 
 <Note>
@@ -180,14 +180,17 @@ import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const openkey = new OpenKey({ appName: 'My App' });
+const authResult = await openkey.connect();
+const provider = new OpenKeyProvider(openkey, authResult);
+const tc = new TinyCloudWeb({ provider });
 
-if (tc.session()) {
-  console.log('Session active:', tc.address());
+const restored = await tc.restoreSession(authResult.address);
+
+if (restored.status === 'restored') {
+  console.log('Session active:', restored.session.address);
 } else {
-  const authResult = await openkey.connect();
-  const provider = new OpenKeyProvider(openkey, authResult);
-  const tc = new TinyCloudWeb({ provider });
-  await tc.signIn();
+  const session = await tc.signIn();
+  console.log('Session active:', session.address);
 }
 ```
 

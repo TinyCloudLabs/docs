@@ -1,0 +1,106 @@
+---
+title: "Auth Artifacts"
+description: "Create, import, grant, and retry TCAuth permission requests"
+icon: "file-key-2"
+sidebarTitle: "Auth Artifacts"
+---
+
+The `tc auth` artifact commands support agent and operator workflows where one process requests permissions and another identity reviews and grants them. These commands move signed request artifacts through files, stdin, paste mode, or the local profile store.
+
+## Request Permissions
+
+Create a permission request artifact with `tc auth request`.
+
+```bash
+tc auth request --cap <spec>
+```
+
+| Option | Description |
+|--------|-------------|
+| `--cap <spec>` | Capability spec in the form `tinycloud.<service>:<space>:<path>:<actions-csv>`. Repeat for multiple capabilities. |
+| `--permission <file>` | Permission request JSON file containing `{ "permissions": PermissionEntry[] }`. |
+| `--manifest <file-or-base64>` | Build the request from a manifest file, `base64:<json>`, or raw base64 JSON. |
+| `--expiry <duration>` | Requested expiration such as `30m`, `7d`, or raw milliseconds. |
+| `--emit [file]` | Emit the request artifact to stdout or a file. |
+| `--grant` | Grant the request immediately from the active profile. |
+| `--yes` | Skip confirmation prompts where supported. |
+| `--no-popup` | Avoid browser popup flows. |
+
+```bash
+tc auth request \
+  --cap tinycloud.kv:default:documents/:get,list \
+  --emit request.tcauth.json
+```
+
+## Import Requests
+
+Import a request artifact into the local profile store.
+
+```bash
+tc auth import request.tcauth.json
+```
+
+Use stdin or paste mode when moving artifacts through chat, CI logs, or another agent runtime:
+
+```bash
+cat request.tcauth.json | tc auth import --stdin
+tc auth import --paste
+```
+
+## Grant Requests
+
+Review and grant a request artifact.
+
+```bash
+tc auth grant request.tcauth.json
+```
+
+| Option | Description |
+|--------|-------------|
+| `--stdin` | Read the request from stdin. |
+| `--paste` | Paste the request interactively. |
+| `--yes` | Grant without an interactive confirmation prompt. |
+
+```bash
+tc auth grant request.tcauth.json --yes
+```
+
+## Retry Requests
+
+Retry a stored or recent request after the grant is available.
+
+```bash
+tc auth retry <request-id>
+```
+
+| Option | Description |
+|--------|-------------|
+| `--last` | Retry the most recent imported request. |
+| `--exec` | Execute the captured command after permissions are available. |
+
+```bash
+tc auth retry --last --exec
+```
+
+## Inspect Capabilities
+
+Use `tc auth caps` to inspect current capability coverage and compare it against a requested spec.
+
+```bash
+tc auth caps
+tc auth caps --diff request.tcauth.json
+tc auth caps --history
+```
+
+## Rotate Session Credentials
+
+Use `tc auth rotate` when you need a fresh session key for the active profile.
+
+```bash
+tc auth rotate
+tc auth rotate --paste --no-popup
+```
+
+<Tip>
+Use artifact files when coordinating between agents. They are easier to review, diff, and attach to issues than copied terminal output.
+</Tip>
