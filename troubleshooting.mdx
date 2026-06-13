@@ -69,7 +69,8 @@ This guide covers the most common issues developers encounter when working with 
 
     <CodeGroup>
     ```typescript Web SDK
-    if (tc.isSessionExpired()) {
+    const restored = await tc.restoreSession();
+    if (restored.status !== 'restored') {
       await tc.signIn();
     }
     ```
@@ -208,10 +209,9 @@ This guide covers the most common issues developers encounter when working with 
     const parentExpiry = parentDelegation.expiry;
 
     // Create child with same or earlier expiry
-    await tc.createSubDelegation({
-      parentDelegation,
+    await tc.createSubDelegation(parentDelegation, {
       delegateDID: bob.did,
-      expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // Must be before parent's expiry
+      expiryMs: 24 * 60 * 60 * 1000, // Must be before parent's expiry
     });
     ```
 

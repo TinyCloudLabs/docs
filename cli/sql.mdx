@@ -5,7 +5,7 @@ icon: "table"
 sidebarTitle: "SQL"
 ---
 
-The `tc sql` commands let you query, update, and export SQLite databases in your TinyCloud space. Each space can use the default database or named databases with `--db`.
+The `tc sql` commands let you query, update, export, and copy SQLite databases in your TinyCloud space. Each space can use the default database or named databases with `--db`. Use `--space` when you need to target a non-primary space such as an application manifest space.
 
 ## Commands
 
@@ -20,6 +20,7 @@ tc sql query <sql>
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--db <name>` | SQLite database name within the current space | `default` |
+| `--space <name\|uri>` | Target a non-primary space by short name or full URI | Current primary space |
 | `--params <json>` | JSON array of bind parameters for `?` placeholders | None |
 
 <Tabs>
@@ -76,6 +77,7 @@ tc sql execute <sql>
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--db <name>` | SQLite database name within the current space | `default` |
+| `--space <name\|uri>` | Target a non-primary space by short name or full URI | Current primary space |
 | `--params <json>` | JSON array of bind parameters for `?` placeholders | None |
 
 <Tabs>
@@ -121,6 +123,7 @@ tc sql export
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--db <name>` | SQLite database name within the current space | `default` |
+| `--space <name\|uri>` | Target a non-primary space by short name or full URI | Current primary space |
 | `-o, --output <file>` | Output file path | `export.db` |
 
 <Tabs>
@@ -147,6 +150,32 @@ $ tc sql export --db analytics --output analytics.db
 </Tab>
 </Tabs>
 
+### tc sql copy
+
+Copy rows between SQLite databases, optionally across spaces.
+
+```bash
+tc sql copy --from-db <name> --to-db <name>
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--from-db <name>` | Source database name | Required |
+| `--to-db <name>` | Destination database name | Required |
+| `--from-space <name\|uri>` | Source space by short name or full URI | Current primary space |
+| `--to-space <name\|uri>` | Destination space by short name or full URI | Current primary space |
+| `--table <name...>` | Restrict copy to one or more tables. Repeat or pass comma-separated names. | All user tables |
+| `--dry-run` | Plan the copy without writing destination rows | `false` |
+
+```bash
+tc sql copy \
+  --from-space applications \
+  --from-db xyz.tinycloud.listen/conversations \
+  --to-db listen-export \
+  --table conversation \
+  --dry-run
+```
+
 ## Parameter Binding
 
 Use `--params` for dynamic values instead of string interpolation. The value must be a JSON array, and values bind to `?` placeholders in order.
@@ -169,7 +198,7 @@ Quote SQL strings so your shell passes the statement as one argument. Quote JSON
 
 ## Named Databases
 
-Use `--db` when an app needs separate SQLite databases within the same space.
+Use `--db` when an app needs separate SQLite databases within the same space. Use `--space` when the database lives in another space that the active profile can access.
 
 <CodeGroup>
 ```bash Default app database
@@ -186,6 +215,13 @@ tc sql execute \
 tc sql query \
   "SELECT type, count(*) AS total FROM events GROUP BY type" \
   --db analytics
+```
+
+```bash Query an application space
+tc sql query \
+  "SELECT count(*) FROM conversation" \
+  --space applications \
+  --db xyz.tinycloud.listen/conversations
 ```
 </CodeGroup>
 

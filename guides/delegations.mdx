@@ -27,15 +27,15 @@ Grant another user access to paths in your space by specifying their DID, the ac
 <CodeGroup>
 ```typescript Web SDK
 // Alice delegates read access to Bob
-const delegation = await tc.kv.delegate({
+const delegation = await tc.createDelegation({
   delegateDID: bob.did,  // Bob's owner DID (after signIn)
-  actions: ['read'],
-  paths: ['documents/*'],
-  expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  path: 'documents/',
+  actions: ['tinycloud.kv/get', 'tinycloud.kv/list'],
+  expiryMs: 7 * 24 * 60 * 60 * 1000,
 });
 
 // Send the portable delegation to Bob
-console.log(delegation.portable);
+console.log(delegation);
 ```
 
 ```typescript Node SDK
@@ -44,9 +44,10 @@ const delegation = await alice.createDelegation({
   delegateDID: bob.did,  // Bob's owner DID (after signIn)
   path: 'shared/',
   actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
+  expiryMs: 7 * 24 * 60 * 60 * 1000,
 });
 
-console.log(delegation.portable);
+console.log(delegation);
 ```
 </CodeGroup>
 </Tab>
@@ -66,12 +67,8 @@ const delegation = await alice.createDelegation({
   // 'shared/' grants access to all keys starting with 'shared/'
   path: 'shared/',
 
-  // When the delegation expires (optional)
-  // Pass a Date object for the absolute expiry time
-  expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-
-  // Earliest time the delegation becomes valid (optional)
-  notBefore: new Date(),
+  // Expiration time in milliseconds from now (optional)
+  expiryMs: 7 * 24 * 60 * 60 * 1000,
 });
 ```
 </Tab>
@@ -86,17 +83,13 @@ When you receive a delegation (as a portable JSON string), load it into your SDK
 // Bob received a portable delegation from Alice
 const portableDelegation = /* received from Alice */;
 
-// Load the delegation
-await tc.kv.useDelegation(portableDelegation);
+// Load the delegation and get a DelegatedAccess handle
+const access = await tc.useDelegation(portableDelegation);
 
 // Now Bob can access Alice's space
-const docsResult = await tc.kv.list('documents/', {
-  space: aliceSpaceId,
-});
+const docsResult = await access.kv.list({ prefix: 'documents/' });
 
-const reportResult = await tc.kv.get('documents/report.json', {
-  space: aliceSpaceId,
-});
+const reportResult = await access.kv.get('documents/report.json');
 ```
 
 ```typescript Node SDK
@@ -108,7 +101,7 @@ const access = await bob.useDelegation(portableDelegation);
 
 // Use the access handle to read from Alice's space
 const dataResult = await access.kv.get('shared/data');
-const keysResult = await access.kv.list('shared/');
+const keysResult = await access.kv.list({ prefix: 'shared/' });
 ```
 </CodeGroup>
 
@@ -126,7 +119,7 @@ const access = await bob.useDelegation(portableDelegation);
 // access.kv is scoped to Alice's space with the delegated permissions
 await access.kv.get('shared/document');   // Read from Alice's space
 await access.kv.put('shared/response', { message: 'Thanks!' }); // Write to Alice's space
-await access.kv.list('shared/');          // List keys in Alice's space
+await access.kv.list({ prefix: 'shared/' }); // List keys in Alice's space
 ```
 
 ## Sub-Delegations
@@ -136,20 +129,17 @@ Recipients can further delegate their access to others. Sub-delegations must be 
 <CodeGroup>
 ```typescript Web SDK
 // Bob creates a sub-delegation for Carol
-const subDelegation = await tc.kv.delegate({
+const subDelegation = await bob.createSubDelegation(aliceDelegation, {
   delegateDID: carol.did,        // Carol's owner DID (after signIn)
-  actions: ['read'],             // Must be subset of Bob's actions
-  paths: ['documents/public/*'], // Must be within Bob's paths
-  expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // Must expire before Bob's delegation
+  actions: ['tinycloud.kv/get'], // Must be subset of Bob's actions
+  path: 'documents/public/',     // Must be within Bob's path
+  expiryMs: 24 * 60 * 60 * 1000, // Must expire before Bob's delegation
 });
 ```
 
 ```typescript Node SDK
 // Bob sub-delegates to Carol
-const subDelegation = await bob.createSubDelegation({
-  // The delegation Bob received from Alice
-  parentDelegation: aliceDelegation,
-
+const subDelegation = await bob.createSubDelegation(aliceDelegation, {
   // Carol's owner DID (after signIn)
   delegateDID: carol.did,
 
@@ -160,11 +150,11 @@ const subDelegation = await bob.createSubDelegation({
   path: 'documents/public/',
 
   // Earlier expiry
-  expiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  expiryMs: 24 * 60 * 60 * 1000,
 });
 
 // Send to Carol
-sendToUser(carol.address, subDelegation.portable);
+sendToUser(carol.address, subDelegation);
 ```
 </CodeGroup>
 
@@ -184,12 +174,11 @@ Every sub-delegation must be a strict subset of its parent. The server enforces 
 ```typescript
 // Parent: read + write to 'data/*', expires in 7 days
 
-await bob.createSubDelegation({
-  parentDelegation,
+await bob.createSubDelegation(parentDelegation, {
   delegateDID: carol.did,         // Carol's owner DID (after signIn)
   actions: ['tinycloud.kv/get'],  // Subset of [get, put]
   path: 'data/public/',           // Within data/*
-  expiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Before 7 days
+  expiryMs: 3 * 24 * 60 * 60 * 1000, // Before 7 days
 });
 // Accepted by server
 ```
@@ -198,12 +187,11 @@ await bob.createSubDelegation({
 ```typescript
 // Parent: read + write to 'data/*', expires in 7 days
 
-await bob.createSubDelegation({
-  parentDelegation,
+await bob.createSubDelegation(parentDelegation, {
   delegateDID: carol.did,
   actions: ['tinycloud.kv/get', 'tinycloud.kv/del'], // 'del' not in parent
   path: 'other/',                                      // Outside parent scope
-  expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // After parent expires
+  expiryMs: 30 * 24 * 60 * 60 * 1000,                  // After parent expires
 });
 // Rejected by server
 ```
@@ -296,7 +284,7 @@ Sharing links are ideal for one-off sharing with people who may not have a TinyC
 
 ## Revoking Delegations
 
-Currently, delegations expire automatically based on their `expiresIn` value. For scenarios where you need immediate revocation, use short-lived delegations and refresh them as needed.
+Currently, delegations expire automatically based on their `expiryMs` value. For scenarios where you need immediate revocation, use short-lived delegations and refresh them as needed.
 
 ```typescript
 // Short-lived delegation that must be refreshed
@@ -304,7 +292,7 @@ const delegation = await alice.createDelegation({
   delegateDID: bob.did,  // Bob's owner DID (after signIn)
   actions: ['tinycloud.kv/get'],
   path: 'shared/',
-  expiry: new Date(Date.now() + 60 * 60 * 1000), // Expires in 1 hour
+  expiryMs: 60 * 60 * 1000, // Expires in 1 hour
 });
 
 // To "revoke", simply stop issuing new delegations
@@ -323,11 +311,11 @@ const aliceToBob = await alice.createDelegation({
   delegateDID: bob.did,  // Bob's owner DID (after signIn)
   actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
   path: 'documents/',
-  expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  expiryMs: 30 * 24 * 60 * 60 * 1000,
 });
 
 // Send the portable delegation to Bob
-sendToUser(bob.address, aliceToBob.portable);
+sendToUser(bob.address, aliceToBob);
 ```
 </Step>
 
@@ -337,7 +325,7 @@ sendToUser(bob.address, aliceToBob.portable);
 const access = await bob.useDelegation(aliceToBobPortable);
 
 // Bob can now read and write to Alice's documents
-const files = await access.kv.list('documents/');
+const files = await access.kv.list({ prefix: 'documents/' });
 const report = await access.kv.get('documents/report.json');
 
 // Bob can also write (he has kv/put)
@@ -351,12 +339,11 @@ await access.kv.put('documents/feedback.json', {
 <Step title="Bob creates a sub-delegation for Carol">
 ```typescript
 // Bob sub-delegates read-only access to a narrower path
-const bobToCarol = await bob.createSubDelegation({
-  parentDelegation: aliceToBobPortable,
+const bobToCarol = await bob.createSubDelegation(aliceToBobPortable, {
   delegateDID: carol.did,              // Carol's owner DID (after signIn)
   actions: ['tinycloud.kv/get'],       // Read only (subset of Bob's get+put)
   path: 'documents/public/',           // Narrower scope
-  expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Shorter than Bob's 30 days
+  expiryMs: 7 * 24 * 60 * 60 * 1000,   // Shorter than Bob's 30 days
 });
 
 sendToUser(carol.address, bobToCarol.portable);
