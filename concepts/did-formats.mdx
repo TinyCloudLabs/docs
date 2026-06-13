@@ -93,7 +93,8 @@ When Alice wants to delegate capabilities to Bob, developers sometimes use the s
 // WRONG - using sessionDid for delegations will fail server validation
 await alice.createDelegation({
   delegateDID: bob.sessionDid,  // Session key DID - ephemeral!
-  abilities: ["tinycloud.kv/get", "tinycloud.kv/put"]
+  path: "shared/",
+  actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
 });
 // Error: "Delegation failed: invalid delegatee"
 ```
@@ -104,7 +105,8 @@ The correct approach:
 // CORRECT - use tc.did (which returns owner DID after signIn)
 await alice.createDelegation({
   delegateDID: bob.did,  // Owner DID after signIn
-  abilities: ["tinycloud.kv/get", "tinycloud.kv/put"]
+  path: "shared/",
+  actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
 });
 ```
 

@@ -14,16 +14,15 @@ Delegations let you grant scoped, time-limited access to your space. Share links
 Create a delegation granting another user access to your space.
 
 ```bash
-tc delegation create --to <did> --actions <actions> [options]
+tc delegation create --to <did> --path <path> --actions <actions> [options]
 ```
 
 | Option | Description | Example |
 |--------|-------------|---------|
 | `--to <did>` | Recipient's DID (PKH or key format) | `did:pkh:eip155:1:0xd8dA...` |
 | `--actions <actions>` | Comma-separated actions to grant | `kv/get,kv/put` |
-| `--paths <paths>` | Comma-separated path patterns | `documents/*,images/*` |
-| `--duration <duration>` | How long the delegation is valid | `7d` |
-| `--not-before <time>` | Earliest time the delegation is valid | `2026-03-08T00:00:00Z` |
+| `--path <path>` | KV path scope | `documents/` |
+| `--expiry <duration>` | How long the delegation is valid | `7d` |
 
 #### Action Formats
 
@@ -33,11 +32,11 @@ Actions follow the `{namespace}/{action}` format. You can use the full or short 
 |-----------|------------|-------------|
 | `tinycloud.kv/get` | `kv/get` | Read a key |
 | `tinycloud.kv/put` | `kv/put` | Write a key |
-| `tinycloud.kv/delete` | `kv/delete` | Delete a key |
+| `tinycloud.kv/del` | `kv/del` | Delete a key |
 | `tinycloud.kv/list` | `kv/list` | List keys |
 | `tinycloud.space/host` | `space/host` | Host a space |
 
-#### Duration Formats
+#### Expiry Formats
 
 | Format | Description | Example |
 |--------|-------------|---------|
@@ -47,44 +46,20 @@ Actions follow the `{namespace}/{action}` format. You can use the full or short 
 | `1w` | Weeks | 1 week |
 | ISO 8601 | Absolute date | `2026-12-31T23:59:59Z` |
 
-<Tabs>
-<Tab title="Human output">
 ```bash
 $ tc delegation create \
     --to did:pkh:eip155:1:0x5678...efgh \
     --actions kv/get,kv/list \
-    --paths "documents/*" \
-    --duration 7d
-
-  Delegation created:
-    ID:        del_abc123...
-    To:        did:pkh:eip155:1:0x5678...efgh
-    Actions:   kv/get, kv/list
-    Paths:     documents/*
-    Expires:   2026-03-14T10:30:00.000Z
-    Portable:  eyJhbGciOi...  (use --json to get full token)
-```
-</Tab>
-
-<Tab title="JSON output">
-```bash
-$ tc delegation create \
-    --to did:pkh:eip155:1:0x5678...efgh \
-    --actions kv/get,kv/list \
-    --paths "documents/*" \
-    --duration 7d \
-    --json
+    --path documents/ \
+    --expiry 7d
 {
-  "id": "del_abc123...",
-  "delegateDID": "did:pkh:eip155:1:0x5678...efgh",
-  "actions": ["kv/get", "kv/list"],
-  "paths": ["documents/*"],
-  "expiresAt": "2026-03-14T10:30:00.000Z",
-  "portable": "eyJhbGciOi..."
+  "cid": "bafy...",
+  "delegateDid": "did:pkh:eip155:1:0x5678...efgh",
+  "path": "documents/",
+  "actions": ["tinycloud.kv/get", "tinycloud.kv/list"],
+  "expiry": "2026-03-14T10:30:00.000Z"
 }
 ```
-</Tab>
-</Tabs>
 
 ### tc delegation list
 
@@ -94,62 +69,39 @@ List all active delegations.
 tc delegation list
 ```
 
-<Tabs>
-<Tab title="Human output">
 ```bash
 $ tc delegation list
-  Active delegations:
-
-    del_abc123  ->  did:pkh:eip155:1:0x5678...efgh
-      Actions:  kv/get, kv/list
-      Paths:    documents/*
-      Expires:  2026-03-14
-
-    del_def456  ->  did:pkh:eip155:1:0x9012...ijkl
-      Actions:  kv/get, kv/put, kv/delete
-      Paths:    shared/*
-      Expires:  2026-04-07
-
-  2 delegations total
-```
-</Tab>
-
-<Tab title="JSON output">
-```bash
-$ tc delegation list --json
 {
   "delegations": [
     {
-      "id": "del_abc123",
-      "delegateDID": "did:pkh:eip155:1:0x5678...efgh",
-      "actions": ["kv/get", "kv/list"],
-      "paths": ["documents/*"],
-      "expiresAt": "2026-03-14T10:30:00.000Z"
+      "cid": "bafy...",
+      "delegatee": "did:pkh:eip155:1:0x5678...efgh",
+      "delegator": "did:pkh:eip155:1:0xd8dA...",
+      "path": "documents/",
+      "actions": ["tinycloud.kv/get", "tinycloud.kv/list"],
+      "expiry": "2026-03-14T10:30:00.000Z"
     }
   ],
-  "count": 2
+  "count": 1
 }
 ```
-</Tab>
-</Tabs>
 
 ### tc delegation info
 
 Show details about a specific delegation.
 
 ```bash
-tc delegation info <delegation-id>
+tc delegation info <cid>
 ```
 
 ```bash
-$ tc delegation info del_abc123
-  Delegation: del_abc123
-  To:         did:pkh:eip155:1:0x5678...efgh
-  Actions:    kv/get, kv/list
-  Paths:      documents/*
-  Created:    2026-03-07T10:30:00.000Z
-  Expires:    2026-03-14T10:30:00.000Z
-  Status:     Active
+$ tc delegation info bafy...
+{
+  "cid": "bafy...",
+  "delegateDID": "did:pkh:eip155:1:0x5678...efgh",
+  "path": "documents/",
+  "actions": ["tinycloud.kv/get", "tinycloud.kv/list"]
+}
 ```
 
 ### tc delegation revoke
@@ -157,12 +109,15 @@ $ tc delegation info del_abc123
 Revoke an existing delegation.
 
 ```bash
-tc delegation revoke <delegation-id>
+tc delegation revoke <cid>
 ```
 
 ```bash
-$ tc delegation revoke del_abc123
-  Delegation del_abc123 revoked.
+$ tc delegation revoke bafy...
+{
+  "cid": "bafy...",
+  "revoked": true
+}
 ```
 
 ## DID Formats
@@ -187,20 +142,21 @@ Share links are a simplified sharing mechanism. They generate a URL that recipie
 Create a shareable link for data in your space.
 
 ```bash
-tc share create --paths <paths> --actions <actions> --duration <duration>
+tc share create --path <path> --actions <actions> --expiry <duration>
 ```
 
 ```bash
 $ tc share create \
-    --paths "documents/report.json" \
+    --path "documents/report.json" \
     --actions kv/get \
-    --duration 24h
-
-  Share link created:
-    https://node.tinycloud.xyz/share/abc123def456
-    Expires: 2026-03-08T10:30:00.000Z
-
-  Send this link to the recipient.
+    --expiry 24h
+{
+  "token": "tc1:...",
+  "shareData": "tc1:...",
+  "path": "documents/report.json",
+  "actions": ["tinycloud.kv/get"],
+  "expiry": "2026-03-08T10:30:00.000Z"
+}
 ```
 
 ### tc share receive
@@ -213,12 +169,12 @@ tc share receive <share-url>
 
 ```bash
 $ tc share receive https://node.tinycloud.xyz/share/abc123def456
-  Share accepted.
-  You now have access to:
-    Space:    tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default
-    Actions:  kv/get
-    Paths:    documents/report.json
-    Expires:  2026-03-08T10:30:00.000Z
+{
+  "received": true,
+  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA...6045:default",
+  "path": "documents/report.json",
+  "actions": ["tinycloud.kv/get"]
+}
 ```
 
 ### tc share list
@@ -234,7 +190,7 @@ tc share list
 Revoke a share link you created.
 
 ```bash
-tc share revoke <share-id>
+tc share revoke <token>
 ```
 
 ## Delegations vs Share Links

@@ -7,8 +7,8 @@ sidebarTitle: 'KV Storage'
 
 TinyCloud provides a key-value storage API for persisting user data. All data is stored in the user's space and fully controlled by them. The API uses `tc.kv` in both SDKs:
 
-- **Web SDK**: `tc.kv.put / get / list / del`
-- **Node SDK**: `tc.kv.put / get / list / del`
+- **Web SDK**: `tc.kv.put / get / list / delete / head`
+- **Node SDK**: `tc.kv.put / get / list / delete / head`
 
 ## Basic Operations
 
@@ -60,7 +60,7 @@ List keys matching a prefix.
 
 <CodeGroup>
 ```typescript Web SDK
-const result = await tc.kv.list('user/');
+const result = await tc.kv.list({ prefix: 'user/' });
 if (result.ok) {
   console.log(result.data.keys);
   // ['user/profile', 'user/settings', 'user/preferences']
@@ -68,7 +68,7 @@ if (result.ok) {
 ```
 
 ```typescript Node SDK
-const result = await tc.kv.list('user/');
+const result = await tc.kv.list({ prefix: 'user/' });
 if (result.ok) {
   console.log(result.data.keys);
   // ['user/profile', 'user/settings', 'user/preferences']
@@ -82,11 +82,11 @@ Remove a key and its value.
 
 <CodeGroup>
 ```typescript Web SDK
-await tc.kv.del('user/profile');
+await tc.kv.delete('user/profile');
 ```
 
 ```typescript Node SDK
-await tc.kv.del('user/profile');
+await tc.kv.delete('user/profile');
 ```
 </CodeGroup>
 
@@ -172,11 +172,11 @@ await tc.kv.put('documents/2025/summary.json', { ... });
 await tc.kv.put('documents/2026/plan.json', { ... });
 
 // List all 2025 documents
-const docs2025 = await tc.kv.list('documents/2025/');
+const docs2025 = await tc.kv.list({ prefix: 'documents/2025/' });
 // ['documents/2025/report.json', 'documents/2025/summary.json']
 
 // List all user keys
-const userKeys = await tc.kv.list('user/');
+const userKeys = await tc.kv.list({ prefix: 'user/' });
 // ['user/preferences', 'user/profile', 'user/settings']
 ```
 
@@ -199,10 +199,12 @@ await tc.kv.put('document', content, {
   },
 });
 
-// Get metadata only (without fetching the value)
-const meta = await tc.kv.getMetadata('document');
-console.log(meta);
-// { author: 'Alice', version: '1.0', createdAt: '2026-...' }
+// Get headers only (without fetching the value)
+const meta = await tc.kv.head('document');
+if (meta.ok) {
+  console.log(meta.data.headers.contentType);
+  console.log(meta.data.headers.lastModified);
+}
 ```
 
 ```typescript Node SDK
@@ -215,10 +217,12 @@ await tc.kv.put('document', content, {
   },
 });
 
-// Get metadata only
-const meta = await tc.kv.getMetadata('document');
-console.log(meta);
-// { author: 'Alice', version: '1.0', createdAt: '2026-...' }
+// Get headers only
+const meta = await tc.kv.head('document');
+if (meta.ok) {
+  console.log(meta.data.headers.contentType);
+  console.log(meta.data.headers.lastModified);
+}
 ```
 </CodeGroup>
 
@@ -230,9 +234,9 @@ Handle common error cases when working with the KV API.
 ```typescript Web SDK
 const result = await tc.kv.get('nonexistent-key');
 if (!result.ok) {
-  if (result.error.code === 'NOT_FOUND') {
+  if (result.error.code === 'KV_NOT_FOUND') {
     console.log('Key does not exist');
-  } else if (result.error.code === 'UNAUTHORIZED') {
+  } else if (result.error.code === 'AUTH_UNAUTHORIZED') {
     console.log('Session expired or invalid');
   } else {
     console.error('Unexpected error:', result.error);
@@ -243,9 +247,9 @@ if (!result.ok) {
 ```typescript Node SDK
 const result = await tc.kv.get('nonexistent-key');
 if (!result.ok) {
-  if (result.error.code === 'NOT_FOUND') {
+  if (result.error.code === 'KV_NOT_FOUND') {
     console.log('Key does not exist');
-  } else if (result.error.code === 'UNAUTHORIZED') {
+  } else if (result.error.code === 'AUTH_UNAUTHORIZED') {
     console.log('Session expired or invalid');
   } else {
     throw result.error;
@@ -313,7 +317,7 @@ async function saveDocument(docId: string, content: any) {
 
 // List all versions of a document
 async function getDocumentHistory(docId: string) {
-  const result = await tc.kv.list(`docs/${docId}/history/`);
+  const result = await tc.kv.list({ prefix: `docs/${docId}/history/` });
   return result.ok ? result.data.keys : [];
 }
 
@@ -345,7 +349,7 @@ async function getCart() {
 
 // Clear the cart
 async function clearCart() {
-  await tc.kv.del('cart');
+  await tc.kv.delete('cart');
 }
 ```
 
@@ -388,6 +392,6 @@ await tcProd.kv.put('config', { env: 'production' });
 |--------|---------|----------|-------------|
 | Store a value | `tc.kv.put(key, value)` | `tc.kv.put(key, value)` | Write data at the given key |
 | Retrieve a value | `tc.kv.get(key)` | `tc.kv.get(key)` | Read data at the given key (returns `Result`) |
-| List keys | `tc.kv.list(prefix)` | `tc.kv.list(prefix)` | List keys matching a prefix (returns `Result`) |
-| Delete a value | `tc.kv.del(key)` | `tc.kv.del(key)` | Remove a key and its data |
-| Get metadata | `tc.kv.getMetadata(key)` | `tc.kv.getMetadata(key)` | Retrieve metadata without the value |
+| List keys | `tc.kv.list({ prefix })` | `tc.kv.list({ prefix })` | List keys matching a prefix (returns `Result`) |
+| Delete a value | `tc.kv.delete(key)` | `tc.kv.delete(key)` | Remove a key and its data |
+| Get headers | `tc.kv.head(key)` | `tc.kv.head(key)` | Retrieve headers without the value |

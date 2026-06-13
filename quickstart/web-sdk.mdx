@@ -89,8 +89,8 @@ Authenticate the user by connecting their wallet and signing a message.
 <Tabs>
   <Tab title="Quick">
     ```typescript
-    await tc.signIn();
-    console.log('Address:', tc.address());
+    const session = await tc.signIn();
+    console.log('Address:', session.address);
     ```
   </Tab>
   <Tab title="Explained">
@@ -100,10 +100,10 @@ Authenticate the user by connecting their wallet and signing a message.
     // 2. Requests a SIWE signature to prove address ownership
     // 3. Establishes an authenticated session with the TinyCloud node
     // 4. Creates a space for the user if one does not exist
-    await tc.signIn();
+    const session = await tc.signIn();
 
     // After sign-in, the user's Ethereum address is available
-    console.log('Address:', tc.address());
+    console.log('Address:', session.address);
     ```
   </Tab>
 </Tabs>
@@ -184,7 +184,7 @@ Browse keys and clean up data you no longer need.
       console.log('All keys:', listResult.data.keys);
     }
 
-    const delResult = await tc.kv.del('profile');
+    const delResult = await tc.kv.delete('profile');
     if (delResult.ok) {
       console.log('Deleted profile');
     }
@@ -200,7 +200,7 @@ Browse keys and clean up data you no longer need.
     }
 
     // Remove a key and its value
-    const delResult = await tc.kv.del('profile');
+    const delResult = await tc.kv.delete('profile');
     if (delResult.ok) {
       console.log('Deleted profile');
     }
@@ -274,8 +274,8 @@ async function main() {
   });
 
   // 2. Sign in
-  await tc.signIn();
-  console.log('Address:', tc.address());
+  const session = await tc.signIn();
+  console.log('Address:', session.address);
 
   // 3. Store data
   const putResult = await tc.kv.put('profile', {
@@ -308,7 +308,7 @@ async function main() {
   }
 
   // 7. Clean up
-  const delResult = await tc.kv.del('profile');
+  const delResult = await tc.kv.delete('profile');
   if (delResult.ok) {
     console.log('Deleted profile');
   }
@@ -331,8 +331,8 @@ export default function App() {
   const [shareLink, setShareLink] = useState('');
 
   async function handleSignIn() {
-    await tc.signIn();
-    setAddress(tc.address()!);
+    const session = await tc.signIn();
+    setAddress(session.address);
   }
 
   async function handleSave() {
@@ -410,6 +410,9 @@ All options passed to `new TinyCloudWeb()` are optional.
 | `autoCreateSpace` | `boolean` | `true` | Create a space automatically on first sign-in |
 | `kvPrefix` | `string` | `undefined` | Prefix prepended to all KV keys |
 | `notifications` | `object` | `undefined` | `{ popups: true }` to show browser notifications |
+| `persistSession` | `boolean` | `true` | Persist the session in browser storage. Set `false` to disable. |
+| `sessionStorage` | `ISessionStorage` | `BrowserSessionStorage` | Custom storage backend for persisted sessions |
+| `sessionStorageKeyPrefix` | `string` | `'tinycloud:session:'` | Prefix for persisted session keys |
 
 ## Next Steps
 

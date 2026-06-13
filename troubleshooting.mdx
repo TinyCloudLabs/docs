@@ -16,10 +16,18 @@ This guide covers the most common issues developers encounter when working with 
 
     ```typescript
     // Wrong - session key DID
-    await alice.createDelegation({ delegateDID: bob.sessionDid });
+    await alice.createDelegation({
+      delegateDID: bob.sessionDid,
+      path: 'shared/',
+      actions: ['tinycloud.kv/get'],
+    });
 
     // Correct - primary DID (tc.did after signIn)
-    await alice.createDelegation({ delegateDID: bob.did });
+    await alice.createDelegation({
+      delegateDID: bob.did,
+      path: 'shared/',
+      actions: ['tinycloud.kv/get'],
+    });
     ```
 
     See [DID Formats](/concepts/did-formats) for a detailed explanation of the primary vs session DID behavior.
@@ -35,8 +43,8 @@ This guide covers the most common issues developers encounter when working with 
     <CodeGroup>
     ```typescript Web SDK
     const tc = new TinyCloudWeb({
-      host: 'https://api.tinycloud.xyz',
-      prefix: 'my-app',
+      tinycloudHosts: ['https://node.tinycloud.xyz'],
+      spacePrefix: 'my-app',
       // Ensure space is created on first sign-in
       autoCreateSpace: true,
     });
@@ -61,7 +69,7 @@ This guide covers the most common issues developers encounter when working with 
   </Accordion>
 
   <Accordion title='Session expired'>
-    **Symptom**: Operations that previously worked now fail with authentication or session errors. You may see `SESSION_EXPIRED` or `UNAUTHORIZED` error codes.
+    **Symptom**: Operations that previously worked now fail with authentication or session errors. You may see `AUTH_EXPIRED` or `AUTH_UNAUTHORIZED` error codes.
 
     **Cause**: The session TTL has been exceeded. TinyCloud sessions have a limited lifetime for security.
 
@@ -69,20 +77,18 @@ This guide covers the most common issues developers encounter when working with 
 
     <CodeGroup>
     ```typescript Web SDK
-    if (tc.isSessionExpired()) {
+    const restored = await tc.restoreSession();
+    if (restored.status !== 'restored') {
       await tc.signIn();
     }
     ```
 
     ```typescript Node SDK
-    try {
+    const result = await tc.kv.get('key');
+    if (!result.ok && result.error.code === 'AUTH_EXPIRED') {
+      await tc.signIn();
+      // Retry the operation
       await tc.kv.get('key');
-    } catch (error) {
-      if (error.code === 'SESSION_EXPIRED') {
-        await tc.signIn();
-        // Retry the operation
-        await tc.kv.get('key');
-      }
     }
     ```
     </CodeGroup>
@@ -208,10 +214,9 @@ This guide covers the most common issues developers encounter when working with 
     const parentExpiry = parentDelegation.expiry;
 
     // Create child with same or earlier expiry
-    await tc.createSubDelegation({
-      parentDelegation,
+    await tc.createSubDelegation(parentDelegation, {
       delegateDID: bob.did,
-      expiry: new Date(Date.now() + 24 * 60 * 60 * 1000), // Must be before parent's expiry
+      expiryMs: 24 * 60 * 60 * 1000, // Must be before parent's expiry
     });
     ```
 

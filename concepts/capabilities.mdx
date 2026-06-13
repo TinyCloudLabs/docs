@@ -68,15 +68,16 @@ Abilities can be scoped to specific key paths within a space. This limits what a
 // Full access to all keys in the KV store
 await tc.createDelegation({
   delegateDID: bob.did,
-  abilities: ["tinycloud.kv/put"],
-  // No path restriction - can write anywhere
+  path: "",
+  actions: ["tinycloud.kv/put"],
+  // Empty path grants access from the root of the space
 });
 
 // Scoped access: only keys under /users/alice/
 await tc.createDelegation({
   delegateDID: bob.did,
-  abilities: ["tinycloud.kv/put"],
-  paths: ["/users/alice/*"],
+  path: "/users/alice/",
+  actions: ["tinycloud.kv/put"],
   // Bob can write to /users/alice/profile but NOT /users/bob/profile
 });
 ```
@@ -110,13 +111,17 @@ When creating a delegation, the child capability must be a strict subset of the 
     // This delegation is valid (12 hours < 24 hours)
     await alice.createDelegation({
       delegateDID: bob.did,
-      expiry: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours
+      path: "docs/",
+      actions: ["tinycloud.kv/get"],
+      expiryMs: 12 * 60 * 60 * 1000, // 12 hours
     });
 
     // This would fail (48 hours > 24 hours)
     await alice.createDelegation({
       delegateDID: bob.did,
-      expiry: new Date(Date.now() + 48 * 60 * 60 * 1000), // REJECTED: exceeds parent expiry
+      path: "docs/",
+      actions: ["tinycloud.kv/get"],
+      expiryMs: 48 * 60 * 60 * 1000, // REJECTED: exceeds parent expiry
     });
     ```
   </Accordion>
@@ -126,14 +131,7 @@ When creating a delegation, the child capability must be a strict subset of the 
 
     A delegation cannot become valid before the parent capability is valid. This prevents backdating attacks where a sub-delegation could be used before the original grant was intended to be active.
 
-    ```typescript
-    // Parent is valid starting Jan 10
-    // Child must start on or after Jan 10
-    await alice.createDelegation({
-      delegateDID: bob.did,
-      notBefore: '2026-01-12T00:00:00Z', // Valid: after parent's not_before
-    });
-    ```
+    This constraint is enforced when a delegation chain contains a `not_before` value. The high-level SDK helpers shown here do not expose a `notBefore` option.
   </Accordion>
 
   <Accordion title="Action Subset Constraint">
@@ -147,13 +145,15 @@ When creating a delegation, the child capability must be a strict subset of the 
     // Valid: subset of Alice's capabilities
     await alice.createDelegation({
       delegateDID: bob.did,
-      abilities: ["tinycloud.kv/get", "tinycloud.kv/put"],
+      path: "docs/",
+      actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
     });
 
     // Invalid: Alice does not have kv/list
     await alice.createDelegation({
       delegateDID: bob.did,
-      abilities: ["tinycloud.kv/list"], // REJECTED: not in parent's set
+      path: "docs/",
+      actions: ["tinycloud.kv/list"], // REJECTED: not in parent's set
     });
     ```
   </Accordion>
@@ -169,13 +169,15 @@ When creating a delegation, the child capability must be a strict subset of the 
     // Valid: within Alice's scope
     await alice.createDelegation({
       delegateDID: bob.did,
-      paths: ["/projects/alpha/docs/*"],
+      path: "/projects/alpha/docs/",
+      actions: ["tinycloud.kv/get"],
     });
 
     // Invalid: outside Alice's scope
     await alice.createDelegation({
       delegateDID: bob.did,
-      paths: ["/projects/beta/*"], // REJECTED: not within parent path
+      path: "/projects/beta/", // REJECTED: not within parent path
+      actions: ["tinycloud.kv/get"],
     });
     ```
   </Accordion>
@@ -196,7 +198,8 @@ To prevent further delegation of capabilities, use the `disableSubDelegation` fl
 ```typescript
 await alice.createDelegation({
   delegateDID: bob.did,
-  abilities: ["tinycloud.kv/get"],
+  path: "documents/",
+  actions: ["tinycloud.kv/get"],
   disableSubDelegation: true,
 });
 

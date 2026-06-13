@@ -62,7 +62,7 @@ await tc.signIn();
 const tc = new TinyCloudNode({
   privateKey: process.env.WALLET_PRIVATE_KEY,
   prefix: 'my-app',
-  autoCreateSpace: true, // default
+  autoCreateSpace: true,
 });
 
 await tc.signIn();
@@ -108,7 +108,7 @@ After sign-in, you can retrieve the space ID for the current session. The access
 ```typescript Web SDK
 await tc.signIn();
 
-const spaceId = tc.userAuthorization.getSpaceId();
+const spaceId = tc.spaceId;
 console.log('Space:', spaceId);
 // "tinycloud:pkh:eip155:1:0xd8dA...6045:my-app"
 ```
@@ -180,15 +180,13 @@ While spaces are owned by a single wallet, access can be shared through [delegat
 // Alice owns the space and delegates read access to Bob
 const delegation = await alice.createDelegation({
   delegateDID: bob.did,  // Bob's primary DID (after signIn)
-  actions: ['read'],
-  paths: ['documents/*'],
+  path: 'documents/',
+  actions: ['tinycloud.kv/get'],
 });
 
 // Bob accesses data in Alice's space (not his own)
-await bob.useDelegation(delegation.portable);
-const result = await bob.kv.get('documents/report.json', {
-  space: alice.spaceId,
-});
+const access = await bob.useDelegation(delegation);
+const result = await access.kv.get('documents/report.json');
 ```
 
 See the [Delegations guide](/guides/delegations) for full details on sharing access.

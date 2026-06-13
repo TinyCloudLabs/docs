@@ -188,7 +188,7 @@ Browse keys and remove data you no longer need.
       console.log('All keys:', listResult.data.keys);
     }
 
-    const delResult = await tc.kv.del('config');
+    const delResult = await tc.kv.delete('config');
     if (delResult.ok) {
       console.log('Deleted config');
     }
@@ -204,7 +204,7 @@ Browse keys and remove data you no longer need.
     }
 
     // Remove a key and its value
-    const delResult = await tc.kv.del('config');
+    const delResult = await tc.kv.delete('config');
     if (delResult.ok) {
       console.log('Deleted config');
     }
@@ -256,7 +256,7 @@ async function main() {
   }
 
   // 6. Clean up
-  const delResult = await tc.kv.del('config');
+  const delResult = await tc.kv.delete('config');
   if (delResult.ok) {
     console.log('Deleted config');
   }

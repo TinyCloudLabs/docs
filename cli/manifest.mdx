@@ -1,0 +1,37 @@
+---
+title: "Manifests"
+description: "Resolve TinyCloud app manifests for CLI workflows"
+icon: "scroll-text"
+sidebarTitle: "Manifests"
+---
+
+Use `tc manifest resolve` to inspect an app manifest from a local file or URL and translate it into concrete TinyCloud CLI targets. The command uses the active authenticated profile to resolve short space names.
+
+```bash
+tc manifest resolve <source>
+```
+
+The command prints the manifest identity, effective space, requested permissions, and SQL database basenames.
+
+## Sources
+
+```bash
+tc manifest resolve ./tinycloud.manifest.json
+tc manifest resolve https://example.com/tinycloud.manifest.json
+```
+
+## Use with SQL
+
+Manifest resolution is useful when an app stores databases in an application space.
+
+```bash
+tc manifest resolve ./tinycloud.manifest.json
+tc sql query \
+  --space applications \
+  --db xyz.tinycloud.listen/conversations \
+  "SELECT count(*) FROM conversation"
+```
+
+<Note>
+Public key-value HTTP routes are intentionally not documented for external use. Prefer SDK and CLI workflows unless a project-specific integration requires lower-level node APIs.
+</Note>
