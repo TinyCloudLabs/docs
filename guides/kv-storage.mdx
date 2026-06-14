@@ -234,9 +234,9 @@ Handle common error cases when working with the KV API.
 ```typescript Web SDK
 const result = await tc.kv.get('nonexistent-key');
 if (!result.ok) {
-  if (result.error.code === 'NOT_FOUND') {
+  if (result.error.code === 'KV_NOT_FOUND') {
     console.log('Key does not exist');
-  } else if (result.error.code === 'UNAUTHORIZED') {
+  } else if (result.error.code === 'AUTH_UNAUTHORIZED') {
     console.log('Session expired or invalid');
   } else {
     console.error('Unexpected error:', result.error);
@@ -247,9 +247,9 @@ if (!result.ok) {
 ```typescript Node SDK
 const result = await tc.kv.get('nonexistent-key');
 if (!result.ok) {
-  if (result.error.code === 'NOT_FOUND') {
+  if (result.error.code === 'KV_NOT_FOUND') {
     console.log('Key does not exist');
-  } else if (result.error.code === 'UNAUTHORIZED') {
+  } else if (result.error.code === 'AUTH_UNAUTHORIZED') {
     console.log('Session expired or invalid');
   } else {
     throw result.error;

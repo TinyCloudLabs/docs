@@ -36,8 +36,8 @@ Sharing links contain an embedded private key that grants access to the shared d
 import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb({
-  host: 'https://node.tinycloud.xyz',
-  prefix: 'my-app',
+  tinycloudHosts: ['https://node.tinycloud.xyz'],
+  spacePrefix: 'my-app',
 });
 
 await tc.signIn();
@@ -49,7 +49,7 @@ const result = await tc.sharing.generate({
 });
 
 if (result.ok) {
-  console.log(result.data);
+  console.log(result.data.token);
   // tc1:eyJ2ZXJz...
 }
 ```
@@ -100,7 +100,7 @@ const result = await tc.sharing.generate({
 });
 
 if (result.ok) {
-  console.log(result.data); // The tc1:... link
+  console.log(result.data.token); // The tc1:... link
 }
 ```
 </Tab>
@@ -126,22 +126,8 @@ if (result.ok) {
 }
 ```
 
-### Node SDK
-
-```typescript
-import { TinyCloudNode } from '@tinycloud/node-sdk';
-
-const result = await TinyCloudNode.receiveShare('tc1:eyJ2ZXJz...');
-
-if (result.ok) {
-  console.log(result.data.data);    // The shared data
-  console.log(result.data.path);    // Shared path
-  console.log(result.data.spaceId); // Owner's space ID
-}
-```
-
 <Note>
-`receiveShare` is a **static** method. You do not need to create a TinyCloud instance or call `signIn()` to use it. The link contains all the credentials needed to fetch the data.
+`receiveShare` is a **static** method on `TinyCloudWeb`. You do not need to create a TinyCloud instance or call `signIn()` to use it. The link contains all the credentials needed to fetch the data.
 </Note>
 
 ## How It Works Internally
@@ -261,7 +247,7 @@ const result = await alice.sharing.generate({
 });
 
 if (result.ok) {
-  console.log('Share this link:', result.data);
+  console.log('Share this link:', result.data.token);
   // tc1:eyJ2ZXJz...
 }
 ```
@@ -273,10 +259,10 @@ Alice sends the `tc1:...` link to Bob through any channel -- email, chat, or eve
 
 <Step title="Bob receives the shared data">
 ```typescript
-import { TinyCloudNode } from '@tinycloud/node-sdk';
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
 
 // Bob does NOT need to signIn or have a private key
-const result = await TinyCloudNode.receiveShare(link);
+const result = await TinyCloudWeb.receiveShare(link);
 
 if (result.ok) {
   console.log(result.data.data);

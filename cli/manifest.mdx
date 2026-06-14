@@ -5,13 +5,13 @@ icon: "scroll-text"
 sidebarTitle: "Manifests"
 ---
 
-Use `tc manifest resolve` to inspect an app manifest from a local file or URL and translate it into concrete TinyCloud CLI targets.
+Use `tc manifest resolve` to inspect an app manifest from a local file or URL and translate it into concrete TinyCloud CLI targets. The command uses the active authenticated profile to resolve short space names.
 
 ```bash
 tc manifest resolve <source>
 ```
 
-The command prints the manifest identity, effective space, requested permissions, and SQL database basenames. For authenticated profiles, it can resolve short space names into full TinyCloud space URIs.
+The command prints the manifest identity, effective space, requested permissions, and SQL database basenames.
 
 ## Sources
 

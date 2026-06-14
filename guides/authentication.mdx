@@ -289,19 +289,16 @@ const tc = new TinyCloudNode({
   sessionExpirationMs: 24 * 60 * 60 * 1000, // 24 hours
 });
 
-// If the session expires mid-operation, catch the error
-try {
-  await tc.kv.get('key');
-} catch (error) {
-  if (error.code === 'SESSION_EXPIRED') {
-    await tc.signIn(); // Re-authenticate
-  }
+// KV operations return Result objects.
+const result = await tc.kv.get('key');
+if (!result.ok && result.error.code === 'AUTH_EXPIRED') {
+  await tc.signIn(); // Re-authenticate
 }
 ```
 </CodeGroup>
 
 <Tip>
-For long-running Node.js services, use `FileSessionStorage` combined with a try/catch around operations to automatically re-authenticate when the session expires.
+For long-running Node.js services, use `FileSessionStorage` and check operation `Result` objects for auth expiry so you can re-authenticate and retry when needed.
 </Tip>
 
 ## Sign Out
@@ -330,7 +327,7 @@ A full authentication flow with session persistence and expiry handling:
 
 <CodeGroup>
 ```typescript Web SDK
-import { TinyCloudWeb } from '@tinycloud/web-sdk';
+import { BrowserSessionStorage, TinyCloudWeb } from '@tinycloud/web-sdk';
 
 const tc = new TinyCloudWeb({
   tinycloudHosts: ['https://node.tinycloud.xyz'],
@@ -338,7 +335,7 @@ const tc = new TinyCloudWeb({
   autoCreateSpace: true,
   notifications: { popups: true },
   persistSession: true,
-  sessionStorage: 'localStorage',
+  sessionStorage: new BrowserSessionStorage({ storage: globalThis.localStorage }),
   sessionStorageKeyPrefix: 'my-app',
 });
 
