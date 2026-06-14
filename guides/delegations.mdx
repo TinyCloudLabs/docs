@@ -265,12 +265,12 @@ const result = await tc.sharing.generate({
 });
 
 if (result.ok) {
-  console.log(result.data);
+  console.log(result.data.token);
   // tc1:eyJhbGciOi...
 
   // Recipient opens the link -- no auth needed
   // This is a static method that works without an active session
-  const shareResult = await TinyCloudWeb.receiveShare(result.data);
+  const shareResult = await TinyCloudWeb.receiveShare(result.data.token);
   if (shareResult.ok) {
     console.log(shareResult.data.data);
     // { name: 'Alice', email: 'alice@example.com' }
