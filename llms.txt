@@ -1,0 +1,33 @@
+# TinyCloud Docs
+
+TinyCloud is a capability-based personal data cloud. The Web SDK
+(`@tinycloud/web-sdk`) uses `TinyCloudWeb`; the Node SDK
+(`@tinycloud/node-sdk`) uses `TinyCloudNode`.
+
+## Key SDK Flows
+
+- `signIn()` uses Sign-In with Ethereum (SIWE) plus ReCap capability requests.
+- With `autoCreateSpace: true`, sign-in creates the user's TinyCloud space if it is missing.
+- After `signIn()`, `tc.did` is the owner DID. Before sign-in, `tc.did` may be the session key DID. Use the owner DID for delegations.
+- App manifests describe app data, requested capabilities, and optional delegation targets. Apps pass a `manifest` or composed `capabilityRequest` to the SDK before sign-in.
+- `capabilityRequest` takes precedence over `manifest`. If only `manifest` is provided, the SDK composes it before sign-in.
+
+## Encryption Network Creation
+
+- Encryption permissions use service `tinycloud.encryption`.
+- Encryption permission `path` values are full network URNs, for example `urn:tinycloud:encryption:<ownerDid>:default`.
+- Manifest entries request decrypt access with `actions: ["decrypt"]`; the SDK expands this to `tinycloud.encryption/decrypt`.
+- Encryption network URNs are not app-relative paths. Manifest prefixes and TinyCloud spaces do not apply to `tinycloud.encryption` entries.
+- When a manifest or composed `capabilityRequest` includes `tinycloud.encryption/decrypt` for an encryption network owned by the signing user, SDK sign-in also requests a separate `tinycloud.encryption/network.create` grant for that network.
+- After sign-in, the SDK ensures each requested owner-owned encryption network exists and creates it if it is missing. This mirrors first-time space creation.
+- The SDK does not create encryption networks owned by another DID. Those networks must already exist and be hosted by their owner.
+- SDK helpers include `getDefaultEncryptionNetworkId(name = "default")`, `getEncryptionNetwork(nameOrNetworkId)`, `createEncryptionNetwork(name)`, and `ensureEncryptionNetwork(nameOrNetworkId)`.
+
+## Important Docs
+
+- `/guides/authentication` explains Web and Node SDK sign-in, sessions, persistence, and provisioning during sign-in.
+- `/concepts/app-manifests` explains manifest v1, permission entries, manifest composition, and encryption permission behavior.
+- `/concepts/capabilities` explains TinyCloud ability strings and delegation constraints.
+- `/guides/spaces` explains space creation and hosting.
+- `/guides/delegations` explains delegation creation and the owner DID vs session DID distinction.
+- `/guides/data-vault` explains client-side encrypted key-value storage.

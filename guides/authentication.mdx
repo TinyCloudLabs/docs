@@ -33,6 +33,42 @@ TinyCloud's default nonce behavior is sufficient when no relying-party challenge
   <img src="/images/diagrams/auth-siwe-flow.svg" alt="SIWE authentication flow" />
 </Frame>
 
+## Provisioning During Sign-In
+
+With `autoCreateSpace: true`, SDK sign-in creates the user's TinyCloud space if
+it does not already exist.
+
+Encryption networks are provisioned the same way when they are part of the
+signed capability request. If a `manifest` or `capabilityRequest` includes
+`tinycloud.encryption/decrypt` for a network owned by the signing DID, the SDK
+adds a separate `tinycloud.encryption/network.create` grant to the SIWE ReCap
+request. After the session is established, it calls
+`ensureEncryptionNetwork()` for the requested owner-owned network and creates
+the network if it is missing.
+
+This automatic creation only applies to encryption network IDs owned by the
+signed-in user. For a network owned by another DID, the SDK keeps the decrypt
+grant but does not request `network.create` or attempt creation.
+
+```typescript
+const tc = new TinyCloudWeb({
+  manifest: {
+    app_id: 'com.example.encrypted-app',
+    name: 'Encrypted App',
+    defaults: false,
+    permissions: [
+      {
+        service: 'tinycloud.encryption',
+        path: 'urn:tinycloud:encryption:did:pkh:eip155:1:0x1234...abcd:default',
+        actions: ['decrypt'],
+      },
+    ],
+  },
+});
+
+await tc.signIn(); // Ensures the owner-owned encryption network exists
+```
+
 ## Web SDK Sign-In
 
 Calling `signIn()` in the browser triggers the wallet popup for the user to approve.

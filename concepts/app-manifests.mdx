@@ -91,6 +91,37 @@ expands them into full TinyCloud action URNs when it resolves the manifest.
 Descriptions are metadata. They do not affect authorization, but they give
 consent UIs and agents context for why a permission exists.
 
+## Encryption permissions
+
+Encryption permissions target encryption network URNs, not TinyCloud spaces or
+app-relative paths. Use the full network ID as `path`:
+
+```json
+{
+  "service": "tinycloud.encryption",
+  "path": "urn:tinycloud:encryption:did:pkh:eip155:1:0x1234...abcd:default",
+  "actions": ["decrypt"],
+  "description": "Decrypt records encrypted to the user's default encryption network."
+}
+```
+
+The SDK expands `decrypt` to `tinycloud.encryption/decrypt` and keeps the
+network URN unchanged. Manifest prefixes and default spaces do not apply to
+`tinycloud.encryption` entries.
+
+During SDK sign-in, if a manifest or composed `capabilityRequest` asks for
+`tinycloud.encryption/decrypt` on an encryption network owned by the signing
+user, the SDK also includes a separate
+`tinycloud.encryption/network.create` grant for that same network. After
+sign-in, the SDK checks whether the network exists and creates it if it is
+missing. This mirrors first-time space provisioning: the user approves the
+needed grant in the sign-in prompt, and the SDK provisions the missing
+owner-owned resource.
+
+The SDK does not create encryption networks owned by another DID. A decrypt
+grant for another owner's network authorizes decrypt requests only after that
+owner has created and hosted the network.
+
 ## Defaults
 
 `defaults` defaults to `true`. The standard default tier includes app-scoped:
