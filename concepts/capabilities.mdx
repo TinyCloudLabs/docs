@@ -60,6 +60,20 @@ The `tinycloud.` prefix is the ReCap ability namespace (a spec-level concept), f
 |---------|-------------|
 | `tinycloud.capabilities/read` | Read and verify capability chains |
 
+### Encryption Operations
+
+| Ability | Description |
+|---------|-------------|
+| `tinycloud.encryption/decrypt` | Decrypt envelopes encrypted to a specific encryption network |
+| `tinycloud.encryption/network.create` | Create or initialize a specific owner-owned encryption network |
+
+Encryption capabilities are scoped to network URNs such as
+`urn:tinycloud:encryption:did:pkh:eip155:1:0x1234...abcd:default`. SDK
+manifest entries request `tinycloud.encryption/decrypt`; when the requested
+network belongs to the signing user, SDK sign-in can add the separate
+`tinycloud.encryption/network.create` grant and create the missing network
+after sign-in.
+
 ## Path Scoping
 
 Abilities can be scoped to specific key paths within a space. This limits what a capability holder can access, even within the same resource type.
