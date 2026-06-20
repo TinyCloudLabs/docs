@@ -1,0 +1,110 @@
+---
+title: "The TinyCloud Stack"
+description: "OpenKey, Secrets, Listen, and the user-owned software stack they make possible"
+---
+
+# The TinyCloud Stack
+
+TinyCloud is a protocol for creating spaces: user-controlled data containers where individuals retain sovereignty over their information. A space is not an app database owned by a platform. It is a durable boundary for a user's data, authorization history, and application state.
+
+The TinyCloud stack is built around a simple rule: applications should ask for scoped authority instead of taking custody. Users own spaces. Owners delegate capabilities to apps, services, devices, agents, and session keys. Those delegates can then act within the exact scope they were granted.
+
+That rule changes what application architecture can look like.
+
+## The Pieces
+
+The current stack has four core pieces:
+
+- **TinyCloud Node** stores spaces, validates signed invocations, enforces capabilities, and exposes KV, SQL, hooks, and encryption services.
+- **OpenKey** gives users a practical way to operate self-custodiable owner keys with passkeys, OAuth, and TEE-backed signing.
+- **TinyCloud Secrets** is a user-facing secret manager for API keys, tokens, and environment variables.
+- **Listen** is a transcript workspace that shows how an app can compose TinyCloud primitives into a real product.
+
+TinyCloud Node is the protocol service. OpenKey, Secrets, and Listen are applications that demonstrate the stack from different angles: identity, user-controlled secrets, and an app that depends on delegated access.
+
+## Owner Keys And Delegates
+
+TinyCloud's top-level authority is the owner key. Owner keys have two important properties:
+
+- they are self-custodiable
+- they can update a public registry
+
+TinyCloud uses Ethereum keys by default because there is mature infrastructure for both properties. A user does not need to think about blockchains to use TinyCloud day to day, but the sovereignty path matters: if a user wants full control of their space and where it resolves, the owner key can provide that control.
+
+Most day-to-day operations are not performed directly by the owner key. They are performed by delegates.
+
+A delegate can be an app, service, device, AI agent, or session key. The owner signs a capability that says what the delegate may do. The delegate presents that proof chain when it invokes a TinyCloud node. The node verifies the chain back to the owner before performing the operation.
+
+This is the core authorization model: signed delegation instead of account-level trust.
+
+## Secrets As A TinyCloud Composition
+
+TinyCloud Secrets is not a standalone vault bolted onto the side of the system. It is a composition of TinyCloud primitives:
+
+- KV records hold encrypted secret payloads.
+- SQL stores provider metadata such as names, scopes, test status, and notes.
+- Encryption networks provide decrypt authority.
+- Capabilities define who can read, write, delete, or decrypt.
+
+That composition is important. It means a secret can be listed without decrypting it. It means a user can grant an app access to one specific API key without handing over the whole account. It also means a backend service can receive a narrow permission bundle: read this secret record and request decrypt authority for the user's default network.
+
+The TinyCloud node does not need to receive plaintext to enforce that permission. It validates invocations and decrypt authority at the network boundary. The delegate that receives permission can perform the local work it was authorized to perform.
+
+This gives user-owned applications a clean pattern for secrets:
+
+1. The user stores a secret in their TinyCloud space.
+2. An app declares the secret it needs.
+3. The user grants scoped access.
+4. The delegate uses that grant only for the requested workflow.
+
+## Listen As A Reference App
+
+Listen is a transcript workspace built on TinyCloud. It syncs or imports conversations, stores normalized rows in TinyCloud SQL, stores transcript blobs in TinyCloud KV, and uses TinyCloud Secrets for provider credentials.
+
+That makes Listen a useful reference application because it touches the parts real products need:
+
+- browser sign-in through OpenKey
+- app manifests and capability requests
+- SQL for structured application state
+- KV for larger transcript and media data
+- hooks for live updates
+- backend delegations for sync jobs
+- secret access for providers like Fireflies, Granola, AssemblyAI, and Deepgram
+
+The important detail is not that Listen is a transcript app. The important detail is that Listen can ask for the authority it needs, explain that authority to the user, and operate without becoming the permanent custodian of the user's full data account.
+
+## What This Enables
+
+TinyCloud makes a different class of software easier to build.
+
+Apps can share a user's data layer without merging into one platform account. A personal AI agent can receive a delegation for a specific task, use the CLI or SDK to act, and fail clearly when it lacks permission. A backend can sync data from an external provider without owning the user's whole space. A user can inspect, rotate, and revoke the secrets that apps depend on.
+
+This is especially relevant for AI software. Agents need context, memory, credentials, and permissioned actions. The default platform model asks users to trust one service with too much. TinyCloud makes the permission graph explicit. The owner grants scoped authority, delegates perform work, and the node verifies the chain.
+
+That gives us a practical path to apps that are more capable without becoming more custodial.
+
+## Why Open Source This Stack
+
+Open sourcing OpenKey, TinyCloud Secrets, and Listen gives developers concrete examples of the TinyCloud model:
+
+- OpenKey shows practical owner-key operation.
+- Secrets shows how user-controlled credentials can be represented as a first-class TinyCloud composition.
+- Listen shows how a full application uses delegated access across frontend, backend, storage, and secrets.
+
+These repositories are reference implementations, but they are also useful products. Developers should be able to inspect the flows, fork the apps, and build new TinyCloud-native software from working code.
+
+The stack is licensed under the TinyCloud Open Source License (TOSL). TOSL is designed for ecosystem-aligned source availability during TinyCloud's early phase, with an eventual transition to an OSI-approved license under the terms in each repository's `LICENSE.md`.
+
+## The Direction
+
+The next phase is making the developer workflow smoother:
+
+- clearer permission prompts
+- first-class CLI flows for owners and delegates
+- simpler secret grants for bulk operations
+- stronger network encryption support
+- more reference apps that show TinyCloud as an application substrate
+
+The goal is not just storage. The goal is a user-owned software stack where applications, services, and agents can cooperate around a user's space without taking control away from the user.
+
+That is what TinyCloud is for.
