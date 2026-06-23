@@ -1,0 +1,149 @@
+---
+title: "Agent-readable Apps"
+description: "Ship concise app knowledge alongside TinyCloud app manifests"
+icon: "bot"
+sidebarTitle: "Agent-readable Apps"
+---
+
+TinyCloud app manifests declare what an app needs at install and sign-in time.
+Agent-readable app knowledge explains what those resources mean after the app is
+installed.
+
+Ship the two together:
+
+```text
+my-app/
+  manifest.json
+  knowledge/
+    index.md
+    resources.md
+    sql.md
+    kv.md
+    secrets.md
+    operations.md
+```
+
+Small apps should keep this flat. Add nested directories only when a category is
+large enough that a single file becomes hard to scan.
+
+## Manifest Link
+
+Use the manifest to point to the knowledge bundle:
+
+```json
+{
+  "manifest_version": 1,
+  "app_id": "com.example.notes",
+  "name": "Notes",
+  "knowledge": {
+    "format": "okf",
+    "profile": "tinycloud.app.v1",
+    "root": "knowledge/index.md"
+  }
+}
+```
+
+The manifest remains the runtime declaration. The knowledge bundle is the
+operational map for humans and agents.
+
+## Required File
+
+Every bundle starts with `knowledge/index.md`:
+
+```md
+---
+type: TinyCloud App
+title: Notes
+description: Personal notes with optional AI summaries.
+---
+
+# Notes
+
+Notes stores user-authored documents in KV and search metadata in SQLite.
+
+## Resources
+
+- [KV](kv.md) - Note documents under `documents/*`.
+- [SQL](sql.md) - Search metadata in the `main` SQLite database.
+- [Secrets](secrets.md) - Optional model provider key for summaries.
+- [Operations](operations.md) - Install, migration, and recovery notes.
+```
+
+The index should be useful by itself. Do not make it a table of contents that
+forces agents to open several files before understanding the app.
+
+## Category Files
+
+Use category files only when the app uses that category.
+
+| File | Purpose |
+| --- | --- |
+| `resources.md` | One-page summary of all TinyCloud data surfaces. |
+| `sql.md` | SQLite databases, tables, schema notes, and mutation rules. |
+| `kv.md` | KV prefixes, value shapes, and lifecycle rules. |
+| `secrets.md` | Secret references, consumers, rotation, and failure behavior. |
+| `operations.md` | Install, migration, repair, and agent operating notes. |
+
+For a single SQLite database, prefer `sql.md`. Use `sql/index.md` only when the
+app has multiple independent databases or a large schema.
+
+For schema setup, document the migration path and required `ddl` capability. See
+[SQL Schema and Migrations](/guides/sql-schema-and-migrations).
+
+## Resource Sections
+
+Each resource section should stay concise:
+
+```md
+## Documents
+
+Prefix: `documents/*`
+
+Purpose: User-authored notes stored as JSON documents.
+
+Access:
+
+| Capability | Why |
+| --- | --- |
+| `tinycloud.kv/get` | Read notes. |
+| `tinycloud.kv/put` | Save edits. |
+| `tinycloud.kv/list` | List note ids. |
+
+Agent notes:
+
+- Do not delete documents unless the user explicitly asks.
+- Preserve unknown JSON fields.
+```
+
+SQL files should also say whether tables are canonical data or rebuildable
+indexes. Rebuildable tables should name the source of truth.
+
+## Secrets
+
+Document secret references, never secret values:
+
+```md
+## Model API Key
+
+Name: `model-api-key`
+
+Purpose: Optional provider key used by the summary worker.
+
+Consumers:
+
+- `agent.summarizer`
+
+Rotation: User-managed.
+
+Agent notes:
+
+- Never write the plaintext value into the knowledge bundle.
+- If missing, disable summaries instead of blocking note editing.
+```
+
+## Tooling
+
+TinyCloud app-kit owns schemas, examples, guides, and app-authoring skills:
+[TinyCloudLabs/tinycloud-app-kit](https://github.com/TinyCloudLabs/tinycloud-app-kit).
+
+The docs explain the contract; app-kit artifacts make it executable.
