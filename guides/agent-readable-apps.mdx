@@ -35,11 +35,16 @@ Use the manifest to point to the knowledge bundle:
   "manifest_version": 1,
   "app_id": "com.example.notes",
   "name": "Notes",
-  "knowledge": {
-    "format": "okf",
-    "profile": "tinycloud.app.v1",
-    "root": "knowledge/index.md"
-  }
+  "knowledge": true
+}
+```
+
+`knowledge: true` means the default root is `knowledge/index.md`. Use a string
+when the root differs:
+
+```json
+{
+  "knowledge": "knowledge/index.md"
 }
 ```
 

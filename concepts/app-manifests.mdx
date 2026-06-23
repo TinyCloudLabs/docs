@@ -30,11 +30,7 @@ manifest as version 1.
   "app_id": "com.tinycloud.conversation-sync",
   "name": "Conversation Sync",
   "description": "Sync meeting transcripts into TinyCloud.",
-  "knowledge": {
-    "format": "okf",
-    "profile": "tinycloud.app.v1",
-    "root": "knowledge/index.md"
-  },
+  "knowledge": true,
   "defaults": true,
   "permissions": [
     {
@@ -63,7 +59,7 @@ compose those manifests before sign-in.
 | `did` | No | Delegate DID for this manifest. If absent, permissions can still be requested, but no delegation target is created automatically. |
 | `space` | No | Default TinyCloud space for this manifest. Missing means `applications`. |
 | `prefix` | No | Path prefix override. Missing means `app_id`; `""` disables prefixing. |
-| `knowledge` | No | Pointer to an agent-readable knowledge bundle shipped with the app. |
+| `knowledge` | No | `true` for `knowledge/index.md`, or a `knowledge/*.md` root path. |
 | `defaults` | No | Default TinyCloud permission tier. Missing means `true`. |
 | `expiry` | No | Default permission expiry, using `ms` format such as `30d` or `2h`. |
 | `permissions` | No | Explicit permissions beyond defaults. |
@@ -137,11 +133,15 @@ can ship a `knowledge/` bundle next to `manifest.json` and point to it with the
 
 ```json
 {
-  "knowledge": {
-    "format": "okf",
-    "profile": "tinycloud.app.v1",
-    "root": "knowledge/index.md"
-  }
+  "knowledge": true
+}
+```
+
+Use a string when the root is not the default:
+
+```json
+{
+  "knowledge": "knowledge/index.md"
 }
 ```
 
@@ -172,6 +172,11 @@ for schemas and examples.
 - `tinycloud.kv` with `get`, `put`, `del`, `list`, and `metadata`
 - `tinycloud.sql` with `read` and `write`
 - `tinycloud.capabilities` with `read`
+
+These are implicit default resources under the manifest `app_id` prefix. Do not
+request them again unless the app needs a different space, a path outside the
+app prefix, non-default actions such as `tinycloud.sql/ddl`, or explicit
+resource documentation for humans and agents.
 
 The SDK also supports higher tiers such as `admin` and `all`. Use
 `defaults: false` when an app wants every requested permission to be explicit.
