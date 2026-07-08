@@ -1,0 +1,88 @@
+---
+title: "SQL Schema and Migrations"
+description: "Set up SQLite schema safely in TinyCloud apps"
+icon: "database-zap"
+sidebarTitle: "SQL Schema and Migrations"
+---
+
+TinyCloud SQL uses SQLite. Apps own their schemas, but schema setup should use
+TinyCloud's migration primitive instead of ad hoc `CREATE TABLE` calls in hot
+paths.
+
+## Schema, Migration, Apply
+
+Schema is the desired database shape: tables, columns, indexes, constraints,
+and views.
+
+Migration is a versioned change from one schema state to another.
+
+The apply API makes the database ready at runtime:
+
+```ts
+await tc.sql.db("main").migrations.apply({
+  namespace: "com.example.notes",
+  migrations: [
+    {
+      id: "001_initial_note_index",
+      sql: [
+        "CREATE TABLE IF NOT EXISTS note_index (id TEXT PRIMARY KEY, title TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE INDEX IF NOT EXISTS idx_note_index_updated_at ON note_index(updated_at)"
+      ],
+    },
+  ],
+});
+```
+
+Use stable migration ids. Keep migrations ordered. Run migrations during
+install, startup, app registration, or another setup phase before serving user
+traffic.
+
+## Manifest Permissions
+
+Apps that create or alter schema need `ddl` permission for the same database
+path they use at runtime.
+
+```json
+{
+  "service": "tinycloud.sql",
+  "space": "applications",
+  "path": "com.example.notes/main",
+  "actions": ["read", "write", "ddl"],
+  "description": "Read, update, and migrate the notes SQLite database."
+}
+```
+
+If you use the `tc.sql` shortcut, the database name is `default`.
+
+```ts
+tc.sql.execute(sql)
+tc.sql.db("default").execute(sql)
+```
+
+These target the same SQLite database. The manifest permission should name
+`default` when the app uses that shortcut.
+
+## What To Avoid
+
+Do not run cold DDL in hot user paths. Runtime `CREATE TABLE` or `ALTER TABLE`
+can fail behind proxies, race under concurrent requests, or produce confusing
+authorization errors if the manifest does not include `ddl`.
+
+Do not copy app-specific `ensureSchema` helpers between apps. Use migrations so
+locking, idempotency, action signing, and error shape are handled consistently.
+
+Do not treat materialized indexes as canonical data. If a table mirrors KV,
+capabilities, or another source of truth, document it as rebuildable.
+
+## Agent Notes
+
+When reviewing a TinyCloud app:
+
+- Check that schema-changing SQL has `ddl` in the manifest.
+- Check that the manifest database path matches the SDK database name.
+- Prefer `migrations.apply(...)` over custom `ensureSchema` code.
+- Treat missing cache tables as setup drift or cache misses, not data loss.
+- Surface migration errors visibly instead of turning them into empty states.
+
+For manifest schema examples and app-review skills, see
+[TinyCloudLabs/tinycloud-app-kit](https://github.com/TinyCloudLabs/tinycloud-app-kit).

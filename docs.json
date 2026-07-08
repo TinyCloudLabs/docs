@@ -54,8 +54,10 @@
               "guides/authentication",
               "guides/spaces",
               "guides/kv-storage",
+              "guides/sql-schema-and-migrations",
               "guides/tinycloud-vfs",
               "guides/write-hooks",
+              "guides/agent-readable-apps",
               "guides/data-vault",
               "guides/delegations",
               "guides/sharing"

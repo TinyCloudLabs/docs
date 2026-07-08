@@ -30,6 +30,7 @@ manifest as version 1.
   "app_id": "com.tinycloud.conversation-sync",
   "name": "Conversation Sync",
   "description": "Sync meeting transcripts into TinyCloud.",
+  "knowledge": true,
   "defaults": true,
   "permissions": [
     {
@@ -58,6 +59,7 @@ compose those manifests before sign-in.
 | `did` | No | Delegate DID for this manifest. If absent, permissions can still be requested, but no delegation target is created automatically. |
 | `space` | No | Default TinyCloud space for this manifest. Missing means `applications`. |
 | `prefix` | No | Path prefix override. Missing means `app_id`; `""` disables prefixing. |
+| `knowledge` | No | `true` for `knowledge/index.md`, or a `knowledge/*.md` root path. |
 | `defaults` | No | Default TinyCloud permission tier. Missing means `true`. |
 | `expiry` | No | Default permission expiry, using `ms` format such as `30d` or `2h`. |
 | `permissions` | No | Explicit permissions beyond defaults. |
@@ -122,6 +124,47 @@ The SDK does not create encryption networks owned by another DID. A decrypt
 grant for another owner's network authorizes decrypt requests only after that
 owner has created and hosted the network.
 
+## Agent-readable knowledge
+
+Manifests are intentionally concise. They declare app identity, resource
+permissions, and delegation targets. Apps that need richer operational context
+can ship a `knowledge/` bundle next to `manifest.json` and point to it with the
+`knowledge` field.
+
+```json
+{
+  "knowledge": true
+}
+```
+
+Use a string when the root is not the default:
+
+```json
+{
+  "knowledge": "knowledge/index.md"
+}
+```
+
+The bundle should explain what the app does, what its TinyCloud resources mean,
+how SQL/KV/secrets are used, and what agents should preserve when operating on
+the data. Keep small apps flat:
+
+```text
+knowledge/
+  index.md
+  resources.md
+  sql.md
+  kv.md
+  secrets.md
+  operations.md
+```
+
+Only add nested directories when a category has enough independent material to
+justify the extra traversal. See [Agent-readable Apps](/guides/agent-readable-apps)
+for the package shape and
+[TinyCloudLabs/tinycloud-app-kit](https://github.com/TinyCloudLabs/tinycloud-app-kit)
+for schemas and examples.
+
 ## Defaults
 
 `defaults` defaults to `true`. The standard default tier includes app-scoped:
@@ -129,6 +172,11 @@ owner has created and hosted the network.
 - `tinycloud.kv` with `get`, `put`, `del`, `list`, and `metadata`
 - `tinycloud.sql` with `read` and `write`
 - `tinycloud.capabilities` with `read`
+
+These are implicit default resources under the manifest `app_id` prefix. Do not
+request them again unless the app needs a different space, a path outside the
+app prefix, non-default actions such as `tinycloud.sql/ddl`, or explicit
+resource documentation for humans and agents.
 
 The SDK also supports higher tiers such as `admin` and `all`. Use
 `defaults: false` when an app wants every requested permission to be explicit.
