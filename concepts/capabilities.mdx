@@ -32,51 +32,27 @@ The SIWE message includes a ReCap object that declares which abilities the sessi
 TinyCloud uses a hierarchical ability string format to define specific actions:
 
 ```
-tinycloud.{resource}/{action}
+tinycloud.{service}/{action}
 ```
 
-The `tinycloud.` prefix is the ReCap ability namespace (a spec-level concept), followed by the resource type and the specific action.
+The `tinycloud.` prefix identifies the ReCap ability namespace. The remaining
+components name the service and action.
 
-### Key-Value Operations
+For example, `tinycloud.kv/get` permits a read from the key-value service and
+`tinycloud.encryption/decrypt` permits a decrypt operation through the
+encryption service. Encryption abilities use network URNs such as
+`urn:tinycloud:encryption:did:pkh:eip155:1:0x1234...abcd:default` as their
+resource scope rather than an app-relative path.
 
-| Ability | Description |
-|---------|-------------|
-| `tinycloud.kv/get` | Read values from the key-value store |
-| `tinycloud.kv/put` | Write values to the key-value store |
-| `tinycloud.kv/del` | Delete values from the key-value store |
-| `tinycloud.kv/list` | List keys in the key-value store |
-| `tinycloud.kv/metadata` | Read metadata about stored values |
-
-### Space Operations
-
-| Ability | Description |
-|---------|-------------|
-| `tinycloud.space/host` | Access a space as a participant |
-| `tinycloud.space/admin` | Full administrative control over a space |
-
-### Capability Operations
-
-| Ability | Description |
-|---------|-------------|
-| `tinycloud.capabilities/read` | Read and verify capability chains |
-
-### Encryption Operations
-
-| Ability | Description |
-|---------|-------------|
-| `tinycloud.encryption/decrypt` | Decrypt envelopes encrypted to a specific encryption network |
-| `tinycloud.encryption/network.create` | Create or initialize a specific owner-owned encryption network |
-
-Encryption capabilities are scoped to network URNs such as
-`urn:tinycloud:encryption:did:pkh:eip155:1:0x1234...abcd:default`. SDK
-manifest entries request `tinycloud.encryption/decrypt`; when the requested
-network belongs to the signing user, SDK sign-in can add the separate
-`tinycloud.encryption/network.create` grant and create the missing network
-after sign-in.
+<Card title="Capability Registry" icon="list-tree" href="/reference/protocol/capabilities">
+  Look up every action, status, alias, and implication in the current
+  `tinycloud-node` registry.
+</Card>
 
 ## Path Scoping
 
-Abilities can be scoped to specific key paths within a space. This limits what a capability holder can access, even within the same resource type.
+Abilities can be scoped to specific key paths within a space. This limits what
+a capability holder can access even when the ability itself is allowed.
 
 ```typescript
 // Full access to all keys in the KV store

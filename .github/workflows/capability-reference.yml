@@ -1,0 +1,34 @@
+name: Capability reference
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/capability-reference.yml"
+      - "package.json"
+      - "reference/protocol/capabilities.mdx"
+      - "scripts/sync-capabilities.mjs"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/capability-reference.yml"
+      - "package.json"
+      - "reference/protocol/capabilities.mdx"
+      - "scripts/sync-capabilities.mjs"
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm run check-capabilities
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

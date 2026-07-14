@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "render-diagrams": "node scripts/render-diagrams.mjs"
+    "render-diagrams": "node scripts/render-diagrams.mjs",
+    "sync-capabilities": "node scripts/sync-capabilities.mjs",
+    "check-capabilities": "node scripts/sync-capabilities.mjs --check"
   },
   "devDependencies": {
     "beautiful-mermaid": "latest"
