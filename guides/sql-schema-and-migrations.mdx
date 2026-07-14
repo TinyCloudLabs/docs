@@ -39,15 +39,16 @@ traffic.
 
 ## Manifest Permissions
 
-Apps that create or alter schema need `ddl` permission for the same database
-path they use at runtime.
+Apps that create or alter schema need the `schema` manifest action
+(`tinycloud.sql/schema` at the protocol level) for the same database path they
+use at runtime.
 
 ```json
 {
   "service": "tinycloud.sql",
   "space": "applications",
   "path": "com.example.notes/main",
-  "actions": ["read", "write", "ddl"],
+  "actions": ["read", "write", "schema"],
   "description": "Read, update, and migrate the notes SQLite database."
 }
 ```
@@ -66,7 +67,7 @@ These target the same SQLite database. The manifest permission should name
 
 Do not run cold DDL in hot user paths. Runtime `CREATE TABLE` or `ALTER TABLE`
 can fail behind proxies, race under concurrent requests, or produce confusing
-authorization errors if the manifest does not include `ddl`.
+authorization errors if the manifest does not include the `schema` action.
 
 Do not copy app-specific `ensureSchema` helpers between apps. Use migrations so
 locking, idempotency, action signing, and error shape are handled consistently.
@@ -78,7 +79,7 @@ capabilities, or another source of truth, document it as rebuildable.
 
 When reviewing a TinyCloud app:
 
-- Check that schema-changing SQL has `ddl` in the manifest.
+- Check that schema-changing SQL has the `schema` action in the manifest.
 - Check that the manifest database path matches the SDK database name.
 - Prefer `migrations.apply(...)` over custom `ensureSchema` code.
 - Treat missing cache tables as setup drift or cache misses, not data loss.

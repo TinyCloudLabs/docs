@@ -70,6 +70,10 @@
               "concepts/capabilities",
               "concepts/app-manifests"
             ]
+          },
+          {
+            "group": "Protocol Reference",
+            "pages": ["reference/protocol/capabilities"]
           }
         ]
       },
@@ -146,14 +150,13 @@
     "links": [
       {
         "label": "Support",
-        "href": "https://discord.gg/tinycloud",
-        "type": "discord"
+        "href": "https://t.me/+-_2ufE0JgIcyMjYx"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.tinycloud.xyz"
+      "label": "Account",
+      "href": "https://account.tinycloud.xyz/"
     }
   },
   "footer": {
