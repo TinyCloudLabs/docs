@@ -25,6 +25,7 @@ TinyCloud is a capability-based personal data cloud. The Web SDK
 
 ## Important Docs
 
+- `/reference/protocol/capabilities` is the source-attributed reference for action names and status in the current `tinycloud-node` registry. Prefer it over proposal-only whitepaper names when generating integrations.
 - `/guides/authentication` explains Web and Node SDK sign-in, sessions, persistence, and provisioning during sign-in.
 - `/concepts/app-manifests` explains manifest v1, permission entries, manifest composition, and encryption permission behavior.
 - `/concepts/capabilities` explains TinyCloud ability strings and delegation constraints.
