@@ -177,6 +177,11 @@
     "global": {
       "anchors": [
         {
+          "anchor": "Start",
+          "icon": "house",
+          "href": "/"
+        },
+        {
           "anchor": "Build",
           "icon": "code",
           "href": "/start/browser-app"
