@@ -1,0 +1,71 @@
+---
+title: 'Web client overview'
+description: 'Common TinyCloudWeb constructor options, methods, and lifecycle behavior'
+icon: 'globe'
+sidebarTitle: 'Web client overview'
+---
+
+TinyCloudWeb wraps the Node SDK with browser-specific wallet, notification, and session handling.
+
+<Note>
+This is a curated client overview. Use the TypeScript declarations shipped with `@tinycloud/web-sdk` for exhaustive parameter, service, return, and error types.
+</Note>
+
+## Constructor
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `tinycloudHosts` | `string[]` | First host is used if provided | Browser endpoint list |
+| `spacePrefix` | `string` | `''` | Space-name input for the user's primary space |
+| `kvPrefix` | `string` | `''` | Browser-side key prefix helper |
+| `autoCreateSpace` | `boolean` | `true` | Forwarded to the node layer |
+| `tinycloudRegistryUrl` | `string \| null` | `https://registry.tinycloud.xyz` | Registry used when resolving hosts |
+| `tinycloudFallbackHosts` | `string[] \| null` | hosted TinyCloud node | Used when host resolution needs a fallback |
+| `persistSession` | `boolean` | `true` | Enables session restore before prompting |
+| `sessionStorage` | `ISessionStorage` | Browser session storage | Custom session persistence backend |
+| `sessionStorageKeyPrefix` | `string` | unset | Isolates persisted sessions |
+| `sessionExpirationMs` | `number` | Node default applies when omitted | Passed through to `TinyCloudNode` |
+| `domain` | `string` | Browser hostname or `app.tinycloud.xyz` | SIWE domain |
+| `provider` | `any` | unset | Browser wallet/provider bridge |
+| `notifications` | `NotificationConfig` | unset | Browser notifications and toasts |
+| `manifest` | `Manifest \| Manifest[]` | unset | Drives manifest-based sign-in |
+| `capabilityRequest` | `ComposedManifestRequest` | unset | Takes precedence over `manifest` |
+| `signStrategy` | `SignStrategy` | unset | Browser signing strategy |
+| `includeAccountRegistryPermissions` | `boolean` | `true` | Manifest composition option |
+
+## Primary methods
+
+| Method | Return | Notes |
+| --- | --- | --- |
+| `signIn(options?)` | `Promise<ClientSession>` | Restores a valid session first when possible |
+| `restoreSession(address?)` | `Promise<SessionRestoreResult>` | Reports restore status instead of throwing for ordinary misses |
+| `signOut()` | `Promise<void>` | Clears persisted session state |
+| `createDelegation(params)` | `Promise<PortableDelegation>` | Delegation helper forwarded to the node layer |
+| `delegateTo(did, permissions, options?)` | `Promise<DelegateToResult>` | Capability-chain delegation path |
+| `useDelegation(delegation)` | `Promise<DelegatedAccess>` | Works with received delegations |
+| `ensureOwnedSpaceHosted(name)` | `Promise<string>` | Hosts an owned space after sign-in |
+| `space(nameOrUri)` | `ISpace` | Returns a scoped space handle |
+
+## Useful getters
+
+- `did`
+- `sessionDid`
+- `spaceId`
+- `accountSpaceId`
+- `isSessionOnly`
+- `isWalletConnected`
+- `sessionRestoreStatus`
+- `kvPrefix`
+- `spaces`
+- `sharing`
+- `delegations`
+
+## Notes
+
+- `signIn()` uses the browser signer and then creates the underlying `TinyCloudNode`.
+- `persistSession` is browser-side behavior only.
+- `sessionExpirationMs` is forwarded to the node layer; the node default is 7 days when it is omitted.
+
+<Note>
+Verified against `@tinycloud/web-sdk` 2.7.0-beta.2.
+</Note>

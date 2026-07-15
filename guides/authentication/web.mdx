@@ -1,0 +1,96 @@
+---
+title: 'Web sign-in'
+description: 'Sign in with a browser wallet, restore sessions, handle expiry, and sign out'
+icon: 'globe'
+sidebarTitle: 'Web sign-in'
+---
+
+Use this page after the [Web SDK quickstart](/quickstart/web-sdk) when you need to control the browser session lifecycle.
+
+## Create the client
+
+```typescript
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
+
+const provider = (window as Window & { ethereum?: unknown }).ethereum;
+if (!provider) throw new Error('A browser wallet is required');
+
+const tc = new TinyCloudWeb({
+  provider,
+  tinycloudHosts: ['https://node.tinycloud.xyz'],
+  spacePrefix: 'my-app',
+  persistSession: true,
+  sessionStorageKeyPrefix: 'my-app:production:',
+  sessionExpirationMs: 24 * 60 * 60 * 1000,
+});
+```
+
+The injected provider is the signer used for SIWE. Without `provider`, `providers.web3.driver`, or another supported signing strategy, this client can restore compatible session data but cannot start a new wallet sign-in.
+
+`persistSession` defaults to `true` and uses browser `localStorage`. Use a stable, environment-specific `sessionStorageKeyPrefix` so development and production sessions do not collide. Set `persistSession: false` when the browser must not retain session data.
+
+## Sign in or reuse a session
+
+The shortest path is:
+
+```typescript
+const session = await tc.signIn();
+```
+
+`signIn()` first attempts to restore a valid persisted session. It opens the wallet only when no usable session exists or the configured manifest needs permissions the restored session does not cover.
+
+To render separate restoring and wallet-prompt states, call `restoreSession()` explicitly:
+
+```typescript
+const restored = await tc.restoreSession();
+
+if (restored.status === 'restored') {
+  console.log('Restored', restored.session?.address);
+} else {
+  const session = await tc.signIn();
+  console.log('Signed in', session.address);
+}
+```
+
+Ordinary restore outcomes are reported as statuses rather than thrown errors:
+
+| Status | Meaning | Next action |
+| --- | --- | --- |
+| `restored` | A valid session is active | Continue |
+| `missing` | No session exists for the connected address | Call `signIn()` from a user action |
+| `expired` or `stale` | The saved session cannot be reused | Call `signIn()` |
+| `corrupt` or `restore-failed` | Saved data was rejected and cleared | Log the failure and call `signIn()` |
+| `disabled` or `storage-unavailable` | Persistence is off or inaccessible | Call `signIn()`; expect a future prompt |
+
+## Handle expiry during an operation
+
+Service calls return `Result` objects. If a long-lived page sees an expired session, ask the user to sign in again and then retry only the operation that is safe to repeat:
+
+```typescript
+const result = await tc.kv.get('profile');
+
+if (!result.ok && result.error.code === 'AUTH_EXPIRED') {
+  await tc.signIn();
+  // Retry the read after sign-in. Be deliberate before retrying writes.
+}
+```
+
+`sessionExpirationMs` sets the requested lifetime for newly created sessions. It does not extend an already-issued session.
+
+## Sign out
+
+```typescript
+await tc.signOut();
+```
+
+`signOut()` clears the persisted TinyCloud session and in-memory session-scoped state. It does not disconnect or lock the user's wallet extension. Call `signIn()` again before the next TinyCloud operation.
+
+## Next steps
+
+- [Spaces provisioning](/guides/spaces/provisioning)
+- [KV basic operations](/guides/kv/basic-operations)
+- [Web client overview](/reference/sdk/web)
+
+<Note>
+Verified against `@tinycloud/web-sdk` 2.7.0-beta.2.
+</Note>

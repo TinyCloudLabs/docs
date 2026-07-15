@@ -1,311 +1,73 @@
 ---
 title: "Configuration"
-description: "Configure your TinyCloud node"
+description: "Configure a TinyCloud node with TOML and environment variables"
 icon: "settings"
 sidebarTitle: "Configuration"
 ---
 
-TinyCloud nodes are configured through a combination of a TOML config file and environment variables.
+TinyCloud node config comes from built-in defaults, `tinycloud.toml`, and `TINYCLOUD_` environment variables. Canonical nested env vars use double underscores.
 
-## Configuration Loading Order
-
-Configuration is resolved in this order, with later sources overriding earlier ones:
-
-<Steps>
-  <Step title="Built-in defaults">Sensible defaults for all settings.</Step>
-  <Step title="tinycloud.toml">
-    File-based configuration in the working directory.
-  </Step>
-  <Step title="Environment variables">
-    Override config values with `TINYCLOUD_` environment variables. Top-level
-    settings use plain names like `TINYCLOUD_PORT`; nested settings use double
-    underscores, like `TINYCLOUD_STORAGE__DATABASE` and
-    `TINYCLOUD_HOOKS__MAX_TICKET_TTL_SECONDS`.
-  </Step>
-</Steps>
-
-## Environment Variable Pattern
-
-Nested config keys use double underscores (`__`):
+## Canonical examples
 
 ```bash
-# port = 8000
-TINYCLOUD_PORT=9000
-
-# [storage]
-# database = "sqlite:./data/caps.db"
-TINYCLOUD_STORAGE__DATABASE="postgres://user:pass@localhost:5432/tinycloud"
-
-# [keys]
-# secret = "..."
-TINYCLOUD_KEYS__SECRET="your-base64url-secret-key"
-
-# [hooks]
-# max_ticket_ttl_seconds = 300
-TINYCLOUD_HOOKS__MAX_TICKET_TTL_SECONDS=300
+TINYCLOUD_STORAGE__DATABASE="sqlite:./data/caps.db"
+TINYCLOUD_STORAGE__BLOCKS__TYPE="Local"
+TINYCLOUD_STORAGE__BLOCKS__PATH="./data/blocks"
+TINYCLOUD_KEYS__SECRET="base64url-secret"
+TINYCLOUD_PROMETHEUS__PORT=8001
+TINYCLOUD_TELEMETRY__ENABLED=true
 ```
 
-## Configuration Reference
+## Core keys
 
-### Core
+| TOML key | Purpose | Default |
+|---|---|---|
+| `port` | HTTP API port | `8000` |
+| `address` | Bind address | `127.0.0.1` |
+| `cors` | Enable CORS headers | `false` |
+| `storage.datadir` | Root directory for local data | `./data` |
+| `storage.database` | SQL database connection string | `sqlite:./data/caps.db` |
+| `storage.blocks.type` | Block backend | `Local` |
+| `storage.staging.type` | Staging backend | `Memory` |
+| `prometheus.port` | Metrics port | `8001` |
+| `telemetry.enabled` | Start the metrics server | `false` |
+| `log.format` | Log format | `Text` |
+| `log.tracing.enabled` | Enable OTLP tracing | `false` |
 
-Top-level server settings.
+## Storage layout
 
-| Setting     | Type    | Default     | Description                                           |
-| ----------- | ------- | ----------- | ----------------------------------------------------- |
-| `port`      | integer | `8000`      | HTTP API port                                         |
-| `address`   | string  | `127.0.0.1` | Bind address                                          |
-| `cors`      | string  | `*`         | CORS allowed origins                                  |
-| `log_level` | string  | `info`      | Log level (`trace`, `debug`, `info`, `warn`, `error`) |
+If you leave local paths unset, the node resolves them under `storage.datadir`:
+
+- `caps.db` for the SQL database
+- `blocks/` for local block storage
+- `sql/` and `duckdb/` for database artifacts
+
+## Keys
+
+The node requires a static secret for key derivation unless you are using a specialized deployment mode.
+
+```bash
+openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
+```
+
+Set the URL-safe, unpadded result in `TINYCLOUD_KEYS__SECRET`.
+
+## Logging and tracing
+
+Use `[log]` for log format and tracing settings:
 
 ```toml
-port = 8000
-address = "0.0.0.0"
-cors = "https://app.example.com"
-log_level = "info"
+[log]
+format = "Json"
+
+[log.tracing]
+enabled = true
 ```
+
+When tracing is enabled, the node builds an OTLP gRPC exporter using the
+exporter's default endpoint. The current TinyCloud config exposes the enable
+flag and trace-header name, but not a collector-endpoint setting.
 
 <Warning>
-  In production, set `cors` to your specific domain(s) instead of `*`. A
-  wildcard CORS policy allows any website to make requests to your node.
+The server still accepts legacy single-underscore env vars, but canonical double-underscore env vars take precedence when both are present.
 </Warning>
-
-### Storage
-
-Configure the metadata database and block storage backend.
-
-#### Database
-
-| Setting            | Type   | Default                 | Description                |
-| ------------------ | ------ | ----------------------- | -------------------------- |
-| `storage.database` | string | `sqlite:./data/caps.db` | Database connection string |
-
-Supported connection strings:
-
-```toml
-# SQLite (default, good for development)
-[storage]
-database = "sqlite:./data/caps.db"
-
-# PostgreSQL (recommended for production)
-[storage]
-database = "postgres://user:password@localhost:5432/tinycloud"
-
-# MySQL
-[storage]
-database = "mysql://user:password@localhost:3306/tinycloud"
-```
-
-See the [Database Setup](/hosting/databases) guide for detailed instructions.
-
-#### Block Storage
-
-| Setting                   | Type   | Default         | Description                                  |
-| ------------------------- | ------ | --------------- | -------------------------------------------- |
-| `storage.blocks.type`     | string | `Local`         | Storage backend (`Local` or `S3`)            |
-| `storage.blocks.path`     | string | `./data/blocks` | Local storage path (when type = `Local`)     |
-| `storage.blocks.bucket`   | string | --              | S3 bucket name (when type = `S3`)            |
-| `storage.blocks.endpoint` | string | --              | S3 endpoint URL (for S3-compatible services) |
-
-<Tabs>
-<Tab title="Local filesystem">
-```toml
-[storage.blocks]
-type = "Local"
-path = "./data/blocks"
-```
-</Tab>
-
-<Tab title="S3">
-```toml
-[storage.blocks]
-type = "S3"
-bucket = "tinycloud-blocks"
-# endpoint = "https://s3.amazonaws.com"  # Optional for AWS
-```
-
-S3 credentials are configured via environment variables:
-
-```bash
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_DEFAULT_REGION=us-east-1
-```
-
-</Tab>
-</Tabs>
-
-See the [Block Storage](/hosting/storage) guide for more details.
-
-#### Staging Storage
-
-Staging storage is used for temporary data during uploads.
-
-| Setting                | Type   | Default  | Description                                |
-| ---------------------- | ------ | -------- | ------------------------------------------ |
-| `storage.staging.type` | string | `Memory` | Staging backend (`Memory` or `FileSystem`) |
-| `storage.staging.path` | string | --       | Path for filesystem staging                |
-
-```toml
-# In-memory (default, faster, uses RAM)
-[storage.staging]
-type = "Memory"
-
-# Filesystem (for large uploads or low-memory environments)
-[storage.staging]
-type = "FileSystem"
-path = "./data/staging"
-```
-
-### Keys
-
-Configure the node's signing key.
-
-| Setting       | Type   | Default  | Description                                 |
-| ------------- | ------ | -------- | ------------------------------------------- |
-| `keys.type`   | string | `Static` | Key management type                         |
-| `keys.secret` | string | --       | Base64url-encoded secret (minimum 32 bytes) |
-
-```toml
-[keys]
-type = "Static"
-# NEVER put the secret in the config file!
-# Use TINYCLOUD_KEYS__SECRET environment variable instead
-```
-
-<Warning>
-The secret key must be at least 32 bytes, base64url-encoded. Generate one with:
-
-```bash
-openssl rand -base64 32
-```
-
-Always set this via the `TINYCLOUD_KEYS__SECRET` environment variable, never in the config file.
-
-</Warning>
-
-### Spaces
-
-| Setting            | Type   | Default | Description                         |
-| ------------------ | ------ | ------- | ----------------------------------- |
-| `spaces.allowlist` | string | --      | URL to a space allowlist (optional) |
-
-```toml
-[spaces]
-allowlist = "https://example.com/allowed-spaces.json"
-```
-
-When set, only spaces listed at the allowlist URL can be created on this node.
-
-### Hooks
-
-| Setting                                     | Type    | Default | Description                                    |
-| ------------------------------------------- | ------- | ------- | ---------------------------------------------- |
-| `hooks.max_ticket_ttl_seconds`              | integer | `300`   | Maximum SSE ticket lifetime in seconds         |
-| `hooks.max_scopes_per_ticket`               | integer | `32`    | Maximum subscriptions per SSE ticket           |
-| `hooks.max_active_sse_streams`              | integer | `100`   | Maximum concurrent live hook streams           |
-| `hooks.sse_broadcast_capacity`              | integer | `1024`  | Broadcast buffer size for write events         |
-| `hooks.max_webhook_subscriptions_per_space` | integer | `5`     | Maximum active webhook subscriptions per space |
-| `hooks.webhook_timeout_seconds`             | integer | `10`    | HTTP timeout for webhook delivery              |
-| `hooks.webhook_max_attempts`                | integer | `5`     | Maximum delivery attempts before dead-letter   |
-
-```toml
-[hooks]
-max_ticket_ttl_seconds = 300
-max_scopes_per_ticket = 32
-max_active_sse_streams = 100
-sse_broadcast_capacity = 1024
-max_webhook_subscriptions_per_space = 5
-webhook_timeout_seconds = 10
-webhook_max_attempts = 5
-```
-
-### Logging
-
-| Setting           | Type   | Default | Description                                   |
-| ----------------- | ------ | ------- | --------------------------------------------- |
-| `logging.format`  | string | `Text`  | Log format (`Text` or `Json`)                 |
-| `logging.tracing` | string | --      | Tracing backend (`OpenTelemetry` or `Jaeger`) |
-
-```toml
-# Human-readable logs (development)
-[logging]
-format = "Text"
-
-# Structured JSON logs (production)
-[logging]
-format = "Json"
-tracing = "OpenTelemetry"
-```
-
-### Prometheus
-
-| Setting           | Type    | Default | Description             |
-| ----------------- | ------- | ------- | ----------------------- |
-| `prometheus.port` | integer | `8001`  | Prometheus metrics port |
-
-```toml
-[prometheus]
-port = 8001
-```
-
-### Relay
-
-| Setting         | Type    | Default     | Description        |
-| --------------- | ------- | ----------- | ------------------ |
-| `relay.address` | string  | `127.0.0.1` | Relay bind address |
-| `relay.port`    | integer | `8081`      | Relay port         |
-
-```toml
-[relay]
-address = "0.0.0.0"
-port = 8081
-```
-
-## Example Configuration
-
-A complete `tinycloud.toml` for a production deployment:
-
-```toml
-port = 8000
-address = "0.0.0.0"
-cors = "https://app.example.com"
-log_level = "info"
-
-[storage]
-database = "postgres://tinycloud:password@db:5432/tinycloud"
-
-[storage.blocks]
-type = "S3"
-bucket = "tinycloud-blocks"
-
-[storage.staging]
-type = "FileSystem"
-path = "./data/staging"
-
-[keys]
-type = "Static"
-# Secret set via TINYCLOUD_KEYS__SECRET env var
-
-[logging]
-format = "Json"
-tracing = "OpenTelemetry"
-
-[prometheus]
-port = 8001
-
-[relay]
-address = "0.0.0.0"
-port = 8081
-```
-
-## Security Checklist
-
-<Info>Before deploying to production, verify the following:</Info>
-
-- Secret key is set via environment variable, not in the config file
-- CORS is restricted to your application domain(s)
-- Database credentials are not hardcoded in the config file
-- The node is behind a reverse proxy (nginx, Caddy) with TLS
-- Prometheus port (8001) is not publicly accessible
-- Log level is set to `info` or `warn` (not `debug` or `trace`)

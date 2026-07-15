@@ -1,593 +1,119 @@
 ---
 title: "OAuth Provider"
-description: "Use OpenKey as an OAuth 2.1 provider for your application"
+description: "Use OpenKey as an OAuth 2.1 provider"
 icon: "lock"
 ---
 
-OpenKey implements an OAuth 2.1 provider, allowing your application to authenticate users with their OpenKey account and request signing operations using standard OAuth flows. This is the recommended integration path for server-side applications or apps that need token-based access.
+Use OpenKey OAuth when your application needs OpenKey-issued identity tokens.
+This is separate from using an OpenKey key to sign in to TinyCloud.
 
-## How It Works
+## Before you start: register a client
 
-<Frame>
-  <img src="/images/diagrams/openkey-oauth-flow.svg" alt="OpenKey OAuth 2.1 authorization code flow" />
-</Frame>
+OAuth requires a client ID and an exact redirect URI. Client registration is
+currently an operator-managed boundary; there is no public self-service
+registration flow documented for the hosted service.
 
-OpenKey uses OAuth 2.1 with PKCE (Proof Key for Code Exchange), which is secure for both server-side and single-page applications without requiring a client secret for public clients.
-
-## Register an OAuth Client
-
-Before using OAuth, you need to register your application as an OAuth client. If you are self-hosting, use the CLI tool. Otherwise, contact your OpenKey administrator.
-
-### CLI Registration
-
-The fastest way to register a client when self-hosting:
+- For hosted OpenKey, request a client through
+  [TinyCloud support](https://t.me/+-_2ufE0JgIcyMjYx).
+- For a self-hosted OpenKey deployment, an administrator can run this command
+  from the OpenKey repository with `OPENKEY_API_URL` and `ADMIN_API_KEY`
+  configured:
 
 ```bash
-bun run oauth:register --name "My App" --type spa --redirect-uri "http://localhost:3000/callback"
+bun run oauth:register \
+  --name "My App" \
+  --type spa \
+  --redirect-uri "http://localhost:5173/callback"
 ```
 
-This outputs the `client_id` (and `client_secret` for `web` type clients) that you will use in the OAuth flow.
+The current registration API creates public `spa` or `native` clients. These
+clients use PKCE and do not have a client secret.
 
-### API Registration
-
-You can also register clients via the admin API:
+## Install the SDK
 
 ```bash
-curl -X POST https://api.openkey.so/api/admin/oauth/clients \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
-  -d '{
-    "name": "My Application",
-    "redirectUris": ["https://myapp.com/callback"],
-    "uri": "https://myapp.com",
-    "type": "spa"
-  }'
+npm install @openkey/sdk@0.9.0
 ```
 
-Response:
+## Popup flow
 
-```json
-{
-  "success": true,
-  "client": {
-    "id": "abc123",
-    "clientId": "ok_1a2b3c4d5e6f7g8h9i0j...",
-    "name": "My Application",
-    "redirectUris": ["https://myapp.com/callback"],
-    "uri": "https://myapp.com",
-    "type": "spa",
-    "public": true,
-    "createdAt": "2026-01-15T10:30:00.000Z"
-  }
+The SDK generates and stores the PKCE verifier, generates a `state` value,
+opens the authorization page, and validates the returned state before
+resolving `connect()`.
+
+```typescript
+import { OpenKey } from "@openkey/sdk";
+
+const clientId = "ok_your_client_id";
+const redirectUri = "http://localhost:5173/callback";
+const openkey = new OpenKey({
+  host: "https://openkey.so",
+  oauthHost: "https://api.openkey.so",
+  appName: "My App",
+  mode: "popup",
+});
+
+const { code } = await openkey.oauth.connect({ clientId, redirectUri });
+const tokens = await openkey.oauth.exchangeCode(code, {
+  clientId,
+  redirectUri,
+});
+
+console.log(tokens.access_token, tokens.expires_in);
+```
+
+The redirect URI must be registered even for popup mode: the popup navigates
+to that URI before the SDK reads the authorization response.
+
+## Redirect flow and callback
+
+Redirect mode navigates the current page, so `connect()` does not resolve in
+the page that starts the flow.
+
+```typescript
+const openkey = new OpenKey({ mode: "redirect" });
+await openkey.oauth.connect({ clientId, redirectUri });
+```
+
+On the registered callback page, parse the response, verify `state`, and then
+exchange the code. Keep these operations in this order so an untrusted callback
+cannot consume the stored PKCE verifier.
+
+```typescript
+import { OpenKey } from "@openkey/sdk";
+
+const openkey = new OpenKey({ mode: "redirect" });
+const callback = openkey.oauth.parseCallback();
+
+if ("error" in callback) {
+  throw new Error(callback.errorDescription ?? callback.error);
 }
-```
-
-For `web` (confidential) clients, the response also includes a `clientSecret` field:
-
-```json
-{
-  "success": true,
-  "client": {
-    "id": "abc123",
-    "clientId": "ok_1a2b3c4d5e6f7g8h9i0j...",
-    "clientSecret": "oks_9z8y7x6w5v4u3t2s1r0q...",
-    "name": "My Application",
-    "type": "web",
-    "public": false
-  }
+if (!openkey.oauth.verifyState(callback.state)) {
+  throw new Error("OAuth state mismatch");
 }
+
+const tokens = await openkey.oauth.exchangeCode(callback.code, {
+  clientId: "ok_your_client_id",
+  redirectUri: "http://localhost:5173/callback",
+});
 ```
 
-<Warning>
-The `clientSecret` is only returned once at creation time. Store it securely. You cannot retrieve it again.
-</Warning>
+## Token lifecycle
 
-### Client Types
+- Use `expires_in` from the token response instead of assuming a fixed access
+  token lifetime.
+- Keep access tokens in memory when possible. Store refresh tokens only in
+  protected server-side or platform credential storage.
+- `refresh_token` is optional. The current browser SDK requests the `openid`
+  scope, so applications must not assume that a refresh token will be issued.
+- `exchangeCode()` removes its stored PKCE verifier after the exchange. Start a
+  new authorization flow if the exchange must be retried with a new code.
 
-Choose the client type based on where your application runs:
-
-| Type | `clientSecret` | `tokenEndpointAuthMethod` | Use Case |
-|------|---------------|---------------------------|----------|
-| `spa` | No (public) | `none` | Browser apps, single-page applications, first-party dashboards |
-| `native` | No (public) | `none` | Mobile or desktop apps |
-| `web` | Yes (confidential) | `client_secret_basic` | Server-side web apps that can securely store a secret |
+The lower-level `@openkey/core` package exposes `refreshAccessToken()` for a
+client that has been issued a refresh token. If a refresh response includes a
+new refresh token, replace the old one.
 
 <Tip>
-Use `spa` for most clients. Unless your app is a server-side web application that can keep a secret out of the browser, `spa` with PKCE provides sufficient security. There is no benefit to using `web` type if your secret would be exposed in client-side code.
+If your goal is TinyCloud sign-in, use the
+[TinyCloud integration](/openkey/tinycloud-integration) instead of OAuth.
 </Tip>
-
-## Authorization Code Flow
-
-<Steps>
-<Step title="Build the authorization URL">
-  Redirect the user to OpenKey's authorization endpoint with PKCE parameters.
-
-  ```typescript
-  // PKCE helpers
-  function generateCodeVerifier(): string {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  async function generateCodeChallenge(verifier: string): Promise<string> {
-    const data = new TextEncoder().encode(verifier);
-    const hash = await crypto.subtle.digest('SHA-256', data);
-    return btoa(String.fromCharCode(...new Uint8Array(hash)))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-
-  function generateRandomString(length: number): string {
-    const array = new Uint8Array(length);
-    crypto.getRandomValues(array);
-    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('').slice(0, length);
-  }
-
-  // Generate PKCE values
-  const codeVerifier = generateCodeVerifier();
-  const codeChallenge = await generateCodeChallenge(codeVerifier);
-  const state = generateRandomString(16);
-
-  // Store verifier and state for later
-  sessionStorage.setItem('pkce_verifier', codeVerifier);
-  sessionStorage.setItem('oauth_state', state);
-
-  // Build authorization URL
-  const authUrl = new URL('https://api.openkey.so/api/auth/oauth2/authorize');
-  authUrl.searchParams.set('client_id', 'ok_your_client_id');
-  authUrl.searchParams.set('redirect_uri', 'https://myapp.com/callback');
-  authUrl.searchParams.set('response_type', 'code');
-  authUrl.searchParams.set('scope', 'openid');
-  authUrl.searchParams.set('state', state);
-  authUrl.searchParams.set('code_challenge', codeChallenge);
-  authUrl.searchParams.set('code_challenge_method', 'S256');
-
-  // Redirect to OpenKey
-  window.location.href = authUrl.toString();
-  ```
-</Step>
-
-<Step title="User authenticates and consents">
-  OpenKey redirects the user to its login page. The user authenticates with their passkey and is shown a consent screen for your application. After approval, OpenKey redirects back to your `redirect_uri` with an authorization code.
-
-  ```
-  https://myapp.com/callback?code=AUTH_CODE&state=ORIGINAL_STATE
-  ```
-</Step>
-
-<Step title="Verify state and exchange the code">
-  Verify the `state` parameter matches what you sent, then exchange the authorization code for tokens.
-
-  ```typescript
-  // Verify state
-  const params = new URLSearchParams(window.location.search);
-  const returnedState = params.get('state');
-  const savedState = sessionStorage.getItem('oauth_state');
-
-  if (returnedState !== savedState) {
-    throw new Error('State mismatch - possible CSRF attack');
-  }
-
-  // Exchange code for tokens
-  const response = await fetch('https://api.openkey.so/api/auth/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: params.get('code'),
-      redirect_uri: 'https://myapp.com/callback',
-      client_id: 'ok_your_client_id',
-      code_verifier: sessionStorage.getItem('pkce_verifier'),
-    }),
-  });
-
-  const tokens = await response.json();
-  ```
-</Step>
-
-<Step title="Use the tokens">
-  The token response contains:
-
-  ```json
-  {
-    "access_token": "eyJhbG...",
-    "token_type": "Bearer",
-    "expires_in": 3600,
-    "id_token": "eyJhbG...",
-    "scope": "openid",
-    "refresh_token": "rt_abc123..."
-  }
-  ```
-</Step>
-</Steps>
-
-### Token Lifetimes
-
-| Token | Lifetime |
-|-------|----------|
-| Access token | 1 hour |
-| ID token | 1 hour |
-| Refresh token | 7 days |
-
-## Using the SDK
-
-The OpenKey SDK provides helper methods that handle PKCE generation, state management, and token exchange automatically.
-
-```typescript
-import { OpenKey } from '@openkey/sdk';
-
-const openkey = new OpenKey({ appName: 'My App' });
-
-// Start OAuth flow (opens popup)
-const { code, state } = await openkey.oauth.connect({
-  clientId: 'ok_your_client_id',
-  redirectUri: 'https://myapp.com/callback',
-});
-
-// Exchange code for tokens
-const tokens = await openkey.oauth.exchangeCode(code, {
-  clientId: 'ok_your_client_id',
-  redirectUri: 'https://myapp.com/callback',
-});
-
-console.log('Access token:', tokens.access_token);
-```
-
-### Handling the Callback
-
-If using redirect mode instead of popup, parse the callback URL on your callback page:
-
-```typescript
-const openkey = new OpenKey();
-
-// Parse the callback URL
-const result = openkey.oauth.parseCallback();
-
-if ('error' in result) {
-  console.error('OAuth error:', result.error, result.errorDescription);
-} else {
-  // Verify state
-  if (!openkey.oauth.verifyState(result.state)) {
-    throw new Error('State mismatch');
-  }
-
-  // Exchange code
-  const tokens = await openkey.oauth.exchangeCode(result.code, {
-    clientId: 'ok_your_client_id',
-    redirectUri: 'https://myapp.com/callback',
-  });
-}
-```
-
-## Scopes
-
-Currently, OpenKey supports the following OAuth scope:
-
-| Scope | Description |
-|-------|-------------|
-| `openid` | Basic identity verification. Returns user info in the ID token. |
-
-<Note>
-Additional scopes for granular signing permissions are planned for future releases.
-</Note>
-
-## Managing OAuth Clients
-
-### List Clients
-
-```bash
-curl https://api.openkey.so/api/admin/oauth/clients \
-  -H "Authorization: Bearer YOUR_ADMIN_API_KEY"
-```
-
-### Update a Client
-
-```bash
-curl -X PATCH https://api.openkey.so/api/admin/oauth/clients/ok_client_id \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
-  -d '{
-    "name": "Updated App Name",
-    "redirectUris": ["https://myapp.com/callback", "https://staging.myapp.com/callback"]
-  }'
-```
-
-### Disable a Client
-
-```bash
-curl -X PATCH https://api.openkey.so/api/admin/oauth/clients/ok_client_id \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
-  -d '{"disabled": true}'
-```
-
-### Delete a Client
-
-```bash
-curl -X DELETE https://api.openkey.so/api/admin/oauth/clients/ok_client_id \
-  -H "Authorization: Bearer YOUR_ADMIN_API_KEY"
-```
-
-## Server-Side Examples
-
-<Tabs>
-  <Tab title="Public client (spa)">
-    Most applications should use an `spa` client. No secret is needed; PKCE handles security.
-
-    ```typescript
-    import express from 'express';
-    import crypto from 'crypto';
-
-    const app = express();
-    const CLIENT_ID = process.env.OAUTH_CLIENT_ID;
-    const REDIRECT_URI = 'https://myapp.com/callback';
-
-    // Store PKCE verifiers in session (use a real session store in production)
-    const sessions = new Map();
-
-    app.get('/login', (req, res) => {
-      const state = crypto.randomBytes(16).toString('hex');
-      const verifier = crypto.randomBytes(32).toString('base64url');
-      const challenge = crypto
-        .createHash('sha256')
-        .update(verifier)
-        .digest('base64url');
-
-      sessions.set(state, { verifier });
-
-      const authUrl = new URL('https://api.openkey.so/api/auth/oauth2/authorize');
-      authUrl.searchParams.set('client_id', CLIENT_ID);
-      authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('scope', 'openid');
-      authUrl.searchParams.set('state', state);
-      authUrl.searchParams.set('code_challenge', challenge);
-      authUrl.searchParams.set('code_challenge_method', 'S256');
-
-      res.redirect(authUrl.toString());
-    });
-
-    app.get('/callback', async (req, res) => {
-      const { code, state } = req.query;
-      const session = sessions.get(state);
-
-      if (!session) {
-        return res.status(400).send('Invalid state');
-      }
-
-      sessions.delete(state);
-
-      // Public client: send client_id in the POST body
-      const tokenRes = await fetch('https://api.openkey.so/api/auth/oauth2/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: REDIRECT_URI,
-          client_id: CLIENT_ID,
-          code_verifier: session.verifier,
-        }),
-      });
-
-      const tokens = await tokenRes.json();
-      res.json({ message: 'Authenticated!', tokens });
-    });
-
-    app.listen(3000);
-    ```
-  </Tab>
-  <Tab title="Confidential client (web)">
-    Use this only if your server can securely store a client secret.
-
-    ```typescript
-    import express from 'express';
-    import crypto from 'crypto';
-
-    const app = express();
-    const CLIENT_ID = process.env.OAUTH_CLIENT_ID;
-    const CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET;
-    const REDIRECT_URI = 'https://myapp.com/callback';
-
-    const sessions = new Map();
-
-    app.get('/login', (req, res) => {
-      const state = crypto.randomBytes(16).toString('hex');
-      const verifier = crypto.randomBytes(32).toString('base64url');
-      const challenge = crypto
-        .createHash('sha256')
-        .update(verifier)
-        .digest('base64url');
-
-      sessions.set(state, { verifier });
-
-      const authUrl = new URL('https://api.openkey.so/api/auth/oauth2/authorize');
-      authUrl.searchParams.set('client_id', CLIENT_ID);
-      authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('scope', 'openid');
-      authUrl.searchParams.set('state', state);
-      authUrl.searchParams.set('code_challenge', challenge);
-      authUrl.searchParams.set('code_challenge_method', 'S256');
-
-      res.redirect(authUrl.toString());
-    });
-
-    app.get('/callback', async (req, res) => {
-      const { code, state } = req.query;
-      const session = sessions.get(state);
-
-      if (!session) {
-        return res.status(400).send('Invalid state');
-      }
-
-      sessions.delete(state);
-
-      // Confidential client: send credentials via Authorization: Basic header
-      const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
-      const tokenRes = await fetch('https://api.openkey.so/api/auth/oauth2/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${credentials}`,
-        },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: REDIRECT_URI,
-          code_verifier: session.verifier,
-        }),
-      });
-
-      const tokens = await tokenRes.json();
-      res.json({ message: 'Authenticated!', tokens });
-    });
-
-    app.listen(3000);
-    ```
-  </Tab>
-</Tabs>
-
-## Common Pitfalls
-
-<AccordionGroup>
-  <Accordion title="client_secret hash encoding mismatch">
-    If you are using a `web` (confidential) client and implementing your own registration endpoint, be aware that the client secret is hashed with SHA-256 and stored as **base64url** encoding (not hex, not standard base64). If your hash function outputs hex or standard base64, the secret will not match during token exchange and authentication will fail silently.
-
-    ```typescript
-    // Correct: base64url encoding (what better-auth expects)
-    const hash = crypto.createHash('sha256').update(secret).digest('base64url');
-
-    // Wrong: hex encoding
-    const hash = crypto.createHash('sha256').update(secret).digest('hex');
-
-    // Wrong: standard base64 (uses + and / instead of - and _)
-    const hash = crypto.createHash('sha256').update(secret).digest('base64');
-    ```
-  </Accordion>
-
-  <Accordion title="Token endpoint authentication differs by client type">
-    The way you send credentials to the `/api/auth/oauth2/token` endpoint depends on your client type. Using the wrong method will result in a rejected request.
-
-    **`spa` and `native` clients** (public): Send `client_id` in the POST body. Do not send an `Authorization` header.
-
-    ```typescript
-    // Public client (spa/native) - client_id in the body
-    const response = await fetch('https://api.openkey.so/api/auth/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: authorizationCode,
-        redirect_uri: 'https://myapp.com/callback',
-        client_id: 'ok_your_client_id',        // In the body
-        code_verifier: codeVerifier,
-      }),
-    });
-    ```
-
-    **`web` clients** (confidential): Send credentials via the `Authorization: Basic` header. Do NOT put the secret in the POST body.
-
-    ```typescript
-    // Confidential client (web) - credentials in Authorization header
-    const credentials = btoa(`${clientId}:${clientSecret}`);
-    const response = await fetch('https://api.openkey.so/api/auth/oauth2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${credentials}`,     // In the header
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: authorizationCode,
-        redirect_uri: 'https://myapp.com/callback',
-        code_verifier: codeVerifier,
-      }),
-    });
-    ```
-  </Accordion>
-
-  <Accordion title="PKCE is required for all client types">
-    OpenKey implements OAuth 2.1, which requires PKCE (Proof Key for Code Exchange) for **all** client types, including confidential `web` clients. Omitting `code_challenge` from the authorization request or `code_verifier` from the token exchange will cause the request to fail.
-  </Accordion>
-
-  <Accordion title="State parameter must be verified">
-    Always generate a cryptographically random `state` value, store it in a cookie or server-side session, and verify it matches the `state` returned on the callback. This prevents CSRF attacks.
-
-    ```typescript
-    // Generate and store state before redirect
-    const state = crypto.randomBytes(16).toString('hex');
-    // Store in a cookie or session — NOT in localStorage (vulnerable to XSS)
-
-    // Verify on callback
-    if (callbackState !== storedState) {
-      throw new Error('State mismatch - possible CSRF attack');
-    }
-    ```
-  </Accordion>
-
-  <Accordion title="SvelteKit: Do not generate PKCE state in load functions">
-    If you are building with SvelteKit, do **not** generate PKCE parameters (`code_verifier`, `state`) inside `+page.server.ts` load functions. These load functions can execute multiple times during SSR and hydration, which means the values stored in the cookie and the values used in the redirect URL can fall out of sync.
-
-    Instead, use a `+server.ts` endpoint that runs exactly once per request:
-
-    ```typescript
-    // src/routes/auth/login/+server.ts
-    import { redirect } from '@sveltejs/kit';
-    import crypto from 'crypto';
-
-    export async function GET({ cookies }) {
-      const state = crypto.randomBytes(16).toString('hex');
-      const verifier = crypto.randomBytes(32).toString('base64url');
-      const challenge = crypto
-        .createHash('sha256')
-        .update(verifier)
-        .digest('base64url');
-
-      cookies.set('oauth_state', state, { path: '/', httpOnly: true });
-      cookies.set('pkce_verifier', verifier, { path: '/', httpOnly: true });
-
-      const authUrl = new URL('https://api.openkey.so/api/auth/oauth2/authorize');
-      authUrl.searchParams.set('client_id', CLIENT_ID);
-      authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('scope', 'openid');
-      authUrl.searchParams.set('state', state);
-      authUrl.searchParams.set('code_challenge', challenge);
-      authUrl.searchParams.set('code_challenge_method', 'S256');
-
-      throw redirect(302, authUrl.toString());
-    }
-    ```
-  </Accordion>
-</AccordionGroup>
-
-## Environment Variables
-
-Set these environment variables in your client application:
-
-```bash
-# OpenKey API base URL
-API_URL=http://localhost:3001
-
-# Client ID from oauth:register or the admin API
-OAUTH_CLIENT_ID=ok_...
-
-# Only for web (confidential) clients — do NOT set this for spa/native clients
-# OAUTH_CLIENT_SECRET=oks_...
-```
-
-<Warning>
-Never expose `OAUTH_CLIENT_SECRET` in client-side code. If your app runs in the browser, use `spa` type (no secret needed). The secret is only for server-side `web` clients where it stays on your backend.
-</Warning>
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="Widget Integration" icon="app-window" href="/openkey/widget">
-    Use the widget for a lighter client-side integration.
-  </Card>
-  <Card title="TinyCloud Integration" icon="cloud" href="/openkey/tinycloud-integration">
-    Combine OpenKey OAuth with TinyCloud SDK.
-  </Card>
-</CardGroup>

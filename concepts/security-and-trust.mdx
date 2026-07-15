@@ -1,0 +1,40 @@
+---
+title: "Security and trust"
+description: "What TinyCloud assumes, what it verifies, and what you should not infer."
+icon: "shield"
+---
+
+TinyCloud is built around cryptographic proofs and attenuated capabilities. The safe default is to assume only what the linked docs and source explicitly establish.
+
+## What TinyCloud verifies
+
+- A signer proves control of the wallet or key that signs the SIWE flow.
+- The session carries capabilities that bound what it may do.
+- Delegations must stay within the parent capability's scope.
+- The generated capability registry records the exact action names, aliases, and statuses that the node currently accepts.
+
+## What TinyCloud does not hand you for free
+
+- A session DID is not a durable user identity. Use `tc.did` after `signIn()` when you need the owner's DID.
+- An ability listed in the whitepaper is not automatically a shipped action. Check the generated registry and implementation docs.
+- OpenKey OAuth is not the same thing as TinyCloud authentication. TinyCloud still uses SIWE for its own sign-in flow.
+
+## Trust boundaries
+
+| Boundary | Safe assumption | Read more |
+| --- | --- | --- |
+| Identity | `tc.did` becomes the owner DID after sign-in; `tc.sessionDid` remains the ephemeral session key DID. | [DID Formats](/concepts/did-formats) |
+| Authorization | Capabilities are delegated, scoped, and revocable. | [Capabilities](/concepts/capabilities) and [Delegations](/guides/delegations) |
+| Storage | Spaces isolate user data, and the docs describe encryption flows separately when client-side encryption is involved. | [Spaces](/guides/spaces) and [Data Vault](/guides/data-vault) |
+| App requests | Manifests describe requested permissions and delegation targets before sign-in. | [App manifests](/concepts/app-manifests) |
+
+## Security posture
+
+1. Treat the implementation docs as the source of truth for shipped behavior.
+2. Treat the generated capability registry as the source of truth for ability names, aliases, and status.
+3. Treat whitepaper material as normative only when it does not conflict with code-backed behavior.
+4. Do not infer extra guarantees from a page layout, a proposal, or a marketing summary.
+
+## Source note
+
+The trust model here is derived from the authentication, spaces, capabilities, manifests, data vault, and delegation docs, plus the TinyCloud node and SDK source. If you need a guarantee, verify it against those sources rather than assuming it from the concept wording.

@@ -1,0 +1,76 @@
+---
+title: 'Node client overview'
+description: 'Common TinyCloudNode constructor options, methods, and lifecycle behavior'
+icon: 'server'
+sidebarTitle: 'Node client overview'
+---
+
+TinyCloudNode is the backend SDK. It can sign in with a private key, or operate in session-only mode when it only consumes delegations.
+
+<Note>
+This is a curated client overview. Use the TypeScript declarations shipped with `@tinycloud/node-sdk` for exhaustive parameter, service, return, and error types.
+</Note>
+
+## Constructor
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `privateKey` | `string` | unset | Enables wallet-backed sign-in |
+| `signer` | `ISigner` | unset | Takes precedence over `privateKey` |
+| `host` | `string` | `https://node.tinycloud.xyz` | TinyCloud node endpoint |
+| `prefix` | `string` | `''` | Space-name input for the user's primary space |
+| `autoCreateSpace` | `boolean` | `false` | Create the space during sign-in |
+| `tinycloudRegistryUrl` | `string \| null` | `https://registry.tinycloud.xyz` | Registry used when resolving hosts |
+| `tinycloudFallbackHosts` | `string[] \| null` | hosted TinyCloud node | Used when host resolution needs a fallback |
+| `sessionExpirationMs` | `number` | 7 days | Session lifetime |
+| `sessionStorage` | `ISessionStorage` | Memory storage | Session persistence backend |
+| `enablePublicSpace` | `boolean` | `true` | Includes the public space in the session |
+| `spaceCreationHandler` | `ISpaceCreationHandler` | auto-approve when enabled | Custom space-creation flow |
+| `notificationHandler` | `INotificationHandler` | Silent notification handler | Sign-in and sign-out notifications |
+| `wasmBindings` | `IWasmBindings` | node-sdk-wasm default | Allows custom WASM bindings |
+| `ensResolver` | `IENSResolver` | unset | Resolves `.eth` names in delegation flows |
+| `manifest` | `Manifest \| Manifest[]` | unset | Drives manifest-based sign-in |
+| `capabilityRequest` | `ComposedManifestRequest` | unset | Takes precedence over `manifest` |
+| `includeAccountRegistryPermissions` | `boolean` | `true` | Manifest composition option |
+| `signStrategy` | `SignStrategy` | auto-sign for local keys | Root-signature strategy |
+| `nonce` | `string` | unset | SIWE nonce override |
+| `siweConfig` | `SiweConfig` | unset | Low-level SIWE overrides |
+| `telemetry` | `TelemetryConfig` | unset | Optional service telemetry |
+
+## Primary methods
+
+| Method | Return | Notes |
+| --- | --- | --- |
+| `signIn(options?)` | `Promise<void>` | Requires wallet-backed mode |
+| `createDelegation(params)` | `Promise<PortableDelegation>` | Legacy wallet-signed path |
+| `delegateTo(did, permissions, options?)` | `Promise<DelegateToResult>` | Capability-chain delegation path |
+| `useDelegation(delegation)` | `Promise<DelegatedAccess>` | Works in wallet-backed and session-only mode |
+| `restoreSession(sessionData)` | `Promise<void>` | Restores a serialized session |
+| `connectWallet(privateKey, options?)` | `void` | Attaches a wallet after construction |
+| `hostOwnedSpace(name)` | `Promise<string>` | Hosts an additional owned space |
+| `ensureOwnedSpaceHosted(name)` | `Promise<string>` | Idempotent owned-space hosting |
+| `createEncryptionNetwork(name?)` | `Promise<NetworkDescriptor>` | Advanced encryption-network support |
+
+## Useful getters
+
+- `did`
+- `sessionDid`
+- `address`
+- `isSessionOnly`
+- `spaceId`
+- `accountSpaceId`
+- `spaces`
+- `sharing`
+- `delegations`
+- `account`
+
+## Notes
+
+- `signIn()` throws in session-only mode.
+- `createDelegation()` also throws in session-only mode.
+- `did` returns the wallet-backed owner DID after sign-in, or the session key DID when no wallet is connected.
+- `spaceId` is available after sign-in.
+
+<Note>
+Verified against `@tinycloud/node-sdk` 2.7.0-beta.2.
+</Note>

@@ -1,76 +1,39 @@
 ---
 title: "TinyCloud Documentation"
-description: "User-owned data storage with delegatable capabilities"
+description: "Find the shortest path for your TinyCloud task."
 ---
 
 # TinyCloud Documentation
 
-TinyCloud is a decentralized, user-owned data storage platform built on [UCAN capabilities](https://ucan.xyz/) and [Sign-In with Ethereum (SIWE)](https://login.xyz/) authentication. It gives users full ownership of their data while enabling fine-grained, delegatable access control for applications and collaborators.
+TinyCloud lets browser and backend applications store user-owned KV and SQL
+data in isolated spaces, then share access through scoped capabilities. These
+docs are for application developers, protocol integrators, and node operators.
+
+TinyCloud is designed for data the user should own and control. It is not a
+replacement for every application database, especially when the application
+operator must own all data and access policy.
+
+<Note>
+This documentation currently targets the reproducibly pinned beta toolchain:
+`@tinycloud/web-sdk` and `@tinycloud/node-sdk` 2.7.0-beta.2, plus
+`@tinycloud/cli` 0.7.7-beta.5.
+</Note>
 
 <CardGroup cols={2}>
-  <Card title="Web SDK Quickstart" icon="globe" href="/quickstart/web-sdk">
-    Build browser apps with wallet-based authentication and user-owned storage
+  <Card title="Build in the browser" icon="globe" href="/start/browser-app">
+    Follow the Web SDK path from sign-in to your first KV write.
   </Card>
-  <Card title="Node SDK Quickstart" icon="server" href="/quickstart/node-sdk">
-    Build backend services with private key authentication and programmatic access
+  <Card title="Build on Node" icon="server" href="/start/backend-service">
+    Choose private-key or session-only mode before you write backend code.
   </Card>
-  <Card title="KV Storage" icon="database" href="/guides/kv-storage">
-    Store and retrieve application data in user-owned spaces
+  <Card title="Understand the protocol" icon="shield-check" href="/start/protocol">
+    Check capabilities, manifests, and delegation terms before you implement.
   </Card>
-  <Card title="TinyCloud VFS" icon="folder-tree" href="/guides/tinycloud-vfs">
-    Mount TinyCloud KV as a Node.js virtual file system
-  </Card>
-  <Card title="Data Vault" icon="lock" href="/guides/data-vault">
-    End-to-end encrypted storage with client-side cryptography and sharing
-  </Card>
-  <Card title="Delegations & Sharing" icon="share-2" href="/guides/delegations">
-    Grant scoped, revocable permissions to other users and applications
-  </Card>
-  <Card title="Capability Registry" icon="list-tree" href="/reference/protocol/capabilities">
-    Review implemented action names, aliases, implications, and status
-  </Card>
-  <Card title="OpenKey" icon="key" href="/openkey/index">
-    Simplified key management and authentication for your users
+  <Card title="Operate TinyCloud" icon="wrench" href="/start/operator">
+    Install, host, troubleshoot, and wire OpenKey without detouring into theory.
   </Card>
 </CardGroup>
 
-## Choose Your Path
+## Source and trust
 
-<Tabs>
-  <Tab title="Web Developers">
-    Building a browser-based application? Start with the [Web SDK Quickstart](/quickstart/web-sdk).
-
-    You'll learn how to:
-    - Connect user wallets (MetaMask, WalletConnect)
-    - Sign in with Ethereum (SIWE)
-    - Store and retrieve user data in spaces
-    - Share data through delegations and sharing links
-  </Tab>
-  <Tab title="Backend Developers">
-    Building a server, API, or CLI tool? Start with the [Node SDK Quickstart](/quickstart/node-sdk).
-
-    You'll learn how to:
-    - Authenticate with private keys
-    - Manage spaces programmatically
-    - Create delegations for user access
-    - Build server-side integrations with TinyCloud storage
-  </Tab>
-  <Tab title="Key Management (OpenKey)">
-    Need simplified authentication for your users? Start with the [OpenKey overview](/openkey/index).
-
-    You'll learn how to:
-    - Embed the OpenKey widget for seamless sign-in
-    - Integrate OpenKey with OAuth providers
-    - Connect OpenKey with TinyCloud storage
-  </Tab>
-</Tabs>
-
-## Core Concepts
-
-- **Spaces** - Data ownership containers tied to user identity. Each user gets a space where their application data lives. [Learn more](/guides/spaces)
-- **KV Storage** - Key-value storage within spaces for reading and writing application data. [Learn more](/guides/kv-storage)
-- **Data Vault** - End-to-end encrypted KV storage with client-side AES-256-GCM encryption and X25519 sharing. The server never sees plaintext. [Learn more](/guides/data-vault)
-- **Delegations** - Shareable, scoped access permissions built on UCAN. Grant other users or applications specific capabilities over your data. [Learn more](/guides/delegations)
-- **Sharing Links** - Generate links that grant temporary or scoped access to data without requiring the recipient to have an existing account. [Learn more](/guides/sharing)
-
-Ready to start? Pick a quickstart guide above or explore the [core concepts](/concepts/did-formats).
+Claims on this site are grounded in the linked guides, the SDK source, and the generated capability registry. When you need the exact action name or status, use [Capability Registry](/reference/protocol/capabilities). When you need the mental model, use [System model](/concepts/system-model) and [Security and trust](/concepts/security-and-trust).

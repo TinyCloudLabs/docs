@@ -1,237 +1,112 @@
 ---
 title: "Troubleshooting"
-description: "Solutions to common issues when integrating the TinyCloud SDK"
+description: "Fix common TinyCloud CLI, hosting, and OpenKey problems"
 icon: "wrench"
 ---
 
-This guide covers the most common issues developers encounter when working with the TinyCloud SDK and how to resolve them.
+Use this page to map a symptom to the next command or config check.
 
-<AccordionGroup>
-  <Accordion title='Delegation failed: invalid delegatee'>
-    **Symptom**: Creating a delegation fails with the error "Delegation failed: invalid delegatee" or similar validation error.
+## No profile, key, or session
 
-    **Cause**: You are using the session key DID (`tc.sessionDid`) instead of the primary DID (`tc.did` after `signIn()`) when specifying the delegatee. The server expects the delegatee to be the primary DID (e.g., `did:pkh:eip155:{chainId}:{address}` for Ethereum wallets), not session key format (`did:key:z6Mk...`).
+**Symptom:** `tc doctor` reports a missing profile, missing key, or missing session.
 
-    **Solution**: Use `tc.did` for user-to-user delegations. After `signIn()`, this returns the primary DID:
+**Fix:** Start with profile setup and sign in.
 
-    ```typescript
-    // Wrong - session key DID
-    await alice.createDelegation({
-      delegateDID: bob.sessionDid,
-      path: 'shared/',
-      actions: ['tinycloud.kv/get'],
-    });
+```bash
+tc init
+tc auth login
+```
 
-    // Correct - primary DID (tc.did after signIn)
-    await alice.createDelegation({
-      delegateDID: bob.did,
-      path: 'shared/',
-      actions: ['tinycloud.kv/get'],
-    });
-    ```
+If you need a non-browser path, use local-key auth:
 
-    See [DID Formats](/concepts/did-formats) for a detailed explanation of the primary vs session DID behavior.
-  </Accordion>
+```bash
+tc auth login --method local
+```
 
-  <Accordion title='Space does not exist'>
-    **Symptom**: Operations fail with "space does not exist" or "space not found" errors after authentication.
+## Browser auth did not open
 
-    **Cause**: The space has not been created yet. This happens when `autoCreateSpace` is disabled, or when an extension hook (like `TinyCloudStorage.afterSignIn`) runs before the space creation step completes.
+**Symptom:** `tc auth login` cannot open a browser callback.
 
-    **Solution**: Ensure the space exists before performing operations:
+**Fix:** Use paste mode or suppress the popup.
 
-    <CodeGroup>
-    ```typescript Web SDK
-    const tc = new TinyCloudWeb({
-      tinycloudHosts: ['https://node.tinycloud.xyz'],
-      spacePrefix: 'my-app',
-      // Ensure space is created on first sign-in
-      autoCreateSpace: true,
-    });
+```bash
+tc auth login --paste
+tc auth login --no-popup
+```
 
-    await tc.signIn();
-    // Space is now guaranteed to exist
-    ```
+If you are pointing at a self-hosted OpenKey instance, verify `TC_OPENKEY_HOST` or the profile's `openkeyHost`.
 
-    ```typescript Node SDK
-    const tc = new TinyCloudNode({
-      host: 'https://api.tinycloud.xyz',
-      prefix: 'my-app',
-      privateKey: process.env.WALLET_PRIVATE_KEY,
-      autoCreateSpace: true,
-    });
+## Node health check fails
 
-    await tc.signIn();
-    ```
-    </CodeGroup>
+**Symptom:** `tc node health` says the node is unreachable.
 
-    If you have `autoCreateSpace` disabled and need manual control, call `ensureSpaceExists()` explicitly before any data operations.
-  </Accordion>
+**Fix:** Confirm the host and check the health endpoint.
 
-  <Accordion title='Session expired'>
-    **Symptom**: Operations that previously worked now fail with authentication or session errors. You may see `AUTH_EXPIRED` or `AUTH_UNAUTHORIZED` error codes.
+```bash
+tc node health
+curl http://localhost:8000/healthz
+```
 
-    **Cause**: The session TTL has been exceeded. TinyCloud sessions have a limited lifetime for security.
+If you changed the node URL, check `TC_HOST` and the profile's `host` value.
 
-    **Solution**: Detect expiry and re-authenticate:
+## `tc doctor` and `tc node health` disagree
 
-    <CodeGroup>
-    ```typescript Web SDK
-    const restored = await tc.restoreSession();
-    if (restored.status !== 'restored') {
-      await tc.signIn();
-    }
-    ```
+**Symptom:** `tc doctor` reports the node as unreachable, but `tc node health`
+or a direct `/healthz` request succeeds.
 
-    ```typescript Node SDK
-    const result = await tc.kv.get('key');
-    if (!result.ok && result.error.code === 'AUTH_EXPIRED') {
-      await tc.signIn();
-      // Retry the operation
-      await tc.kv.get('key');
-    }
-    ```
-    </CodeGroup>
+**Cause:** The current CLI commands probe different paths: `tc doctor` checks
+the legacy `/health` path, while `tc node health` checks the node's implemented
+`/healthz` endpoint.
 
-    <Tip>
-    For long-running services, use file-based session persistence and implement retry logic around session expiry. See [Authentication](/guides/authentication) for session persistence options.
-    </Tip>
-  </Accordion>
+**Fix:** Use `tc node health` or `/healthz` as the node-health check and treat
+the `tc doctor` node result as CLI drift. Continue using `tc doctor` for its
+local profile, key, session, and space checks.
 
-  <Accordion title='WASM module not found'>
-    **Symptom**: Import errors or runtime errors about missing WASM modules when using the SDK. Common messages include `Cannot find module '@tinycloud/sdk-rs'` or `WebAssembly module not found`.
+## Space is not hosted
 
-    **Cause**: The WASM package (`@tinycloud/sdk-rs`) was not built before the TypeScript wrappers. The build order matters because the TypeScript packages depend on WASM artifacts that must exist first.
+**Symptom:** `tc kv` or `tc sql` reports that the target space is not hosted.
 
-    **Solution**: Rebuild in the correct order:
+**Fix:** Host the owned space before retrying the data command.
 
-    ```bash
-    # In the web-sdk repository root
+```bash
+tc space create applications
+tc space create secrets
+```
 
-    # 1. Build WASM artifacts first
-    cd packages/sdk-rs
-    bun run build
+Use `tc space info` or `tc space list` to confirm the resolved space URI.
 
-    # 2. Then build the TypeScript wrappers
-    cd ../..
-    bun run build
-    ```
+## Secrets network is missing
 
-    The required build order is:
-    1. `@tinycloud/sdk-rs` -- produces WASM artifacts
-    2. `@tinycloud/node-sdk-wasm` -- TypeScript wrapper (depends on step 1)
-    3. `@tinycloud/web-sdk-wasm` -- TypeScript wrapper (depends on step 1)
+**Symptom:** `tc secrets doctor` reports that the encryption network does not exist.
 
-    <Warning>
-    Running `bun run build` from the repository root without first building `sdk-rs` will fail. Always build WASM first.
-    </Warning>
-  </Accordion>
+**Fix:** Create or reuse the default network.
 
-  <Accordion title='Cannot signIn() in session-only mode'>
-    **Symptom**: Calling `signIn()` throws an error indicating that sign-in is not available, or that a private key is required.
+```bash
+tc secrets network init
+tc secrets network show
+```
 
-    **Cause**: The TinyCloud instance was initialized without a `privateKey` (or without a connected wallet in the Web SDK). In session-only mode, there is no wallet available to sign the SIWE message that `signIn()` requires.
+## A permission request is waiting
 
-    **Solution**: Provide a private key when initializing the Node SDK:
+**Symptom:** You created a request artifact, but the action still fails.
 
-    ```typescript
-    // This will fail - no private key for signing
-    const tc = new TinyCloudNode({
-      host: 'https://api.tinycloud.xyz',
-      prefix: 'my-app',
-      // Missing: privateKey
-    });
-    await tc.signIn(); // Error: cannot sign without private key
+**Fix:** Inspect local state and retry once the requested capabilities are covered.
 
-    // Correct - provide a private key
-    const tc = new TinyCloudNode({
-      host: 'https://api.tinycloud.xyz',
-      prefix: 'my-app',
-      privateKey: process.env.WALLET_PRIVATE_KEY,
-    });
-    await tc.signIn(); // Works
-    ```
+```bash
+tc status
+tc auth caps
+tc auth retry --last
+```
 
-    For the Web SDK, ensure the user has connected their wallet before calling `signIn()`.
-  </Accordion>
+If a request still is not covered, grant or import the matching delegation artifact first.
 
-  <Accordion title='Share link has expired'>
-    **Symptom**: Receiving a share link (`tc1:...`) fails with an expiry-related error. The link was previously valid but no longer works.
+## Where to look next
 
-    **Cause**: Share links contain an embedded delegation that has a set expiry time. Once that time passes, the link becomes permanently invalid.
+- `tc doctor` for a quick local diagnostic pass
+- `tc status` for local profile and permission state
+- `tc auth caps` for coverage details
+- `tc secrets doctor` for secrets-specific checks
 
-    **Solution**: The original sharer must generate a new link with a fresh expiry:
-
-    ```typescript
-    const result = await tc.sharing.generate({
-      path: 'my-document',
-      expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // New 7-day window
-    });
-    ```
-
-    There is no way to extend the expiry of an existing link. Share links are immutable once generated because the delegation is cryptographically signed with the original expiry baked in.
-
-    <Tip>
-    When generating share links, choose an expiry that matches how long the link needs to be usable. Use shorter durations for sensitive data and longer durations for public content.
-    </Tip>
-  </Accordion>
-
-  <Accordion title='Sub-delegation rejected: path not within parent'>
-    **Symptom**: Creating a sub-delegation fails with a path constraint error.
-
-    **Cause**: The path specified in the child delegation is not within the parent's path scope. The server enforces that sub-delegations can only narrow access, never widen it.
-
-    **Solution**: Ensure the child path is a sub-path of the parent:
-
-    ```typescript
-    // If parent delegation has path: /users/alice/*
-
-    // Valid child paths:
-    "/users/alice/*"              // Same scope
-    "/users/alice/docs/*"         // Narrower scope
-    "/users/alice/docs/readme.txt" // Specific file within scope
-
-    // Invalid child paths:
-    "/users/bob/*"    // Different user - outside parent scope
-    "/users/*"        // Broader than parent - cannot widen
-    "/admin/*"        // Unrelated path - outside parent scope
-    ```
-
-    See [Capabilities](/concepts/capabilities) for the full constraint rules.
-  </Accordion>
-
-  <Accordion title='Sub-delegation rejected: expiry exceeds parent'>
-    **Symptom**: Creating a sub-delegation fails with an expiry constraint error.
-
-    **Cause**: The child delegation's expiry time is later than the parent's expiry. Sub-delegations cannot outlive the capability they derive from.
-
-    **Solution**: Set the child expiry to be equal to or earlier than the parent:
-
-    ```typescript
-    // Parent delegation expires at timestamp 1738800000
-
-    // Get parent expiry for reference
-    const parentExpiry = parentDelegation.expiry;
-
-    // Create child with same or earlier expiry
-    await tc.createSubDelegation(parentDelegation, {
-      delegateDID: bob.did,
-      expiryMs: 24 * 60 * 60 * 1000, // Must be before parent's expiry
-    });
-    ```
-
-    <Note>
-    When specifying expiry, ensure the absolute timestamp is before the parent's expiry. If the parent expires in 3 days, setting an expiry 7 days from now will fail.
-    </Note>
-  </Accordion>
-</AccordionGroup>
-
-## Still Having Issues?
-
-If your issue is not covered here:
-
-1. Check the [Capabilities](/concepts/capabilities) and [DID Formats](/concepts/did-formats) concept pages for detailed explanations
-2. Verify your SDK version is up to date
-3. Review the server logs for more detailed error messages
-4. Ensure your wallet is connected to the expected network
-5. Join the [TinyCloud Telegram](https://t.me/+-_2ufE0JgIcyMjYx) for community support
+<Note>
+These fixes are based on the CLI's actual error hints and command behavior, not on hypothetical error codes.
+</Note>

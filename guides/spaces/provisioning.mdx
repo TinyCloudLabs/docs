@@ -1,0 +1,74 @@
+---
+title: 'Spaces provisioning'
+description: "Create and host the user's TinyCloud space during sign-in"
+icon: 'sparkles'
+sidebarTitle: 'Spaces provisioning'
+---
+
+Use this page when you need the user's space to exist before the first write.
+
+## Provision during sign-in
+
+```typescript
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
+
+const provider = (window as Window & { ethereum?: unknown }).ethereum;
+if (!provider) throw new Error('A browser wallet is required');
+
+const web = new TinyCloudWeb({
+  provider,
+  tinycloudHosts: ['https://node.tinycloud.xyz'],
+  spacePrefix: 'my-app',
+});
+
+await web.signIn();
+console.log(web.spaceId);
+```
+
+```typescript
+import { TinyCloudNode } from '@tinycloud/node-sdk';
+
+const node = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  host: 'https://node.tinycloud.xyz',
+  prefix: 'my-app',
+  autoCreateSpace: true,
+});
+
+await node.signIn();
+console.log(node.spaceId);
+```
+
+In the Web SDK, `autoCreateSpace` defaults to `true`. In the Node SDK, it defaults to `false`, so backends that own their own space should opt in explicitly.
+
+## Check the active space
+
+After sign-in, `spaceId` gives you the current primary space URI. Use that value when you need to confirm which container the next `tc.kv` or `node.kv` call will target.
+
+## Additional owned spaces
+
+TinyCloudNode can host additional owned spaces by name after sign-in:
+
+```typescript
+import { TinyCloudNode } from '@tinycloud/node-sdk';
+
+const node = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  host: 'https://node.tinycloud.xyz',
+});
+
+await node.signIn();
+await node.ensureOwnedSpaceHosted('secrets');
+```
+
+Use this when a backend needs a separate owned space such as `secrets` and the node has not hosted it yet.
+
+## Next step
+
+- [KV basic operations](/guides/kv/basic-operations)
+- [Web sign-in](/guides/authentication/web)
+- [Node sign-in](/guides/authentication/node)
+
+<Note>
+Verified against `@tinycloud/web-sdk` and `@tinycloud/node-sdk` 2.7.0-beta.2.
+</Note>

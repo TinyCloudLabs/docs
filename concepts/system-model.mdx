@@ -1,0 +1,39 @@
+---
+title: "System model"
+description: "How identity, spaces, capabilities, manifests, and services fit together in TinyCloud."
+icon: "boxes"
+---
+
+TinyCloud is easier to use when you keep four pieces distinct:
+
+- identity
+- space
+- capability
+- service
+
+## The core pieces
+
+| Piece | What it does | Where to read next |
+| --- | --- | --- |
+| Identity | Tells TinyCloud who is acting. After `signIn()`, `tc.did` is the owner DID and `tc.sessionDid` is the session DID. | [DID Formats](/concepts/did-formats) |
+| Space | Isolates a user's data into a deterministic ownership container. | [Spaces](/guides/spaces) |
+| Capability | States what an actor may do, using TinyCloud ability strings and delegation chains. | [Capabilities](/concepts/capabilities) and [Capability Registry](/reference/protocol/capabilities) |
+| Manifest | Describes which capabilities an app asks for during sign-in and which principals can receive derived delegations. | [App manifests](/concepts/app-manifests) |
+
+## How the pieces work together
+
+1. A user signs in with a wallet or with OpenKey as the signer.
+2. TinyCloud establishes a session and resolves the identity that should act for that session.
+3. The SDK composes the requested capabilities and provisions missing owned resources when the flow requires it.
+4. Requests go through the node with the capability chain and resource scope that the session carries.
+
+## Reading order by task
+
+- If you are building a browser app, start with [Browser app path](/start/browser-app).
+- If you are building a backend service, start with [Backend service path](/start/backend-service).
+- If you are checking ability spelling or manifest fields, start with [Protocol path](/start/protocol).
+- If you are deploying or debugging the stack, start with [Operator path](/start/operator).
+
+## Trust note
+
+This page explains the model, not the full protocol surface. For exact action names, statuses, and aliases, use the generated capability registry. For shipped behavior around auth, spaces, and storage, defer to the linked guides and the SDK source.

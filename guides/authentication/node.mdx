@@ -1,0 +1,105 @@
+---
+title: 'Node sign-in'
+description: 'Sign in from Node.js, persist an explicit session, handle expiry, and end access'
+icon: 'server'
+sidebarTitle: 'Node sign-in'
+---
+
+Use this page after the [Node SDK quickstart](/quickstart/node-sdk) when you need to manage a backend session beyond one process run.
+
+## Choose a mode
+
+| Mode | Use when | Can sign in? | Can create delegations? |
+| --- | --- | --- | --- |
+| Wallet-backed | The process owns a space | Yes | Yes |
+| Session-only | The process receives an existing session or delegation | No | No |
+
+## Create a wallet-backed session
+
+```typescript
+import { TinyCloudNode } from '@tinycloud/node-sdk';
+
+const privateKey = process.env.WALLET_PRIVATE_KEY;
+if (!privateKey) throw new Error('WALLET_PRIVATE_KEY is required');
+
+const tc = new TinyCloudNode({
+  privateKey,
+  host: 'https://node.tinycloud.xyz',
+  prefix: 'my-app',
+  autoCreateSpace: true,
+  sessionExpirationMs: 24 * 60 * 60 * 1000,
+});
+
+await tc.signIn();
+```
+
+Keep the private key in a secret manager or local `.env` file excluded from Git. `sessionExpirationMs` applies to the newly issued session; changing it does not extend an existing session.
+
+## Persist and restore explicitly
+
+After sign-in, `restorableSession` contains the delegation header and private session-key material needed to resume access:
+
+```typescript
+const session = tc.restorableSession;
+if (!session) throw new Error('Sign-in did not produce a restorable session');
+
+await saveEncryptedSession(session); // Your secret store, not plaintext source control.
+```
+
+On the next process start, create a session-only client and restore that encrypted payload:
+
+```typescript
+import { TinyCloudNode } from '@tinycloud/node-sdk';
+
+const savedSession = await loadEncryptedSession();
+
+const tc = new TinyCloudNode({
+  host: 'https://node.tinycloud.xyz',
+});
+
+await tc.restoreSession(savedSession);
+console.log(tc.restorableSession?.spaceId);
+```
+
+`saveEncryptedSession()` and `loadEncryptedSession()` stand for your infrastructure's secret-storage calls. The session payload grants access until expiry, so protect it like a credential. Do not put it in a normal database column or log it.
+
+## Handle an invalid or expired session
+
+Reject an unusable stored session, delete it, and establish a fresh wallet-backed session:
+
+```typescript
+try {
+  await tc.restoreSession(savedSession);
+} catch (error) {
+  await deleteEncryptedSession();
+  throw new Error('Stored TinyCloud session is invalid; create a new session', {
+    cause: error,
+  });
+}
+```
+
+An already-restored session can also expire during a long-running process. Service calls return `AUTH_EXPIRED`; create and sign in a wallet-backed client before retrying work that is safe to repeat.
+
+## End backend access
+
+`TinyCloudNode` does not currently expose the Web SDK's `signOut()` convenience method. To end local access, stop using the client instance and delete the stored restorable-session payload. This removes the backend's credential but does not revoke copies that were exported elsewhere. Use the delegation lifecycle controls for separately issued delegations.
+
+## Session-only delegation use
+
+```typescript
+const tc = new TinyCloudNode({ host: 'https://node.tinycloud.xyz' });
+const access = await tc.useDelegation(portableDelegation);
+const value = await access.kv.get('shared/report.json');
+```
+
+The received delegation must target this instance's session DID.
+
+## Next steps
+
+- [Spaces provisioning](/guides/spaces/provisioning)
+- [Delegations](/guides/delegations)
+- [Node client overview](/reference/sdk/node)
+
+<Note>
+Verified against `@tinycloud/node-sdk` 2.7.0-beta.2.
+</Note>

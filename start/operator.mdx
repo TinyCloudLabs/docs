@@ -1,0 +1,43 @@
+---
+title: "Operate TinyCloud"
+description: "Install, host, troubleshoot, and wire OpenKey without mixing in protocol theory."
+icon: "wrench"
+---
+
+Use this page to choose between deploying a TinyCloud node, operating a managed
+node from the CLI, and adding OpenKey-backed sign-in. These are separate paths;
+you do not need to complete all three.
+
+## Deploy a node
+
+Go directly to [Docker deployment](/hosting/docker) for the documented
+end-to-end path. Run the container and verify `/healthz` before changing the
+database, block storage, or telemetry setup.
+
+After the node starts:
+
+- Review [Configuration](/hosting/configuration) for canonical settings.
+- Choose a [Database](/hosting/databases) and [Block storage](/hosting/storage)
+  backend for the deployment.
+- Add [Monitoring](/hosting/monitoring) after the service starts cleanly.
+
+## Operate from the CLI
+
+If you are using an existing node, start with the [CLI overview](/cli/overview),
+then sign in and follow the KV command path. The CLI is a client and operations
+tool; installing it does not install or run a TinyCloud node.
+
+## Add OpenKey-backed sign-in
+
+Use [TinyCloud integration](/openkey/tinycloud-integration) when OpenKey should
+supply the signer for TinyCloud's SIWE flow. OpenKey OAuth and widget flows are
+separate integration choices.
+
+Use [Troubleshooting](/troubleshooting) when any path produces a specific
+failure symptom.
+
+## Source note
+
+The deployment path follows the documented container configuration and node
+health endpoint. Use the linked operational pages for the commands,
+environment variables, and deployment behavior covered by each task.

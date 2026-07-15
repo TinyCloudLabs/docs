@@ -1,0 +1,101 @@
+---
+title: "App manifest reference"
+description: "Exact manifest fields and SDK composition rules for TinyCloud app manifests."
+icon: "file-text"
+---
+
+This page records the manifest fields the TinyCloud JS SDK accepts and the
+rules it applies when turning a manifest into a sign-in capability request.
+
+## Manifest v1
+
+`manifest_version` is optional for v1. If it is omitted, the SDK treats the
+manifest as version 1.
+
+```json
+{
+  "manifest_version": 1,
+  "app_id": "com.tinycloud.notes",
+  "name": "Notes",
+  "description": "Personal notes synced into TinyCloud.",
+  "knowledge": true,
+  "defaults": true,
+  "permissions": []
+}
+```
+
+## Fields
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `manifest_version` | No | Schema version. Missing means `1`. |
+| `app_id` | Yes | Stable app namespace and default path prefix. |
+| `name` | Yes | Human-readable app name. |
+| `description` | No | Human-readable summary of what the app does. |
+| `did` | No | Optional delegate DID target for manifest-driven delegation. |
+| `icon` | No | URL for the app icon shown in permission UI. |
+| `appVersion` | No | Application version metadata. |
+| `space` | No | Default TinyCloud space. Missing means `applications`. |
+| `prefix` | No | Path prefix override. Missing means `app_id`; `""` disables prefixing. |
+| `knowledge` | No | `true` for `knowledge/index.md`, or a root path string. |
+| `defaults` | No | Permission tier selector. Missing means `true`. |
+| `expiry` | No | Default permission expiry, using duration syntax such as `30d` or `2h`. |
+| `permissions` | No | Explicit permission entries beyond the defaults. |
+| `secrets` | No | Secret-name shorthand resolved to encrypted vault KV resources in the `secrets` space. |
+| `includePublicSpace` | No | Whether to include the public-space companion behavior. Missing means `true`. |
+
+The TinyCloud App Kit schema also accepts a descriptive top-level `resources`
+object for app packaging. The JS SDK manifest composer does not currently read
+that object when it builds sign-in capabilities; declare runtime authority in
+`permissions`, `defaults`, and `secrets` instead.
+
+## Permission entries
+
+Each permission entry names a service, optional space, path, and action list.
+The SDK expands short actions such as `get`, `put`, and `read` into full TinyCloud
+ability URNs when it builds the recap.
+
+```json
+{
+  "service": "tinycloud.sql",
+  "path": "conversations",
+  "actions": ["read", "write"],
+  "description": "Read and write normalized conversation records."
+}
+```
+
+Rules to keep in mind:
+
+- `space` inherits from the manifest when omitted
+- `space` defaults to `applications`
+- `path` is app-relative unless you set `skipPrefix: true`
+- `skipPrefix: true` tells the SDK not to prepend the manifest `app_id`
+- `expiry` can override the manifest expiry for one permission
+- `description` is user-facing context and does not change authority
+- encryption permissions use raw network URNs as the path value
+
+## Default tiers
+
+When `defaults` is enabled, the SDK starts from a standard permission set for
+the app prefix. Higher tiers add more capabilities:
+
+- standard: KV read/write/delete/list/metadata and SQL read/write
+- admin: standard plus SQL schema
+- all: admin plus DuckDB read/write
+
+The SDK also adds `tinycloud.capabilities/read` separately for each requested
+space so capability introspection stays space-scoped.
+
+## Composition rules
+
+- `capabilityRequest` takes precedence over `manifest`
+- `includeAccountRegistryPermissions` defaults to `true`
+- manifest composition can add account-registry writes
+- owned encryption networks can request `tinycloud.encryption/network.create`
+  when the manifest asks for `tinycloud.encryption/decrypt`
+
+## Source note
+
+The manifest composer, default tiers, and encryption-network behavior are
+implemented in the JS SDK and covered by sign-in tests. Keep this page aligned
+with those sources instead of the whitepaper drafts.

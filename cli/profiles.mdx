@@ -1,219 +1,43 @@
 ---
 title: "Profiles"
-description: "Manage multiple environments and configurations"
+description: "Manage TinyCloud identities, sessions, and default spaces"
 icon: "users"
 sidebarTitle: "Profiles"
 ---
 
-Profiles let you manage multiple TinyCloud identities and environments from a single machine. Each profile has its own keys, session, and configuration.
+Profiles keep separate TinyCloud identities, keys, sessions, and defaults on one machine.
 
-## Directory Structure
-
-Profiles are stored under `~/.tinycloud/`:
-
-```
-~/.tinycloud/
-  config.json            # Global config (active profile, etc.)
-  profiles/
-    default/             # Default profile
-      keys.json          # Key pair
-      session.json       # Session token
-      config.json        # Profile-specific config
-    staging/
-      keys.json
-      session.json
-      config.json
-    production/
-      keys.json
-      session.json
-      config.json
-```
-
-## Commands
-
-### tc profile list
-
-List all configured profiles.
+## Common commands
 
 ```bash
 tc profile list
+tc profile create staging --host https://staging.tinycloud.xyz
+tc profile show
+tc profile switch staging
+tc profile delete staging
 ```
 
-<Tabs>
-<Tab title="Human output">
-```bash
-$ tc profile list
-  Profiles:
-
-    * default       https://node.tinycloud.xyz       0xd8dA...6045
-      staging       https://staging.tinycloud.xyz     0xAb58...eC9B
-      production    https://node.tinycloud.xyz        0xd8dA...6045
-
-  3 profiles (* = active)
-```
-</Tab>
-
-<Tab title="JSON output">
-```bash
-$ tc profile list --json
-{
-  "activeProfile": "default",
-  "profiles": [
-    {
-      "name": "default",
-      "host": "https://node.tinycloud.xyz",
-      "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-      "active": true
-    },
-    {
-      "name": "staging",
-      "host": "https://staging.tinycloud.xyz",
-      "address": "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B",
-      "active": false
-    },
-    {
-      "name": "production",
-      "host": "https://node.tinycloud.xyz",
-      "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-      "active": false
-    }
-  ],
-  "count": 3
-}
-```
-</Tab>
-</Tabs>
-
-### tc profile create
-
-Create a new profile.
+## Default space
 
 ```bash
-tc profile create <name>
+tc profile set-default-space applications
+tc profile set-default-space --unset
 ```
 
-```bash
-$ tc profile create staging
-  Profile "staging" created.
-  Keys stored in ~/.tinycloud/profiles/staging/
+The default space is the short name used when you omit `--space` on `tc kv` and `tc sql`.
 
-  Run `tc auth login --profile staging` to sign in.
-```
+## What each profile stores
 
-### tc profile show
+- `profile.json` for host, DID, posture, and default space
+- `key.json` for the local keypair
+- `session.json` for the active session
 
-Show details about a profile.
+## Practical use
 
-```bash
-tc profile show [name]
-```
-
-If no name is given, shows the active profile.
-
-<Tabs>
-<Tab title="Human output">
-```bash
-$ tc profile show staging
-  Profile:   staging
-  Host:      https://staging.tinycloud.xyz
-  Address:   0xAb58...eC9B
-  DID:       did:pkh:eip155:1:0xAb58...eC9B
-  Session:   Active (expires in 11h 30m)
-  Directory: ~/.tinycloud/profiles/staging/
-```
-</Tab>
-
-<Tab title="JSON output">
-```bash
-$ tc profile show staging --json
-{
-  "name": "staging",
-  "host": "https://staging.tinycloud.xyz",
-  "address": "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B",
-  "did": "did:pkh:eip155:1:0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B",
-  "session": {
-    "active": true,
-    "expiresAt": "2026-03-07T22:00:00.000Z"
-  },
-  "directory": "~/.tinycloud/profiles/staging/"
-}
-```
-</Tab>
-</Tabs>
-
-### tc profile switch
-
-Switch the active profile.
-
-```bash
-tc profile switch <name>
-```
-
-```bash
-$ tc profile switch staging
-  Switched to profile "staging".
-  Host:     https://staging.tinycloud.xyz
-  Address:  0xAb58...eC9B
-```
-
-After switching, all commands use the new profile's keys and session.
-
-### tc profile delete
-
-Delete a profile and all its data.
-
-```bash
-tc profile delete <name>
-```
-
-```bash
-$ tc profile delete staging
-  Are you sure you want to delete profile "staging"? (y/N) y
-  Profile "staging" deleted.
-```
-
-<Warning>
-Deleting a profile removes its keys and session permanently. This cannot be undone. Make sure to back up any keys you need before deleting.
-</Warning>
-
-## Multi-Environment Workflow
-
-A common pattern is to maintain separate profiles for development, staging, and production:
-
-<Steps>
-<Step title="Create profiles">
-```bash
-tc init --name dev --host https://localhost:8000
-tc init --name staging --host https://staging.tinycloud.xyz
-tc init --name production --host https://node.tinycloud.xyz
-```
-</Step>
-
-<Step title="Sign in to each">
-```bash
-tc auth login --profile dev
-tc auth login --profile staging
-tc auth login --profile production
-```
-</Step>
-
-<Step title="Use per-command or switch">
-```bash
-# Per-command override
-tc kv put feature/flags '{"newUI":true}' --profile staging
-
-# Or switch globally
-tc profile switch production
-tc kv put feature/flags '{"newUI":false}'
-```
-</Step>
-</Steps>
+- Create one profile for each environment or identity
+- Use `TC_PROFILE` to pick a default profile in a shell session
+- Use `TC_HOST` when you want a per-command node override
 
 <Tip>
-Use the `TC_PROFILE` environment variable to set the default profile for a terminal session without permanently switching:
-
-```bash
-export TC_PROFILE=staging
-tc kv list  # Uses staging profile
-```
+`tc init` creates a profile too, so you only need `tc profile create` when you want a profile without signing in immediately.
 </Tip>

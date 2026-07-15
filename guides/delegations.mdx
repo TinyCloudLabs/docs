@@ -1,365 +1,107 @@
 ---
-title: 'Delegations & Sharing'
-description: 'Share access to your space with other users and services'
-icon: 'share-2'
-sidebarTitle: 'Delegations & Sharing'
+title: "Delegations & Sharing"
+description: "Grant scoped TinyCloud access to another principal."
+icon: "share-2"
+sidebarTitle: "Delegations & Sharing"
 ---
 
-Delegations allow you to grant other users or services scoped, time-limited access to data in your space. They are the core mechanism for sharing in TinyCloud.
+Use this guide to grant another signed-in TinyCloud principal access to a path
+in your space. In the examples, `alice` and `bob` are SDK instances that have
+already completed `signIn()`.
 
-## What Delegations Enable
+## Create and use a delegation
 
-- **Share data**: Let other users read or write to specific paths in your space
-- **Grant permissions**: Allow services to perform operations on your behalf
-- **Chain access**: Recipients can create sub-delegations to extend access to others
-- **Time-bound access**: Delegations automatically expire -- no manual cleanup required
+Use the recipient's owner DID. After wallet sign-in, `bob.did` is that owner
+DID; `bob.sessionDid` identifies the ephemeral session key instead.
 
-## Creating a Delegation
-
-Grant another user access to paths in your space by specifying their DID, the actions they can perform, and the paths they can access.
-
-<Warning>
-**Critical**: For delegations, use the recipient's owner DID (`tc.did` after signIn). After signIn, `tc.did` returns the owner DID -- the identity that authenticated. Before signIn, it returns the session key DID. See [DID Formats](/concepts/did-formats) for details.
-</Warning>
-
-<Tabs>
-<Tab title="Quick">
-<CodeGroup>
-```typescript Web SDK
-// Alice delegates read access to Bob
-const delegation = await tc.createDelegation({
-  delegateDID: bob.did,  // Bob's owner DID (after signIn)
-  path: 'documents/',
-  actions: ['tinycloud.kv/get', 'tinycloud.kv/list'],
-  expiryMs: 7 * 24 * 60 * 60 * 1000,
-});
-
-// Send the portable delegation to Bob
-console.log(delegation);
-```
-
-```typescript Node SDK
-// Alice delegates read + write access to Bob
-const delegation = await alice.createDelegation({
-  delegateDID: bob.did,  // Bob's owner DID (after signIn)
-  path: 'shared/',
-  actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
-  expiryMs: 7 * 24 * 60 * 60 * 1000,
-});
-
-console.log(delegation);
-```
-</CodeGroup>
-</Tab>
-
-<Tab title="Explained">
 ```typescript
 const delegation = await alice.createDelegation({
-  // The recipient's owner DID (e.g., did:pkh:eip155:{chainId}:{address})
-  // After signIn, tc.did returns the owner DID (the identity that authenticated)
   delegateDID: bob.did,
-
-  // Actions the recipient can perform
-  // Available: tinycloud.kv/get, tinycloud.kv/put, tinycloud.kv/del, tinycloud.kv/list
-  actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
-
-  // Path prefix the delegation covers
-  // 'shared/' grants access to all keys starting with 'shared/'
-  path: 'shared/',
-
-  // Expiration time in milliseconds from now (optional)
+  path: "shared/",
+  actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
   expiryMs: 7 * 24 * 60 * 60 * 1000,
 });
-```
-</Tab>
-</Tabs>
 
-## Using a Received Delegation
+// Deliver `delegation` to Bob through your authenticated application channel.
+const access = await bob.useDelegation(delegation);
+const value = await access.kv.get("document.json");
 
-When you receive a delegation (as a portable JSON string), load it into your SDK to access the delegator's space.
-
-<CodeGroup>
-```typescript Web SDK
-// Bob received a portable delegation from Alice
-const portableDelegation = /* received from Alice */;
-
-// Load the delegation and get a DelegatedAccess handle
-const access = await tc.useDelegation(portableDelegation);
-
-// Now Bob can access Alice's space
-const docsResult = await access.kv.list({ prefix: 'documents/' });
-
-const reportResult = await access.kv.get('documents/report.json');
+if (!value.ok) throw new Error(value.error.message);
+console.log(value.data.data);
 ```
 
-```typescript Node SDK
-// Bob received a portable delegation from Alice
-const portableDelegation = /* received from Alice */;
+`useDelegation()` returns a `DelegatedAccess` handle for the delegator's space.
+Its KV service is already rooted at `shared/`, so its keys are relative to that
+delegated path. It does not copy the data into the recipient's space.
 
-// Load the delegation and get a DelegatedAccess handle
-const access = await bob.useDelegation(portableDelegation);
+## Serialize for transport
 
-// Use the access handle to read from Alice's space
-const dataResult = await access.kv.get('shared/data');
-const keysResult = await access.kv.list({ prefix: 'shared/' });
-```
-</CodeGroup>
-
-<Note>
-The recipient does not get a copy of the data. They access it directly in the delegator's space, subject to the scoped permissions in the delegation.
-</Note>
-
-## DelegatedAccess
-
-When using a delegation in the Node SDK, `useDelegation` returns a `DelegatedAccess` object. This object provides a scoped KV interface that automatically targets the delegator's space.
+`createDelegation()` returns a `PortableDelegation` object. To send it as text,
+use the SDK helpers instead of manually converting its `Date` fields:
 
 ```typescript
-const access = await bob.useDelegation(portableDelegation);
+import {
+  serializeDelegation,
+  deserializeDelegation,
+} from "@tinycloud/node-sdk";
 
-// access.kv is scoped to Alice's space with the delegated permissions
-await access.kv.get('shared/document');   // Read from Alice's space
-await access.kv.put('shared/response', { message: 'Thanks!' }); // Write to Alice's space
-await access.kv.list({ prefix: 'shared/' }); // List keys in Alice's space
+const payload = serializeDelegation(delegation);
+// Send `payload` through an authenticated channel.
+
+const received = deserializeDelegation(payload);
+const receivedAccess = await bob.useDelegation(received);
 ```
 
-## Sub-Delegations
+The same helpers are exported by `@tinycloud/web-sdk` for browser applications.
+The serialized delegation is a bearer credential; do not log it or send it
+through an untrusted channel.
 
-Recipients can further delegate their access to others. Sub-delegations must be strictly narrower than the parent delegation.
+## Narrow access further
 
-<CodeGroup>
-```typescript Web SDK
-// Bob creates a sub-delegation for Carol
-const subDelegation = await bob.createSubDelegation(aliceDelegation, {
-  delegateDID: carol.did,        // Carol's owner DID (after signIn)
-  actions: ['tinycloud.kv/get'], // Must be subset of Bob's actions
-  path: 'documents/public/',     // Must be within Bob's path
-  expiryMs: 24 * 60 * 60 * 1000, // Must expire before Bob's delegation
-});
-```
+If the parent permits sub-delegation, Bob can grant Carol a narrower subset:
 
-```typescript Node SDK
-// Bob sub-delegates to Carol
-const subDelegation = await bob.createSubDelegation(aliceDelegation, {
-  // Carol's owner DID (after signIn)
+```typescript
+const child = await bob.createSubDelegation(delegation, {
   delegateDID: carol.did,
-
-  // Subset of actions Bob has
-  actions: ['tinycloud.kv/get'],
-
-  // Narrower path scope
-  path: 'documents/public/',
-
-  // Earlier expiry
+  path: "shared/public/",
+  actions: ["tinycloud.kv/get"],
   expiryMs: 24 * 60 * 60 * 1000,
+  disableSubDelegation: true,
 });
-
-// Send to Carol
-sendToUser(carol.address, subDelegation);
 ```
-</CodeGroup>
 
-## Delegation Constraints
+The child must stay within the parent's resources and action set, cannot
+outlive the parent, and cannot bypass a parent's sub-delegation restriction.
 
-Every sub-delegation must be a strict subset of its parent. The server enforces these rules:
+## Revoke access
 
-| Constraint | Rule | Example |
-|------------|------|---------|
-| **Actions** | Must be a subset of parent's actions | Parent has `get + put`, child can have `get` only |
-| **Paths** | Must be within parent's path scope | Parent has `data/*`, child can have `data/public/*` |
-| **Expiry** | Must expire at or before parent's expiry | Parent expires in 7d, child must expire in 7d or less |
-| **Not Before** | Must be at or after parent's not_before | Parent starts Jan 1, child cannot start before Jan 1 |
-
-<AccordionGroup>
-<Accordion title="Valid sub-delegation example">
-```typescript
-// Parent: read + write to 'data/*', expires in 7 days
-
-await bob.createSubDelegation(parentDelegation, {
-  delegateDID: carol.did,         // Carol's owner DID (after signIn)
-  actions: ['tinycloud.kv/get'],  // Subset of [get, put]
-  path: 'data/public/',           // Within data/*
-  expiryMs: 3 * 24 * 60 * 60 * 1000, // Before 7 days
-});
-// Accepted by server
-```
-</Accordion>
-<Accordion title="Invalid sub-delegation example">
-```typescript
-// Parent: read + write to 'data/*', expires in 7 days
-
-await bob.createSubDelegation(parentDelegation, {
-  delegateDID: carol.did,
-  actions: ['tinycloud.kv/get', 'tinycloud.kv/del'], // 'del' not in parent
-  path: 'other/',                                      // Outside parent scope
-  expiryMs: 30 * 24 * 60 * 60 * 1000,                  // After parent expires
-});
-// Rejected by server
-```
-</Accordion>
-</AccordionGroup>
-
-## DID Format
-
-<Warning>
-This is the most common source of delegation failures. Use the recipient's owner DID (`tc.did` after signIn), not the session key DID.
-</Warning>
-
-TinyCloud uses two DID types:
-
-| Type | Property | Example | When to Use |
-|------|----------|---------|-------------|
-| **Owner DID** | `tc.did` (after signIn) | `did:pkh:eip155:1:0xd8dA...` | Delegations, user identity |
-| **Session Key DID** | `tc.sessionDid` | `did:key:z6Mk...#z6Mk...` | Internal session operations |
-
-After signIn, `tc.did` returns the owner DID -- the identity that authenticated (e.g., an Ethereum wallet). Before signIn, `tc.did` returns the session key DID. The owner DID represents the user's persistent identity, while the session key DID is ephemeral and rotates on every authentication.
+Both the Node and Web SDKs expose `revokeDelegation()`:
 
 ```typescript
-// Correct: use tc.did for delegations (after signIn)
-await alice.createDelegation({
-  delegateDID: bob.did,  // did:pkh:eip155:1:0x... (Bob's owner DID after signIn)
-  actions: ['tinycloud.kv/get'],
-});
-
-// Wrong: using sessionDid -- will fail server validation
-await alice.createDelegation({
-  delegateDID: bob.sessionDid,  // did:key:z6Mk... -- session key, not for delegations
-  actions: ['tinycloud.kv/get'],
-});
+const revoked = await alice.revokeDelegation(delegation.cid);
+if (!revoked.ok) throw new Error(revoked.error.message);
 ```
 
-## PortableDelegation Format
-
-Delegations are serialized as `PortableDelegation` for transport between users. This is a JSON string containing the signed delegation chain, which can be verified cryptographically.
+Revocation is node-confirmed and invalidates use of that delegation. Revoking
+an ancestor also prevents its descendants from being used. The Node SDK can
+query the node-confirmed lifecycle state:
 
 ```typescript
-// Create and serialize
-const delegation = await alice.createDelegation({
-  delegateDID: bob.did,  // Bob's owner DID (after signIn)
-  actions: ['tinycloud.kv/get'],
-  path: 'shared/',
-});
-
-// The portable format is a JSON string
-const portable = delegation.portable;
-
-// Send via any channel: HTTP API, email, QR code, messaging, etc.
-sendToRecipient(portable);
-
-// Recipient loads it
-const access = await bob.useDelegation(portable);
+const status = await alice.getDelegationStatus(delegation.cid);
+if (status.ok) console.log(status.data.status); // "revoked"
 ```
 
-<Tip>
-The portable delegation is self-contained. The recipient does not need any additional context to verify and use it -- the cryptographic chain of trust is embedded in the payload.
-</Tip>
+Delegations also stop working at their signed expiry. Expiry limits exposure,
+but it is not a substitute for `revokeDelegation()` when access must end now.
 
-## Sharing Links
+## Inspect received grants
 
-For simpler sharing scenarios, TinyCloud provides a sharing links API that generates a URL containing an embedded delegation. The recipient can access the shared data without being authenticated.
+The Node SDK records delegations installed by `useDelegation()`:
 
 ```typescript
-// Generate a share link for a specific key
-const result = await tc.sharing.generate({
-  path: 'profile',
-  expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-});
-
-if (result.ok) {
-  console.log(result.data.token);
-  // tc1:eyJhbGciOi...
-
-  // Recipient opens the link -- no auth needed
-  // This is a static method that works without an active session
-  const shareResult = await TinyCloudWeb.receiveShare(result.data.token);
-  if (shareResult.ok) {
-    console.log(shareResult.data.data);
-    // { name: 'Alice', email: 'alice@example.com' }
-  }
-}
+const receivedDelegations = bob.delegations.list();
+const oneDelegation = bob.delegations.get(delegation.cid);
 ```
 
-<Note>
-Sharing links are ideal for one-off sharing with people who may not have a TinyCloud account. For ongoing collaboration, use standard delegations instead.
-</Note>
-
-## Revoking Delegations
-
-Currently, delegations expire automatically based on their `expiryMs` value. For scenarios where you need immediate revocation, use short-lived delegations and refresh them as needed.
-
-```typescript
-// Short-lived delegation that must be refreshed
-const delegation = await alice.createDelegation({
-  delegateDID: bob.did,  // Bob's owner DID (after signIn)
-  actions: ['tinycloud.kv/get'],
-  path: 'shared/',
-  expiryMs: 60 * 60 * 1000, // Expires in 1 hour
-});
-
-// To "revoke", simply stop issuing new delegations
-// The existing one becomes invalid after 1 hour
-```
-
-## Complete Example
-
-Alice shares a document folder with Bob, who then shares a subset with Carol.
-
-<Steps>
-<Step title="Alice creates a delegation for Bob">
-```typescript
-// Alice's client
-const aliceToBob = await alice.createDelegation({
-  delegateDID: bob.did,  // Bob's owner DID (after signIn)
-  actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
-  path: 'documents/',
-  expiryMs: 30 * 24 * 60 * 60 * 1000,
-});
-
-// Send the portable delegation to Bob
-sendToUser(bob.address, aliceToBob);
-```
-</Step>
-
-<Step title="Bob receives and uses the delegation">
-```typescript
-// Bob's client
-const access = await bob.useDelegation(aliceToBobPortable);
-
-// Bob can now read and write to Alice's documents
-const files = await access.kv.list({ prefix: 'documents/' });
-const report = await access.kv.get('documents/report.json');
-
-// Bob can also write (he has kv/put)
-await access.kv.put('documents/feedback.json', {
-  reviewer: 'Bob',
-  comments: 'Looks good!',
-});
-```
-</Step>
-
-<Step title="Bob creates a sub-delegation for Carol">
-```typescript
-// Bob sub-delegates read-only access to a narrower path
-const bobToCarol = await bob.createSubDelegation(aliceToBobPortable, {
-  delegateDID: carol.did,              // Carol's owner DID (after signIn)
-  actions: ['tinycloud.kv/get'],       // Read only (subset of Bob's get+put)
-  path: 'documents/public/',           // Narrower scope
-  expiryMs: 7 * 24 * 60 * 60 * 1000,   // Shorter than Bob's 30 days
-});
-
-sendToUser(carol.address, bobToCarol.portable);
-```
-</Step>
-
-<Step title="Carol accesses the shared data">
-```typescript
-// Carol's client
-const carolAccess = await carol.useDelegation(bobToCarolPortable);
-
-// Carol can read Alice's public documents
-const doc = await carolAccess.kv.get('documents/public/readme.txt');
-
-// Carol cannot write (only has kv/get)
-// Carol cannot access documents outside documents/public/
-```
-</Step>
-</Steps>
+For the SDK transport fields and the node's validation model, see
+[Delegations](/reference/protocol/delegations).

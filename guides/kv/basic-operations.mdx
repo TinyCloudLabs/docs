@@ -1,0 +1,68 @@
+---
+title: 'KV basic operations'
+description: 'Use put, get, list, head, and delete with TinyCloud KV'
+icon: 'square-pen'
+sidebarTitle: 'KV basic operations'
+---
+
+Use this page when you want the shortest path from a space to a working read/write example.
+
+## The core operations
+
+| Method | Use it for |
+| --- | --- |
+| `put` | Store a value under a key |
+| `get` | Read a value back |
+| `list` | Enumerate keys, optionally by prefix |
+| `head` | Read metadata without fetching the value |
+| `delete` | Remove a key |
+
+## Write a record
+
+```typescript
+const putResult = await tc.kv.put('profile', {
+  name: 'Alice',
+  joinedAt: new Date().toISOString(),
+});
+```
+
+`put()` accepts JSON-like values and strings. The SDK returns a `Result`, so check `ok` before using the data.
+
+## Read it back
+
+```typescript
+const getResult = await tc.kv.get('profile');
+
+if (getResult.ok) {
+  console.log(getResult.data.data);
+}
+```
+
+## List a prefix
+
+```typescript
+const listResult = await tc.kv.list({ prefix: 'user/' });
+
+if (listResult.ok) {
+  console.log(listResult.data.keys);
+}
+```
+
+## Inspect metadata or remove the key
+
+```typescript
+const headResult = await tc.kv.head('profile');
+const deleteResult = await tc.kv.delete('profile');
+```
+
+Use `head()` when you only need metadata, and `delete()` when the record should be removed entirely.
+
+## Next step
+
+- [Spaces](/guides/spaces)
+- [Web SDK reference](/reference/sdk/web)
+- [Node SDK reference](/reference/sdk/node)
+
+<Note>
+Verified against the KV service shipped with TinyCloud SDK 2.7.0-beta.2.
+</Note>

@@ -1,33 +1,33 @@
 ---
 title: "Status"
-description: "Inspect local TinyCloud profile, session, delegation, and permission state"
+description: "Inspect local profiles, sessions, delegations, and permissions"
 icon: "activity"
 sidebarTitle: "Status"
 ---
 
-Use `tc status` to inspect local TinyCloud state across profiles. It summarizes authentication, session expiry, delegations, and compact permissions for the active CLI configuration.
+`tc status` is the local-state command. Use it when you need a compact view of all configured profiles and what each one can currently do.
 
 ```bash
 tc status
-```
-
-## JSON Output
-
-Pass `--json` for scripting and support captures.
-
-```bash
 tc status --json
 ```
 
-The JSON output includes:
+## What it shows
 
-- active and default profile names
-- profile count and authenticated profile count
-- active delegation count
-- per-profile session status, owner DID, session DID, address, and space ID
-- compact permission summaries
-- profile issues discovered while reading local state
+- Active and default profile names
+- Profile count
+- How many profiles are authenticated
+- Active delegation count
+- Per-profile session state, DID, address, and space
+- Compact permission summaries
+- Issues discovered while reading local profile state
 
-## When to Use It
+## When to use it
 
-Run `tc status` when a command fails with an authorization error, when an agent needs to prove which permissions it has, or before granting imported auth artifacts.
+- Before retrying a failed command
+- Before importing or granting a delegation artifact
+- When you need to prove which profile is active in a workspace
+
+<Note>
+`tc status` reads local profile files only; it does not contact the node.
+</Note>

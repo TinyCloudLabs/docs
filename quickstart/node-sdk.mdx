@@ -1,455 +1,111 @@
 ---
-title: 'Node SDK Quickstart'
-description: 'Build your first TinyCloud backend service in under 5 minutes'
+title: 'Node SDK quickstart'
+description: 'Run a backend script that signs in and verifies its first TinyCloud write'
 icon: 'server'
+sidebarTitle: 'Node SDK quickstart'
 ---
 
-Get TinyCloud running in a Node.js environment and store your first piece of data. By the end of this guide you will have a working script that authenticates with a private key, reads and writes to a space, and creates a delegation for another user.
+Start here when your code runs in Node.js. You will create a small TypeScript project, generate a disposable development key, and write and read back one record.
 
 ## Prerequisites
 
-Before you begin, make sure you have:
-
-- **Node.js 18+** installed
-- An **Ethereum private key** (32-byte hex string) for authenticated mode, or nothing at all for session-only mode
+- Node.js 18 or newer
+- Network access to `https://node.tinycloud.xyz`
 
 <Warning>
-  Never hardcode private keys in your source code. Always use environment variables or a secrets manager.
+The generated key is for this tutorial only. Never put a production wallet key in source control, logs, frontend code, or a shared `.env` file.
 </Warning>
 
-## Installation
-
-<CodeGroup>
-```bash npm
-npm install @tinycloud/node-sdk
-```
-
-```bash yarn
-yarn add @tinycloud/node-sdk
-```
-
-```bash pnpm
-pnpm add @tinycloud/node-sdk
-```
-
-```bash bun
-bun add @tinycloud/node-sdk
-```
-</CodeGroup>
-
-<Steps>
-
-### Configure Environment
-
-Set up your private key as an environment variable.
-
-```bash .env
-TINYCLOUD_PRIVATE_KEY=0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-```
-
-<Tip>
-  For development, you can generate a test private key using: `node -e "console.log('0x' + require('crypto').randomBytes(32).toString('hex'))"`
-</Tip>
-
-### Initialize TinyCloud
-
-Create a TinyCloud instance with your configuration.
-
-<Tabs>
-  <Tab title="Quick">
-    ```typescript
-    import { TinyCloudNode } from '@tinycloud/node-sdk';
-
-    const tc = new TinyCloudNode({
-      privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
-      host: 'https://node.tinycloud.xyz',
-      prefix: 'myapp',
-    });
-    ```
-  </Tab>
-  <Tab title="Explained">
-    ```typescript
-    import { TinyCloudNode } from '@tinycloud/node-sdk';
-
-    const tc = new TinyCloudNode({
-      // Your Ethereum private key (from environment variable)
-      privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
-
-      // The TinyCloud node to connect to
-      host: 'https://node.tinycloud.xyz',
-
-      // Optional: prefix for all your KV keys
-      prefix: 'myapp',
-
-      // Automatically create a space on first sign-in (default: false)
-      autoCreateSpace: true,
-    });
-    ```
-  </Tab>
-</Tabs>
-
-### Sign In
-
-Authenticate with the TinyCloud network.
-
-<Tabs>
-  <Tab title="Quick">
-    ```typescript
-    await tc.signIn();
-    console.log('Space:', tc.spaceId);
-    console.log('DID:', tc.did); // did:pkh:eip155:1:0x...
-    ```
-  </Tab>
-  <Tab title="Explained">
-    ```typescript
-    // signIn() authenticates using your private key:
-    // 1. Derives your Ethereum address from the private key
-    // 2. Signs a SIWE message to prove ownership
-    // 3. Establishes an authenticated session with the TinyCloud node
-    // 4. Creates a space for you if one does not exist
-    await tc.signIn();
-
-    // After sign-in, your space ID and DID are available
-    console.log('Space:', tc.spaceId);
-
-    // tc.did returns your owner DID (user identity)
-    console.log('DID:', tc.did); // did:pkh:eip155:1:0x...
-    ```
-  </Tab>
-</Tabs>
-
-### Store Data
-
-Save data to your space using the key-value store via `tc.kv`.
-
-<Tabs>
-  <Tab title="Quick">
-    ```typescript
-    const putResult = await tc.kv.put('config', {
-      version: '1.0.0',
-      lastUpdated: new Date().toISOString(),
-    });
-    if (putResult.ok) {
-      console.log('Data saved!');
-    }
-    ```
-  </Tab>
-  <Tab title="Explained">
-    ```typescript
-    // Store a JSON object under the key 'config'
-    const putResult = await tc.kv.put('config', {
-      version: '1.0.0',
-      lastUpdated: new Date().toISOString(),
-    });
-
-    if (putResult.ok) {
-      console.log('Data saved!');
-    }
-    // Data is now stored in your space on TinyCloud
-    ```
-  </Tab>
-</Tabs>
-
-### Retrieve Data
-
-Read the data back from storage.
-
-<Tabs>
-  <Tab title="Quick">
-    ```typescript
-    const result = await tc.kv.get('config');
-    if (result.ok) {
-      console.log('Retrieved:', result.data.data);
-    }
-    ```
-  </Tab>
-  <Tab title="Explained">
-    ```typescript
-    // Retrieve the value stored under 'config'
-    const result = await tc.kv.get('config');
-
-    // Returns the original object: { version: '1.0.0', lastUpdated: '...' }
-    if (result.ok) {
-      console.log('Retrieved:', result.data.data);
-    }
-    ```
-  </Tab>
-</Tabs>
-
-### List and Delete
-
-Browse keys and remove data you no longer need.
-
-<Tabs>
-  <Tab title="Quick">
-    ```typescript
-    const listResult = await tc.kv.list();
-    if (listResult.ok) {
-      console.log('All keys:', listResult.data.keys);
-    }
-
-    const delResult = await tc.kv.delete('config');
-    if (delResult.ok) {
-      console.log('Deleted config');
-    }
-    ```
-  </Tab>
-  <Tab title="Explained">
-    ```typescript
-    // List all keys matching a prefix
-    // Call without arguments to list everything in the space
-    const listResult = await tc.kv.list();
-    if (listResult.ok) {
-      console.log('All keys:', listResult.data.keys);
-    }
-
-    // Remove a key and its value
-    const delResult = await tc.kv.delete('config');
-    if (delResult.ok) {
-      console.log('Deleted config');
-    }
-    ```
-  </Tab>
-</Tabs>
-
-</Steps>
-
-## Complete Example
-
-Here is the full working code:
-
-```typescript index.ts
-import { TinyCloudNode } from '@tinycloud/node-sdk';
-
-async function main() {
-  // 1. Initialize
-  const tc = new TinyCloudNode({
-    privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
-    host: 'https://node.tinycloud.xyz',
-    prefix: 'myapp',
-  });
-
-  // 2. Sign in
-  await tc.signIn();
-  console.log('Space:', tc.spaceId);
-  console.log('DID:', tc.did);
-
-  // 3. Store data
-  const putResult = await tc.kv.put('config', {
-    version: '1.0.0',
-    lastUpdated: new Date().toISOString(),
-  });
-  if (putResult.ok) {
-    console.log('Data saved!');
-  }
-
-  // 4. Retrieve data
-  const getResult = await tc.kv.get('config');
-  if (getResult.ok) {
-    console.log('Retrieved:', getResult.data.data);
-  }
-
-  // 5. List keys
-  const listResult = await tc.kv.list();
-  if (listResult.ok) {
-    console.log('Keys:', listResult.data.keys);
-  }
-
-  // 6. Clean up
-  const delResult = await tc.kv.delete('config');
-  if (delResult.ok) {
-    console.log('Deleted config');
-  }
-}
-
-main().catch(console.error);
-```
-
-Run with:
+## Create the project
 
 ```bash
-TINYCLOUD_PRIVATE_KEY=0x... npx ts-node index.ts
+mkdir tinycloud-node-quickstart
+cd tinycloud-node-quickstart
+npm init -y
+npm install @tinycloud/node-sdk@2.7.0-beta.2 dotenv
+npm install --save-dev tsx typescript @types/node
+npm pkg set scripts.start="tsx index.ts"
 ```
 
-## Expected Output
+Generate a new key for the empty tutorial space and exclude it from Git:
 
-When you run the code successfully, you should see:
-
-```
-Space: tinycloud:pkh:eip155:1:0xd8dA...6045:myapp
-DID: did:pkh:eip155:1:0xd8dA...6045
-Data saved!
-Retrieved: { version: '1.0.0', lastUpdated: '2026-01-15T10:30:00.000Z' }
-Keys: ['config']
-Deleted config
+```bash
+node -e "const c=require('node:crypto'),f=require('node:fs');f.writeFileSync('.env','WALLET_PRIVATE_KEY='+c.randomBytes(32).toString('hex')+'\n')"
+node -e "require('node:fs').writeFileSync('.gitignore','.env\nnode_modules/\n')"
 ```
 
-## Session-Only Mode
+Create `index.ts`:
 
-You can create a TinyCloud instance without a private key. This is useful for clients that only need to receive delegations from other users, not own a space.
+```typescript
+import 'dotenv/config';
+import { TinyCloudNode } from '@tinycloud/node-sdk';
 
-<Tabs>
-  <Tab title="Quick">
-    ```typescript
-    const bob = new TinyCloudNode();
+const privateKey = process.env.WALLET_PRIVATE_KEY;
+if (!privateKey) throw new Error('WALLET_PRIVATE_KEY is missing from .env');
 
-    console.log(bob.did);            // did:key:z6Mk... (session key DID)
-    console.log(bob.isSessionOnly);  // true
-    ```
-  </Tab>
-  <Tab title="Explained">
-    ```typescript
-    // No config required -- a session key is generated automatically
-    const bob = new TinyCloudNode();
+async function main() {
+  const tc = new TinyCloudNode({
+    privateKey,
+    host: 'https://node.tinycloud.xyz',
+    prefix: 'tinycloud-quickstart',
+    autoCreateSpace: true,
+  });
 
-    // In session-only mode, .did returns a session key DID
-    // (since there is no owner identity to authenticate with)
-    console.log(bob.did);            // did:key:z6Mk...
-    console.log(bob.isSessionOnly);  // true
+  await tc.signIn();
 
-    // Session-only clients cannot create spaces or write
-    // to their own storage, but they CAN receive delegations
-    // from other users and access delegated data
-    ```
-  </Tab>
-</Tabs>
+  const saved = await tc.kv.put('first-record', {
+    message: 'Hello from TinyCloud',
+    writtenAt: new Date().toISOString(),
+  });
+  if (!saved.ok) throw new Error(`${saved.error.code}: ${saved.error.message}`);
 
-<Note>
-  Session-only clients generate an ephemeral `did:key` identity. They can receive delegations and read/write to other users' spaces, but they do not have their own space.
-</Note>
+  const loaded = await tc.kv.get<{ message: string }>('first-record');
+  if (!loaded.ok) throw new Error(`${loaded.error.code}: ${loaded.error.message}`);
 
-## Delegations
+  console.log(JSON.stringify({
+    ownerDid: tc.did,
+    space: tc.spaceId,
+    record: loaded.data.data,
+  }, null, 2));
+}
 
-Grant another user or service scoped access to your space.
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+```
 
-<Note>
-  After signIn, `tc.did` returns your owner DID (the identity you authenticated with). Before signIn, it returns your session key DID. For delegations, always use the recipient's owner DID (their `tc.did` after they've signed in).
-</Note>
+## Run and verify
 
-<Tabs>
-  <Tab title="Quick">
-    ```typescript
-    // Alice creates a delegation for Bob (after Bob has signed in)
-    const delegation = await alice.createDelegation({
-      delegateDID: bob.did,
-      path: 'shared/',
-      actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
-    });
+```bash
+npm start
+```
 
-    // Bob uses the delegation to access Alice's data
-    const access = await bob.useDelegation(delegation);
-    const result = await access.kv.get('shared/data');
-    if (result.ok) {
-      console.log(result.data.data);
-    }
-    ```
-  </Tab>
-  <Tab title="Explained">
-    ```typescript
-    // Alice grants Bob access to her 'shared/' prefix
-    const delegation = await alice.createDelegation({
-      // Bob's owner DID (tc.did after signIn)
-      // This is the identity Bob authenticated with
-      delegateDID: bob.did,
+Success prints the owner DID, a space ending in `:tinycloud-quickstart`, and the record read back from that space:
 
-      // Path prefix the delegation covers
-      path: 'shared/',
+```json
+{
+  "ownerDid": "did:pkh:eip155:1:0x…",
+  "space": "tinycloud:pkh:eip155:1:0x…:tinycloud-quickstart",
+  "record": {
+    "message": "Hello from TinyCloud"
+  }
+}
+```
 
-      // Specific actions Bob is allowed to perform
-      actions: ['tinycloud.kv/get', 'tinycloud.kv/put'],
-    });
+The exact chain, address, and timestamp will differ. A failed sign-in throws before the write. A failed KV call prints its SDK error code and exits without reporting success.
 
-    // Bob loads the delegation and gets a scoped client
-    const access = await bob.useDelegation(delegation);
+## Use an existing secret safely
 
-    // Bob can now read and write under Alice's 'shared/' prefix
-    const getResult = await access.kv.get('shared/data');
-    if (getResult.ok) {
-      console.log(getResult.data.data);
-    }
-    const putResult = await access.kv.put('shared/response', { message: 'Thanks!' });
-    if (putResult.ok) {
-      console.log('Response saved!');
-    }
-    ```
-  </Tab>
-</Tabs>
+For a real service, replace the disposable `.env` key with your secret manager's runtime injection. Keep `.env` for local development only, retain it in `.gitignore`, and use a wallet dedicated to the service rather than a personal wallet that holds assets.
 
-### DID Reference
+## Next steps
 
-The Node SDK exposes different DIDs depending on authentication state:
-
-| Property | Before signIn | After signIn | Session-only mode |
-|----------|---------------|--------------|-------------------|
-| `tc.did` | Session DID | Owner DID | Session DID |
-| `tc.sessionDid` | Session DID | Session DID | Session DID |
+- [Node authentication and session lifecycle](/guides/authentication/node)
+- [KV basic operations](/guides/kv/basic-operations)
+- [Receive a delegation](/guides/delegations)
+- [Node client overview](/reference/sdk/node)
 
 <Note>
-  `tc.address` is undefined until signIn() completes.
+Verified against `@tinycloud/node-sdk` 2.7.0-beta.2.
 </Note>
-
-## Session Persistence
-
-By default, sessions are stored in memory and lost when your process exits. For long-running services, use file-based session storage.
-
-<Tabs>
-  <Tab title="Memory (Default)">
-    ```typescript
-    import { TinyCloudNode, MemorySessionStorage } from '@tinycloud/node-sdk';
-
-    const tc = new TinyCloudNode({
-      privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
-      host: 'https://node.tinycloud.xyz',
-      // Explicit but not required -- memory storage is the default
-      sessionStorage: new MemorySessionStorage(),
-    });
-    ```
-  </Tab>
-  <Tab title="File Storage">
-    ```typescript
-    import { TinyCloudNode, FileSessionStorage } from '@tinycloud/node-sdk';
-
-    const tc = new TinyCloudNode({
-      privateKey: process.env.TINYCLOUD_PRIVATE_KEY,
-      host: 'https://node.tinycloud.xyz',
-      // Persists the session to disk so it survives process restarts
-      sessionStorage: new FileSessionStorage('./.tinycloud-session'),
-    });
-    ```
-  </Tab>
-</Tabs>
-
-<Note>
-  File-based storage is recommended for production services to avoid re-authentication on every restart. Add the session file to your `.gitignore`.
-</Note>
-
-## Configuration Reference
-
-All options passed to `new TinyCloudNode()` are optional. Omitting everything creates a session-only client.
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `privateKey` | `string` | `undefined` | Ethereum private key (hex). Omit for session-only mode |
-| `host` | `string` | `'https://node.tinycloud.xyz'` | TinyCloud node URL |
-| `prefix` | `string` | `undefined` | Prefix prepended to all KV keys |
-| `autoCreateSpace` | `boolean` | `false` | Create a space automatically on first sign-in |
-| `sessionStorage` | `SessionStorage` | `MemorySessionStorage` | Where to persist session state |
-
-## Next Steps
-
-Now that you have the basics working, explore these guides:
-
-<CardGroup cols={2}>
-  <Card title="KV Storage" icon="database" href="/guides/kv-storage">
-    Advanced storage operations including prefixes, metadata, and data types.
-  </Card>
-  <Card title="Delegations" icon="share-2" href="/guides/delegations">
-    Share data access with fine-grained, revocable permissions.
-  </Card>
-  <Card title="Spaces" icon="box" href="/guides/spaces">
-    Understand spaces, the ownership containers at the heart of TinyCloud.
-  </Card>
-  <Card title="Web SDK" icon="globe" href="/quickstart/web-sdk">
-    Building a frontend? See the Web SDK quickstart for browser usage.
-  </Card>
-</CardGroup>

@@ -1,220 +1,57 @@
 ---
 title: "Capabilities"
-description: "Understanding UCAN-based capabilities, ability strings, and delegation chains in TinyCloud"
+description: "Read TinyCloud ability strings, delegation scope, and registry status."
 icon: "shield-check"
 ---
 
-TinyCloud uses a capability-based authorization system built on UCAN (User Controlled Authorization Networks) and integrated with SIWE (Sign-In with Ethereum) through ReCap (Resource Capability).
+TinyCloud capabilities answer one question: what may a principal do, and on
+which resource. Ability strings use the form `tinycloud.{service}/{action}`.
+The generated capability registry lists the exact action names, aliases, and
+reserved entries from `tinycloud-node`.
 
-## UCAN Fundamentals
-
-UCAN is a decentralized authorization framework where capabilities are:
-
-- **Bearer tokens**: Whoever holds the token can use the capability
-- **Self-certifying**: No central authority needed to verify -- the token itself contains proof
-- **Delegatable**: Users can grant subsets of their capabilities to others
-- **Cryptographically signed**: Tamper-proof and verifiable by anyone
-
-Unlike traditional API keys or OAuth tokens, UCANs do not require a round-trip to a central server for validation. The entire proof chain is embedded in the token itself.
-
-## ReCap Integration with SIWE
-
-ReCap embeds capability claims within SIWE (Sign-In with Ethereum) messages, allowing Ethereum wallets to authorize specific actions as part of the sign-in flow.
-
-<Frame>
-  <img src="/images/diagrams/recap-integration.svg" alt="ReCap integration with SIWE flow" />
-</Frame>
-
-The SIWE message includes a ReCap object that declares which abilities the session is authorized to perform. This creates the root UCAN from which all delegations descend.
-
-## Ability String Format
-
-TinyCloud uses a hierarchical ability string format to define specific actions:
-
-```
-tinycloud.{service}/{action}
-```
-
-The `tinycloud.` prefix identifies the ReCap ability namespace. The remaining
-components name the service and action.
-
-For example, `tinycloud.kv/get` permits a read from the key-value service and
-`tinycloud.encryption/decrypt` permits a decrypt operation through the
-encryption service. Encryption abilities use network URNs such as
-`urn:tinycloud:encryption:did:pkh:eip155:1:0x1234...abcd:default` as their
-resource scope rather than an app-relative path.
-
-<Card title="Capability Registry" icon="list-tree" href="/reference/protocol/capabilities">
-  Look up every action, status, alias, and implication in the current
-  `tinycloud-node` registry.
+<Card title="Generated registry" icon="list-tree" href="/reference/protocol/capabilities">
+  Use the generated registry for the exact action spellings, status, aliases,
+  and service groupings. This concept page explains how to interpret them.
 </Card>
 
-## Path Scoping
+## How to read an ability
 
-Abilities can be scoped to specific key paths within a space. This limits what
-a capability holder can access even when the ability itself is allowed.
+An ability has two parts:
 
-```typescript
-// Full access to all keys in the KV store
-await tc.createDelegation({
-  delegateDID: bob.did,
-  path: "",
-  actions: ["tinycloud.kv/put"],
-  // Empty path grants access from the root of the space
-});
+- `tinycloud.{service}` names the service namespace
+- `{action}` names the permitted operation
 
-// Scoped access: only keys under /users/alice/
-await tc.createDelegation({
-  delegateDID: bob.did,
-  path: "/users/alice/",
-  actions: ["tinycloud.kv/put"],
-  // Bob can write to /users/alice/profile but NOT /users/bob/profile
-});
-```
+For example, `tinycloud.kv/get` allows KV reads, while
+`tinycloud.sql/schema` allows schema changes that the SQL authorizer accepts.
+Deprecated aliases are normalized by the node before authorization.
 
-Path scoping is enforced at the server level. Requests outside the allowed path are rejected even if the capability token is otherwise valid.
+## Scope comes from the resource
 
-## Delegation Chains
+The action says what the capability can do. The resource URI and path say where
+it can do it.
 
-One of UCAN's most powerful features is the ability to delegate capabilities to others. Each delegation creates a link in a verifiable chain.
+- KV and VFS use prefix containment when the capability path ends with `/`
+- KV and VFS use exact matching when the path does not end with `/`
+- SQL uses exact path matching
 
-### Delegation Hierarchy
+That means `docs/` can cover `docs/readme.md`, but `docs` does not act like a
+prefix. This is the same containment rule the node uses when checking policy
+capabilities.
 
-<Frame>
-  <img src="/images/diagrams/delegation-hierarchy.svg" alt="Delegation hierarchy showing capability delegation chain" />
-</Frame>
+## Delegation and attenuation
 
-Each link in the chain must be a subset of the parent. Alice grants Bob write access to `docs/*`; Bob can sub-delegate read access to `docs/public/*` to Carol, but Bob cannot grant Carol write access or access outside `docs/*`.
+Capabilities are delegatable and can be narrowed by:
 
-### Constraint Rules
+- reducing the action set
+- narrowing the path
+- shortening the expiry
+- disabling sub-delegation
 
-When creating a delegation, the child capability must be a strict subset of the parent across all dimensions:
+Revocation cuts off the revoked capability and anything derived from it.
+That gives TinyCloud a chain-of-trust model instead of a static API-key model.
 
-<AccordionGroup>
-  <Accordion title="Expiry Constraint">
-    **Child expiry must be less than or equal to parent expiry.**
+## Source note
 
-    If Alice's capability expires on January 15, any delegation she creates must expire on or before January 15.
-
-    ```typescript
-    // Alice's capability expires in 24 hours
-    // This delegation is valid (12 hours < 24 hours)
-    await alice.createDelegation({
-      delegateDID: bob.did,
-      path: "docs/",
-      actions: ["tinycloud.kv/get"],
-      expiryMs: 12 * 60 * 60 * 1000, // 12 hours
-    });
-
-    // This would fail (48 hours > 24 hours)
-    await alice.createDelegation({
-      delegateDID: bob.did,
-      path: "docs/",
-      actions: ["tinycloud.kv/get"],
-      expiryMs: 48 * 60 * 60 * 1000, // REJECTED: exceeds parent expiry
-    });
-    ```
-  </Accordion>
-
-  <Accordion title="not_before Constraint">
-    **Child not_before must be greater than or equal to parent not_before.**
-
-    A delegation cannot become valid before the parent capability is valid. This prevents backdating attacks where a sub-delegation could be used before the original grant was intended to be active.
-
-    This constraint is enforced when a delegation chain contains a `not_before` value. The high-level SDK helpers shown here do not expose a `notBefore` option.
-  </Accordion>
-
-  <Accordion title="Action Subset Constraint">
-    **Child actions must be a subset of parent actions.**
-
-    You cannot delegate capabilities you do not have.
-
-    ```typescript
-    // Alice has: kv/get, kv/put, kv/del
-
-    // Valid: subset of Alice's capabilities
-    await alice.createDelegation({
-      delegateDID: bob.did,
-      path: "docs/",
-      actions: ["tinycloud.kv/get", "tinycloud.kv/put"],
-    });
-
-    // Invalid: Alice does not have kv/list
-    await alice.createDelegation({
-      delegateDID: bob.did,
-      path: "docs/",
-      actions: ["tinycloud.kv/list"], // REJECTED: not in parent's set
-    });
-    ```
-  </Accordion>
-
-  <Accordion title="Path Constraint">
-    **Child path must be within parent path.**
-
-    If Alice can only access `/projects/alpha/`, she can delegate access to `/projects/alpha/docs/` but not to `/projects/beta/`.
-
-    ```typescript
-    // Alice's scope: /projects/alpha/*
-
-    // Valid: within Alice's scope
-    await alice.createDelegation({
-      delegateDID: bob.did,
-      path: "/projects/alpha/docs/",
-      actions: ["tinycloud.kv/get"],
-    });
-
-    // Invalid: outside Alice's scope
-    await alice.createDelegation({
-      delegateDID: bob.did,
-      path: "/projects/beta/", // REJECTED: not within parent path
-      actions: ["tinycloud.kv/get"],
-    });
-    ```
-  </Accordion>
-</AccordionGroup>
-
-### How the Server Validates Chains
-
-When a request arrives with a delegation token, the TinyCloud node walks the entire chain:
-
-<Frame>
-  <img src="/images/diagrams/validation-chain.svg" alt="Server-side delegation chain validation flow" />
-</Frame>
-
-### Preventing Sub-delegation
-
-To prevent further delegation of capabilities, use the `disableSubDelegation` flag:
-
-```typescript
-await alice.createDelegation({
-  delegateDID: bob.did,
-  path: "documents/",
-  actions: ["tinycloud.kv/get"],
-  disableSubDelegation: true,
-});
-
-// Bob now CANNOT create further delegations from this capability
-```
-
-This is useful when you want to grant access to a specific user without allowing them to share that access with others.
-
-## Revocation
-
-Capabilities can be revoked before their expiry. When a capability in the chain is revoked:
-
-- The revoked capability becomes invalid immediately
-- All downstream delegations derived from it also become invalid
-- The revocation is permanent for that specific token
-
-<Note>
-Revocation propagates down the chain. If Alice revokes Bob's delegation, Carol's sub-delegation from Bob also becomes invalid, even if Carol's token has not expired.
-</Note>
-
-## Best Practices
-
-1. **Principle of least privilege**: Delegate only the minimum capabilities needed for the task
-2. **Short expiry times**: Use shorter expiry periods for sensitive operations; prefer hours over days
-3. **Path scoping**: Limit access to specific paths rather than granting access to entire spaces
-4. **Disable sub-delegation**: When the recipient should not be able to share access further
-5. **Use the correct DID**: Always use `tc.did` (primary DID after signIn) for the delegatee (see [DID Formats](/concepts/did-formats))
-6. **Audit delegation chains**: Use `tinycloud.capabilities/read` to inspect active capability chains in your space
+This page describes the authorization model. The generated registry page is the
+source of truth for action spelling and status; the node and SDK code describe
+how scope containment and delegation attenuation are enforced.
