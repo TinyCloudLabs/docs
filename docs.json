@@ -21,10 +21,10 @@
     "decoration": "grid"
   },
   "iconLibrary": "lucide",
-  "favicon": "/favicon.svg",
+  "favicon": "/logo/tinycloud-icon.png",
   "logo": {
-    "dark": "/logo/dark.svg",
-    "light": "/logo/light.svg"
+    "dark": "/logo/tinycloud-wordmark.png",
+    "light": "/logo/tinycloud-wordmark.png"
   },
   "contextual": {
     "options": [
@@ -175,7 +175,23 @@
       }
     ],
     "global": {
-      "anchors": []
+      "anchors": [
+        {
+          "anchor": "Build",
+          "icon": "code",
+          "href": "/start/browser-app"
+        },
+        {
+          "anchor": "Understand",
+          "icon": "shield-check",
+          "href": "/start/protocol"
+        },
+        {
+          "anchor": "Operate",
+          "icon": "wrench",
+          "href": "/start/operator"
+        }
+      ]
     }
   },
   "navbar": {
