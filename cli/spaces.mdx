@@ -1,178 +1,49 @@
 ---
 title: "Spaces"
-description: "Create and manage data ownership containers"
+description: "Host, inspect, and switch TinyCloud spaces"
 icon: "box"
 sidebarTitle: "Spaces"
 ---
 
-A space is a data ownership container in TinyCloud. Each space is tied to a user identity and isolates data between applications. The `tc space` commands let you create, list, inspect, and switch between spaces.
+A space is the owned container TinyCloud uses for data and permissions. Use this page when you need to host a new owned space, inspect the current one, or switch the active space name.
 
-## What is a Space?
+## Host a space
 
-Every piece of data in TinyCloud lives inside a space. When you sign in, a space is automatically created for your profile. Spaces are identified by a URI combining the protocol, your identity, and a space name:
-
+```bash
+tc space create applications
+tc space host applications
 ```
-tinycloud:pkh:eip155:{chainId}:{address}:{spaceName}
-```
 
-For example: `tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app`
+`create` and `host` are aliases. They host one of your owned spaces by name and return the resolved space URI.
 
-<Info>
-Spaces isolate data between applications. The same wallet can have separate spaces for different apps, and data in one space is not accessible from another.
-</Info>
-
-## Commands
-
-### tc space list
-
-List all spaces associated with your identity.
+## Inspect a space
 
 ```bash
 tc space list
+tc space info
+tc space info applications
 ```
 
-<Tabs>
-<Tab title="Human output">
-```bash
-$ tc space list
-  Spaces for 0xd8dA...6045:
+`tc space info` accepts either the active space or a specific space URI/name. Use `tc space list` first if you want to see what is already hosted.
 
-    * tinycloud:pkh:eip155:1:0xd8dA...6045:default        (active)
-      tinycloud:pkh:eip155:1:0xd8dA...6045:my-app
-      tinycloud:pkh:eip155:1:0xd8dA...6045:staging
-
-  3 spaces total
-```
-</Tab>
-
-<Tab title="JSON output">
-```bash
-$ tc space list --json
-{
-  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-  "activeSpaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
-  "spaces": [
-    {
-      "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
-      "name": "default",
-      "active": true
-    },
-    {
-      "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app",
-      "name": "my-app",
-      "active": false
-    },
-    {
-      "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:staging",
-      "name": "staging",
-      "active": false
-    }
-  ],
-  "count": 3
-}
-```
-</Tab>
-</Tabs>
-
-### tc space create
-
-Create a new space.
+## Switch the active space name
 
 ```bash
-tc space create <prefix>
+tc space switch applications
 ```
 
-<Tabs>
-<Tab title="Human output">
-```bash
-$ tc space create my-app
-  Space created: tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app
-```
-</Tab>
+Switching changes the default space name stored in the profile. It does not create or host the space by itself.
 
-<Tab title="JSON output">
-```bash
-$ tc space create my-app --json
-{
-  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app",
-  "name": "my-app",
-  "created": true
-}
-```
-</Tab>
-</Tabs>
+## Delegate-only hosting
 
-### tc space info
+If you are not the owner of a space, use `tc space host-request <name>` to emit a host request artifact for the owner.
 
-Show details about a space.
+## When to use spaces
 
-```bash
-tc space info [space-id]
-```
-
-If no space ID is given, shows information about the active space.
-
-<Tabs>
-<Tab title="Human output">
-```bash
-$ tc space info
-  Space:    tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default
-  Name:     default
-  Address:  0xd8dA...6045
-  Chain:    1 (mainnet)
-  Keys:     42
-  Created:  2026-01-15T08:00:00.000Z
-```
-</Tab>
-
-<Tab title="JSON output">
-```bash
-$ tc space info --json
-{
-  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
-  "name": "default",
-  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-  "chainId": 1,
-  "keyCount": 42,
-  "createdAt": "2026-01-15T08:00:00.000Z"
-}
-```
-</Tab>
-</Tabs>
-
-### tc space switch
-
-Switch the active space for the current profile.
-
-```bash
-tc space switch <space-id>
-```
-
-```bash
-$ tc space switch tinycloud:pkh:eip155:1:0xd8dA...6045:my-app
-  Switched to space: tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:my-app
-```
-
-After switching, all `tc kv` commands operate on the new active space.
-
-## Working with Multiple Spaces
-
-A common pattern is to use different spaces for different environments or applications:
-
-```bash
-# Create spaces for different environments
-tc space create production
-tc space create staging
-
-# Work in staging
-tc space switch tinycloud:pkh:eip155:1:0xd8dA...6045:staging
-tc kv put config/feature-flag '{"newUI": true}'
-
-# Switch to production
-tc space switch tinycloud:pkh:eip155:1:0xd8dA...6045:production
-tc kv put config/feature-flag '{"newUI": false}'
-```
+- Host the `applications` space before writing manifest-scoped app data
+- Host the `secrets` space when a session needs TinyCloud secrets access
+- Switch the active space name when you want the CLI to target a different owned space by default
 
 <Tip>
-Combine spaces with [profiles](/cli/profiles) to manage completely separate identities and environments.
+`tc kv`, `tc sql`, and `tc secrets` all use the active profile and may target a non-primary space with `--space` when needed.
 </Tip>

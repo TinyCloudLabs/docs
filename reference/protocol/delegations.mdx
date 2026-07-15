@@ -1,0 +1,107 @@
+---
+title: "Delegations"
+description: "TinyCloud's delegation model and current SDK transport contract."
+icon: "file-text"
+---
+
+This page separates the protocol model from the JS SDK's transport object. It
+is not a byte-level UCAN serialization specification; use the SDK serialization
+helpers when moving delegations between applications.
+
+## Protocol model
+
+A delegation is a signed capability grant from a delegator to a delegate DID.
+Its effective authority is determined by:
+
+- the target space, service, and resource path
+- the allowed action URNs
+- its expiry and optional not-before time
+- its parent chain, if the delegator is exercising received authority
+- whether the parent terminates further sub-delegation
+- node-confirmed revocation state for the delegation and its ancestors
+
+For a child grant, the node requires the same space and service, a resource
+path contained by the parent, supported actions, and time bounds contained by
+the parent. Path containment is segment-aware: `shared/` contains
+`shared/public/file`, while `shared` does not contain `shared-other`.
+
+## `PortableDelegation`
+
+The Node and Web SDKs use `PortableDelegation` for application transport. Its
+current public fields are:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `cid` | `string` | Content identifier of the signed delegation |
+| `delegationHeader` | `{ Authorization: string }` | Bearer authorization value |
+| `delegateDID` | `string` | Recipient principal |
+| `spaceId` | `string` | Space containing the delegated resource |
+| `path` | `string` | Single resource path, or the first resource's path |
+| `actions` | `string[]` | Single resource actions, or the first resource's actions |
+| `expiry` | `Date` | Delegation expiry |
+| `ownerAddress` | `string` | Address used to derive the owner space |
+| `chainId` | `number` | Owner chain identifier |
+| `host` | `string?` | Node where the delegation was created |
+| `disableSubDelegation` | `boolean?` | Prevents descendants when true |
+| `publicDelegation` | `PortableDelegation?` | Optional companion public-space grant |
+| `resources` | `DelegatedResource[]?` | Full set for a multi-resource UCAN |
+
+The inherited delegation metadata can also include `delegatorDID`, `createdAt`,
+`parentCid`, `allowSubDelegation`, and `authHeader`. Callers should use the
+fields needed for their task and preserve unknown optional fields during
+transport.
+
+Each `resources` entry has `service`, `space`, `path`, and `actions`. When
+`resources` is present, it is authoritative for multi-resource grants; the flat
+`path` and `actions` fields describe only the first entry.
+
+`delegationHeader.Authorization` is a live bearer credential. Treat the whole
+object and its serialized form as secrets.
+
+## Serialize and restore
+
+```typescript
+import {
+  serializeDelegation,
+  deserializeDelegation,
+} from "@tinycloud/node-sdk";
+
+const encoded = serializeDelegation(delegation);
+const restored = deserializeDelegation(encoded);
+```
+
+The serializer converts `expiry` to an ISO string. The deserializer restores it
+to a `Date`. These helpers are also exported from `@tinycloud/web-sdk`.
+
+## Create, consume, and revoke
+
+```typescript
+const delegation = await alice.createDelegation({
+  delegateDID: bob.did,
+  path: "shared/",
+  actions: ["tinycloud.kv/get"],
+  expiryMs: 60 * 60 * 1000,
+});
+
+const access = await bob.useDelegation(delegation);
+const read = await access.kv.get("report.json");
+
+const revoked = await alice.revokeDelegation(delegation.cid);
+if (!revoked.ok) throw new Error(revoked.error.message);
+```
+
+`createDelegation()` and `useDelegation()` use `PortableDelegation`. The newer
+`delegate()` and `delegationManager.create()` APIs return `Result<Delegation>`
+and model delegation management rather than portable activation; do not mix
+the two return shapes without an explicit conversion path.
+
+## Lifecycle
+
+The node reports one of `active`, `revoked`, `expired`, `unavailable`, or
+`not_found` through the Node SDK's `getDelegationStatus(cid)`. Revocation is
+addressed by CID and takes effect for that delegation and descendants that
+depend on it. Expiry is signed into the grant and cannot be extended in place;
+issue a new delegation instead.
+
+See [Delegations & Sharing](/guides/delegations) for the task-oriented flow and
+[Capabilities](/reference/protocol/capabilities) for registered actions.

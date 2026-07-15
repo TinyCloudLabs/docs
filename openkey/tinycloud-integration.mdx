@@ -1,242 +1,57 @@
 ---
 title: "TinyCloud Integration"
-description: "Use OpenKey as the signer/provider for TinyCloud Web SDK"
+description: "Use OpenKey as the signer for TinyCloud sign-in"
 icon: "cloud"
 ---
 
-OpenKey can replace browser wallet extensions (MetaMask, WalletConnect, etc.) as the signer for TinyCloud's SIWE sign-in flow. TinyCloud still uses SIWE for authentication; OpenKey supplies the Ethereum signer so users can authenticate with passkeys instead of a browser extension.
+Use OpenKey here when you want TinyCloud to keep its SIWE flow but replace a browser wallet with passkey-based signing.
 
-## Why Use OpenKey with TinyCloud
+## What stays the same
 
-- **No browser extension required**: Users do not need MetaMask or any wallet installed
-- **Passkey-based authentication**: Biometric or hardware key login instead of seed phrases
-- **TEE key security**: Private keys are sealed inside a hardware enclave
-- **Lower onboarding friction**: Non-crypto-native users can get started without understanding wallets
-- **Same cryptographic guarantees**: OpenKey produces standard Ethereum signatures that TinyCloud verifies the same way as any wallet
+- TinyCloud still uses SIWE
+- TinyCloud still derives identity from an Ethereum address
+- TinyCloud still issues the session after a valid signature
 
-## Architecture
+## What OpenKey provides
 
-<Frame>
-  <img src="/images/diagrams/openkey-tinycloud-integration.svg" alt="OpenKey and TinyCloud integration flow" />
-</Frame>
+- A browser-friendly signer
+- Passkey authentication
+- A path that does not require MetaMask or another wallet extension
 
-Instead of the wallet extension signing the SIWE message, OpenKey's TEE-managed key signs it. From TinyCloud's perspective, the signature is indistinguishable from one produced by MetaMask.
-
-<Note>
-TinyCloud's default nonce behavior is fine for standard sign-in flows. If your app is a relying party that needs to verify a nonce, issue a one-time nonce from your server and thread it through the auth request. Do not generate nonces in the browser.
-</Note>
-
-## Setup
-
-<Steps>
-<Step title="Install dependencies">
-
-```bash
-npm install @tinycloud/web-sdk @openkey/sdk
-```
-
-</Step>
-
-<Step title="Connect with OpenKey">
+## Working example
 
 ```typescript
-import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
-import { TinyCloudWeb } from '@tinycloud/web-sdk';
+import { OpenKey, OpenKeyProvider } from "@openkey/sdk";
+import { TinyCloudWeb } from "@tinycloud/web-sdk";
+import { providers } from "ethers";
 
-// Initialize OpenKey
-const openkey = new OpenKey({ appName: 'My TinyCloud App' });
-
-// Connect (passkey auth + key selection)
+const openkey = new OpenKey({ host: "https://openkey.so", appName: "My TinyCloud App" });
 const authResult = await openkey.connect();
-console.log('Connected:', authResult.address);
-```
-</Step>
+const eip1193Provider = new OpenKeyProvider(openkey, authResult);
+const web3Provider = new providers.Web3Provider(eip1193Provider);
 
-<Step title="Create provider and sign in to TinyCloud">
-
-Pass the `OpenKeyProvider` directly via TinyCloudWeb's `provider` property shorthand. The SDK handles ethers wrapping internally.
-
-```typescript
-const provider = new OpenKeyProvider(openkey, authResult);
-
-const tc = new TinyCloudWeb({
-  provider,
+const tcw = new TinyCloudWeb({
+  providers: {
+    web3: {
+      driver: web3Provider,
+    },
+  },
 });
 
-const session = await tc.signIn();
-console.log('TinyCloud session:', session.address);
+await tcw.signIn();
+await tcw.kv.put("hello", "world");
 ```
+
+## Why this shape
+
+The TinyCloud Web SDK expects an ethers-compatible provider. The OpenKey SDK's provider wrapper supplies that compatibility.
+
+## TinyCloud-specific advice
+
+- Keep the OpenKey host separate from the TinyCloud host
+- Use `providers.web3.driver` for the TinyCloud Web SDK integration shown in the OpenKey repo
+- Treat this as a sign-in flow, not an OAuth flow
 
 <Note>
-`tc.signIn()` constructs and signs the SIWE message automatically. Do not manually create SIWE messages — TinyCloudWeb handles this for you.
+The integration example mirrors the OpenKey SDK repository's TinyCloud example, so the API shape matches the source-backed integration path.
 </Note>
-</Step>
-
-<Step title="Use TinyCloud normally">
-
-Once signed in, all TinyCloud operations work exactly the same as with a browser wallet.
-
-```typescript
-await tc.kv.put('profile', {
-  name: 'Alice',
-  wallet: 'openkey',
-});
-
-const result = await tc.kv.get('profile');
-if (result.ok) {
-  console.log(result.data.data);
-}
-```
-</Step>
-</Steps>
-
-## Complete Example
-
-<CodeGroup>
-```typescript Vanilla JS
-import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
-import { TinyCloudWeb } from '@tinycloud/web-sdk';
-
-async function main() {
-  // Step 1: Connect with OpenKey
-  const openkey = new OpenKey({ appName: 'My App' });
-  const authResult = await openkey.connect();
-
-  // Step 2: Create provider and sign in
-  const provider = new OpenKeyProvider(openkey, authResult);
-  const tc = new TinyCloudWeb({ provider });
-  await tc.signIn();
-
-  // Step 3: Use TinyCloud
-  await tc.kv.put('settings', { theme: 'dark', lang: 'en' });
-  const result = await tc.kv.get('settings');
-  if (result.ok) {
-    console.log('Settings:', result.data.data);
-  }
-}
-
-main().catch(console.error);
-```
-
-```tsx React
-import { useState } from 'react';
-import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
-import { TinyCloudWeb } from '@tinycloud/web-sdk';
-
-const openkey = new OpenKey({ appName: 'My React App' });
-let tc: TinyCloudWeb | null = null;
-
-export default function App() {
-  const [address, setAddress] = useState('');
-  const [data, setData] = useState(null);
-
-  async function handleSignIn() {
-    const authResult = await openkey.connect();
-    setAddress(authResult.address);
-
-    const provider = new OpenKeyProvider(openkey, authResult);
-    tc = new TinyCloudWeb({ provider });
-    await tc.signIn();
-  }
-
-  async function handleSave() {
-    if (!tc) return;
-    await tc.kv.put('demo', { timestamp: Date.now() });
-    alert('Saved!');
-  }
-
-  async function handleLoad() {
-    if (!tc) return;
-    const result = await tc.kv.get('demo');
-    if (result.ok) {
-      setData(result.data.data);
-    }
-  }
-
-  return (
-    <div>
-      {!address ? (
-        <button onClick={handleSignIn}>Sign In with OpenKey</button>
-      ) : (
-        <>
-          <p>Connected: {address}</p>
-          <button onClick={handleSave}>Save Data</button>
-          <button onClick={handleLoad}>Load Data</button>
-          {data && <pre>{JSON.stringify(data, null, 2)}</pre>}
-        </>
-      )}
-    </div>
-  );
-}
-```
-</CodeGroup>
-
-## Session Management
-
-Check if there's an existing session before initiating a new sign-in flow:
-
-```typescript
-import { OpenKey, OpenKeyProvider } from '@openkey/sdk';
-import { TinyCloudWeb } from '@tinycloud/web-sdk';
-
-const openkey = new OpenKey({ appName: 'My App' });
-const authResult = await openkey.connect();
-const provider = new OpenKeyProvider(openkey, authResult);
-const tc = new TinyCloudWeb({ provider });
-
-const restored = await tc.restoreSession(authResult.address);
-
-if (restored.status === 'restored') {
-  console.log('Session active:', restored.session.address);
-} else {
-  const session = await tc.signIn();
-  console.log('Session active:', session.address);
-}
-```
-
-## Delegations with OpenKey
-
-Delegations work the same way regardless of whether the signer is OpenKey or a browser wallet. The primary DID is derived from the Ethereum address, which is the same whether the key is in MetaMask or OpenKey.
-
-```typescript
-// Alice (using OpenKey) delegates to Bob
-const delegation = await tc.createDelegation({
-  delegateDID: bob.did, // Use the recipient's primary DID (tc.did after signIn)
-  actions: ['tinycloud.kv/get', 'tinycloud.kv/list'],
-  path: 'shared/',
-  expiryMs: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-});
-```
-
-<Note>
-Use the recipient's primary DID (`tc.did` after signIn) for delegations. This applies regardless of the signer being used. See the [Delegations guide](/guides/delegations) for details.
-</Note>
-
-## Comparison: OpenKey vs. Browser Wallet
-
-| Aspect | Browser Wallet (MetaMask) | OpenKey |
-|--------|---------------------------|---------|
-| **Installation** | Browser extension required | None (web-based) |
-| **Key storage** | User's device (local) | TEE (server-side, sealed) |
-| **Authentication** | Wallet unlock (password) | Passkey (biometric) |
-| **Seed phrase** | User must back up | Not applicable |
-| **Signing UX** | Extension popup | OpenKey popup/iframe |
-| **Works on mobile** | Requires mobile wallet app | Works in any browser |
-| **TinyCloud compatibility** | Native | Via `OpenKeyProvider` |
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="Widget Integration" icon="app-window" href="/openkey/widget">
-    Learn more about the OpenKey widget for connect and sign flows.
-  </Card>
-  <Card title="OAuth Provider" icon="lock" href="/openkey/oauth">
-    Use OpenKey OAuth for token-based apps. TinyCloud itself uses SIWE, not OAuth.
-  </Card>
-  <Card title="Authentication Guide" icon="key" href="/guides/authentication">
-    Learn more about TinyCloud's SIWE authentication model.
-  </Card>
-  <Card title="Delegations Guide" icon="share-2" href="/guides/delegations">
-    Share access to spaces with delegatable capabilities.
-  </Card>
-</CardGroup>

@@ -1,208 +1,58 @@
 ---
 title: "Delegations & Sharing"
-description: "Grant access and share data with other users"
+description: "Grant scoped access and exchange share links"
 icon: "share-2"
 sidebarTitle: "Delegations"
 ---
 
-Delegations let you grant scoped, time-limited access to your space. Share links provide a simpler flow for sharing data with users who may not have a TinyCloud identity yet.
+Use delegations when another DID needs access to a path in your space. Use share links when you want a simpler handoff that can be accepted later.
 
-## Delegations
-
-### tc delegation create
-
-Create a delegation granting another user access to your space.
+## Create a delegation
 
 ```bash
-tc delegation create --to <did> --path <path> --actions <actions> [options]
+tc delegation create \
+  --to did:pkh:eip155:1:0xRecipient... \
+  --path documents/ \
+  --actions kv/get,kv/list \
+  --expiry 7d
 ```
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--to <did>` | Recipient's DID (PKH or key format) | `did:pkh:eip155:1:0xd8dA...` |
-| `--actions <actions>` | Comma-separated actions to grant | `kv/get,kv/put` |
-| `--path <path>` | KV path scope | `documents/` |
-| `--expiry <duration>` | How long the delegation is valid | `7d` |
+The CLI prefixes short actions with `tinycloud.` automatically, so `kv/get` becomes `tinycloud.kv/get`.
 
-#### Action Formats
-
-Actions follow the `{namespace}/{action}` format. You can use the full or short form:
-
-| Full Form | Short Form | Description |
-|-----------|------------|-------------|
-| `tinycloud.kv/get` | `kv/get` | Read a key |
-| `tinycloud.kv/put` | `kv/put` | Write a key |
-| `tinycloud.kv/del` | `kv/del` | Delete a key |
-| `tinycloud.kv/list` | `kv/list` | List keys |
-| `tinycloud.space/host` | `space/host` | Host a space |
-
-#### Expiry Formats
-
-| Format | Description | Example |
-|--------|-------------|---------|
-| `30m` | Minutes | 30 minutes |
-| `1h` | Hours | 1 hour |
-| `7d` | Days | 7 days |
-| `1w` | Weeks | 1 week |
-| ISO 8601 | Absolute date | `2026-12-31T23:59:59Z` |
-
-```bash
-$ tc delegation create \
-    --to did:pkh:eip155:1:0x5678...efgh \
-    --actions kv/get,kv/list \
-    --path documents/ \
-    --expiry 7d
-{
-  "cid": "bafy...",
-  "delegateDid": "did:pkh:eip155:1:0x5678...efgh",
-  "path": "documents/",
-  "actions": ["tinycloud.kv/get", "tinycloud.kv/list"],
-  "expiry": "2026-03-14T10:30:00.000Z"
-}
-```
-
-### tc delegation list
-
-List all active delegations.
+## Inspect and revoke
 
 ```bash
 tc delegation list
+tc delegation list --granted
+tc delegation list --received
+tc delegation info bafy...
+tc delegation revoke bafy...
 ```
+
+## Share links
 
 ```bash
-$ tc delegation list
-{
-  "delegations": [
-    {
-      "cid": "bafy...",
-      "delegatee": "did:pkh:eip155:1:0x5678...efgh",
-      "delegator": "did:pkh:eip155:1:0xd8dA...",
-      "path": "documents/",
-      "actions": ["tinycloud.kv/get", "tinycloud.kv/list"],
-      "expiry": "2026-03-14T10:30:00.000Z"
-    }
-  ],
-  "count": 1
-}
+tc share create --path documents/report.json --actions kv/get --expiry 24h
+tc share receive https://node.tinycloud.xyz/share/...
 ```
 
-### tc delegation info
-
-Show details about a specific delegation.
-
-```bash
-tc delegation info <cid>
-```
-
-```bash
-$ tc delegation info bafy...
-{
-  "cid": "bafy...",
-  "delegateDID": "did:pkh:eip155:1:0x5678...efgh",
-  "path": "documents/",
-  "actions": ["tinycloud.kv/get", "tinycloud.kv/list"]
-}
-```
-
-### tc delegation revoke
-
-Revoke an existing delegation.
-
-```bash
-tc delegation revoke <cid>
-```
-
-```bash
-$ tc delegation revoke bafy...
-{
-  "cid": "bafy...",
-  "revoked": true
-}
-```
-
-## DID Formats
-
-The `--to` flag accepts DIDs in multiple formats:
-
-| Format | Example | Description |
-|--------|---------|-------------|
-| PKH DID | `did:pkh:eip155:1:0xd8dA...` | Ethereum identity (recommended) |
-| Key DID | `did:key:z6Mk...` | Cryptographic key identity |
+Share links are built on delegations. The CLI's `share receive` command still
+requires an authenticated TinyCloud profile. For accountless browser receipt,
+use the Web SDK's static `TinyCloudWeb.receiveShare()` helper.
 
 <Warning>
-For user-to-user delegations, always use the recipient's PKH DID (`did:pkh:eip155:{chainId}:{address}`). Using a session key DID will cause server validation to fail.
+In `@tinycloud/cli` 0.7.7-beta.5, `tc share list` and `tc share revoke` appear
+in command help but are not backed by working SDK operations. Do not rely on
+them. Use a short expiry, or retain the underlying delegation CID and revoke it
+through the SDK as shown in [Sharing links](/guides/sharing).
 </Warning>
 
-## Share Links
+## DID and expiry rules
 
-Share links are a simplified sharing mechanism. They generate a URL that recipients can use to receive a delegation, even without an existing TinyCloud identity.
+- Use a PKH DID for user-to-user delegations
+- `did:key` is for session-key style identities
+- Expiry can be relative (`1h`, `7d`) or an absolute ISO timestamp
 
-### tc share create
-
-Create a shareable link for data in your space.
-
-```bash
-tc share create --path <path> --actions <actions> --expiry <duration>
-```
-
-```bash
-$ tc share create \
-    --path "documents/report.json" \
-    --actions kv/get \
-    --expiry 24h
-{
-  "token": "tc1:...",
-  "shareData": "tc1:...",
-  "path": "documents/report.json",
-  "actions": ["tinycloud.kv/get"],
-  "expiry": "2026-03-08T10:30:00.000Z"
-}
-```
-
-### tc share receive
-
-Accept a share link and import the delegation.
-
-```bash
-tc share receive <share-url>
-```
-
-```bash
-$ tc share receive https://node.tinycloud.xyz/share/abc123def456
-{
-  "received": true,
-  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA...6045:default",
-  "path": "documents/report.json",
-  "actions": ["tinycloud.kv/get"]
-}
-```
-
-### tc share list
-
-List received share links.
-
-```bash
-tc share list
-```
-
-### tc share revoke
-
-Revoke a share link you created.
-
-```bash
-tc share revoke <token>
-```
-
-## Delegations vs Share Links
-
-| Feature | Delegation | Share Link |
-|---------|-----------|------------|
-| Requires recipient DID | Yes | No |
-| Recipient needs TinyCloud | Yes | No (on receive) |
-| Revocable | Yes | Yes |
-| Sub-delegatable | Yes | No |
-| Delivery | Manual (you send the token) | URL-based |
-
-<Tip>
-Use **delegations** when you know the recipient's DID and need fine-grained control. Use **share links** for quick, casual sharing where the recipient might not have TinyCloud set up yet.
-</Tip>
+<Note>
+The CLI source treats `delegation create` as the primitive, and `share` as a convenience flow on top of it.
+</Note>

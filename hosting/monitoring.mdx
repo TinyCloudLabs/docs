@@ -1,237 +1,61 @@
 ---
 title: "Monitoring"
-description: "Health checks, metrics, and observability"
+description: "Health checks, metrics, logs, and tracing"
 icon: "activity"
 sidebarTitle: "Monitoring"
 ---
 
-TinyCloud nodes expose health endpoints, Prometheus metrics, and structured logging for production observability.
+Use this page after the node starts cleanly. It covers the endpoints and telemetry knobs you can wire into probes and observability.
 
-## Health Check
-
-The node exposes a health endpoint that returns `200 OK` when the server is running and ready to accept requests.
+## Health
 
 ```bash
 curl http://localhost:8000/healthz
 ```
 
-Use this endpoint for:
+Use `/healthz` for load balancers, container probes, and uptime checks.
 
-- **Load balancer health checks** -- route traffic only to healthy nodes
-- **Docker/Kubernetes health probes** -- automatically restart unhealthy containers
-- **Uptime monitoring** -- alert when the node goes down
+## Metrics
 
-### Docker Health Check
-
-```yaml
-services:
-  tinycloud:
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-```
-
-### Kubernetes Liveness Probe
-
-```yaml
-livenessProbe:
-  httpGet:
-    path: /healthz
-    port: 8000
-  initialDelaySeconds: 10
-  periodSeconds: 10
-readinessProbe:
-  httpGet:
-    path: /healthz
-    port: 8000
-  initialDelaySeconds: 5
-  periodSeconds: 5
-```
-
-## Prometheus Metrics
-
-TinyCloud exposes Prometheus-format metrics on a dedicated port (default `8001`).
-
-### Configuration
+Enable the Prometheus server with telemetry and use the metrics port for scraping.
 
 ```toml
+[telemetry]
+enabled = true
+
 [prometheus]
 port = 8001
 ```
 
-### Scrape Configuration
-
-Add TinyCloud to your Prometheus `prometheus.yml`:
-
-```yaml
-scrape_configs:
-  - job_name: "tinycloud"
-    static_configs:
-      - targets: ["tinycloud:8001"]
-    scrape_interval: 15s
-```
-
-### Available Metrics
-
-| Metric | Type | Description |
-|--------|------|-------------|
-| `tinycloud_authorized_invoke_duration_seconds` | Histogram | Duration of authorized API invocations |
-| `tinycloud_authorization_duration_seconds` | Histogram | Duration of the authorization/verification step |
-
-These metrics include labels for detailed breakdowns and can be used to build dashboards tracking:
-
-- API response latency (p50, p95, p99)
-- Authorization overhead
-- Request throughput
-
-### Example PromQL Queries
-
-```promql
-# Average API latency over 5 minutes
-rate(tinycloud_authorized_invoke_duration_seconds_sum[5m])
-  / rate(tinycloud_authorized_invoke_duration_seconds_count[5m])
-
-# 95th percentile API latency
-histogram_quantile(0.95,
-  rate(tinycloud_authorized_invoke_duration_seconds_bucket[5m])
-)
-
-# Authorization overhead as percentage of total request time
-rate(tinycloud_authorization_duration_seconds_sum[5m])
-  / rate(tinycloud_authorized_invoke_duration_seconds_sum[5m])
-  * 100
-```
-
-<Warning>
-Do not expose the Prometheus metrics port (`8001`) publicly. It should only be accessible from your monitoring infrastructure.
-</Warning>
-
-## Tracing
-
-TinyCloud supports distributed tracing for debugging request flows across services.
-
-### OpenTelemetry
-
-Send traces to any OpenTelemetry-compatible collector:
+## Logging
 
 ```toml
-[logging]
-tracing = "OpenTelemetry"
-```
-
-Configure the collector endpoint via the standard OpenTelemetry environment variable:
-
-```bash
-OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4317"
-```
-
-### Jaeger
-
-Send traces directly to a Jaeger instance:
-
-```toml
-[logging]
-tracing = "Jaeger"
-```
-
-```bash
-# Jaeger agent endpoint
-OTEL_EXPORTER_JAEGER_AGENT_HOST="jaeger"
-OTEL_EXPORTER_JAEGER_AGENT_PORT="6831"
-```
-
-### Docker Compose with Jaeger
-
-```yaml
-services:
-  tinycloud:
-    environment:
-      TINYCLOUD_LOGGING__TRACING: "Jaeger"
-      OTEL_EXPORTER_JAEGER_AGENT_HOST: "jaeger"
-    depends_on:
-      - jaeger
-
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    ports:
-      - "16686:16686"  # Jaeger UI
-      - "6831:6831/udp"  # Jaeger agent
-    restart: unless-stopped
-```
-
-Access the Jaeger UI at `http://localhost:16686` to inspect traces.
-
-## Structured Logging
-
-### Log Format
-
-<Tabs>
-<Tab title="Text (development)">
-Human-readable logs for local development:
-
-```toml
-[logging]
+[log]
 format = "Text"
 ```
 
-```
-2026-03-07T10:30:00.000Z  INFO tinycloud::server: Starting server on 0.0.0.0:8000
-2026-03-07T10:30:00.050Z  INFO tinycloud::storage: Connected to PostgreSQL
-2026-03-07T10:30:00.100Z  INFO tinycloud::server: Server ready
-2026-03-07T10:30:01.234Z  INFO tinycloud::api: POST /v1/kv/put space=tinycloud:pkh:eip155:1:0xd8dA...6045:default key=greeting status=200 duration=12ms
-```
-</Tab>
+Switch to `Json` when you want structured logs for a collector or log shipper.
 
-<Tab title="JSON (production)">
-Structured JSON logs for log aggregation (Datadog, Loki, CloudWatch):
+## Tracing
+
+Enable tracing under `[log.tracing]`. The current node builds its OTLP gRPC
+exporter with the library's default collector endpoint; TinyCloud config does
+not currently expose an endpoint override.
 
 ```toml
-[logging]
-format = "Json"
+[log.tracing]
+enabled = true
 ```
 
-```json
-{"timestamp":"2026-03-07T10:30:01.234Z","level":"INFO","target":"tinycloud::api","message":"POST /v1/kv/put","space":"tinycloud:pkh:eip155:1:0xd8dA...6045:default","key":"greeting","status":200,"duration_ms":12}
-```
-</Tab>
-</Tabs>
+The node exports OTLP spans; your collector can forward them to whatever
+backend you use when it is reachable at that endpoint.
 
-### Log Levels
+## What to avoid
 
-| Level | Description | Use Case |
-|-------|-------------|----------|
-| `error` | Errors that need attention | Production (minimum) |
-| `warn` | Warning conditions | Production (recommended) |
-| `info` | Informational messages | Production (default) |
-| `debug` | Detailed debugging info | Development, troubleshooting |
-| `trace` | Very detailed tracing | Deep debugging only |
+- Do not expose the metrics port publicly
+- Do not rely on tracing being on by default
+- Do not assume the Prometheus server starts unless telemetry is enabled
 
-```toml
-log_level = "info"
-```
-
-<Tip>
-Use `info` level in production for a good balance of visibility without excessive log volume. Temporarily switch to `debug` when troubleshooting specific issues.
-</Tip>
-
-## Recommended Stack
-
-For a production monitoring setup:
-
-<CardGroup cols={2}>
-  <Card title="Prometheus + Grafana" icon="chart-line">
-    Collect metrics from the Prometheus endpoint and build dashboards in Grafana.
-  </Card>
-  <Card title="Jaeger or Tempo" icon="route">
-    Distributed tracing for request flow visibility and latency analysis.
-  </Card>
-  <Card title="Loki or Datadog" icon="file-lines">
-    Aggregate structured JSON logs for search and alerting.
-  </Card>
-  <Card title="Alertmanager" icon="bell">
-    Alert on high latency, error rates, or node health failures.
-  </Card>
-</CardGroup>
+<Note>
+The node's tracing code uses OpenTelemetry OTLP export. The docs here stay at that level instead of naming a specific collector backend.
+</Note>

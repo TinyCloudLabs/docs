@@ -1,0 +1,25 @@
+---
+title: "Understand the protocol"
+description: "Check the model before you implement manifests, delegations, or capability checks."
+icon: "shield-check"
+---
+
+Use this path when you need to verify TinyCloud terminology, capability names, or delegation behavior before you code against it.
+
+## Read in this order
+
+1. Start with [System model](/concepts/system-model) for the big picture.
+2. Read [Capabilities](/concepts/capabilities) to understand TinyCloud's UCAN and ReCap authorization model.
+3. Read [App manifests](/concepts/app-manifests) to see how apps request capabilities during sign-in.
+4. Read [DID Formats](/concepts/did-formats) to keep owner DIDs and session DIDs distinct.
+5. Check [Capability Registry](/reference/protocol/capabilities) for the exact action names, aliases, and statuses that the node currently exposes.
+
+## After that
+
+- Read [Delegations](/guides/delegations) if you are enforcing attenuation rules or sharing access.
+- Read [Sharing](/guides/sharing) if you need portable access bundles.
+- Read [Data Vault](/guides/data-vault) if your flow depends on client-side encryption and re-encryption.
+
+## Source note
+
+Implementation facts live in the linked guides, the generated capability registry, and the TinyCloud node source. Treat whitepaper language as normative only when it does not conflict with those sources.

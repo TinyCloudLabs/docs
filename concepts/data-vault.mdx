@@ -1,0 +1,37 @@
+---
+title: "Data Vault"
+description: "Understand the client-side encrypted vault model used by TinyCloud."
+icon: "lock"
+---
+
+TinyCloud's data vault is client-side encrypted storage. The server stores the
+ciphertext and metadata; the SDK keeps the keys and performs the encryption and
+decryption locally.
+For the unlock and sharing flow, see [Data Vault](/guides/data-vault).
+
+## Vault model
+
+The vault sits on top of the user's TinyCloud space and is available through
+the Node and Web SDKs. When you unlock it, the SDK derives the encryption keys
+from wallet material and publishes discovery metadata so other principals can
+share data with you.
+
+The important split is:
+
+- primary space: encrypted vault data and sharing grants
+- public space: discovery metadata only
+
+Do not store sensitive data in the public space.
+
+## What the vault is for
+
+- client-side encrypted KV storage
+- per-entry encryption and decryption
+- sharing encrypted values with another principal
+- keeping ciphertext usable across sessions while leaving plaintext local
+
+## Source note
+
+The implementation uses the vault helpers in the JS SDK and WASM bindings. The
+guide page explains the task flow; this concept page explains the trust model
+and the public/primary space split.

@@ -1,0 +1,39 @@
+---
+title: "Build on Node"
+description: "Decide between private-key sign-in and session-only mode before your first backend write."
+icon: "server"
+---
+
+Choose this path when you are building a backend service, job, or CLI with the
+Node SDK.
+
+## Choose the authentication mode
+
+- Use private-key mode when the process owns a space and must sign in or create
+  delegations.
+- Use session-only mode when the process only consumes access delegated by
+  another principal.
+
+## Get to a first write
+
+Go directly to the [Node SDK quickstart](/quickstart/node-sdk). It shows the
+wallet-backed path from installing the SDK to signing in and writing a KV
+record, then introduces session-only mode as the alternative.
+
+## After the first write
+
+- Use [Node sign-in](/guides/authentication/node) when you need to compare the
+  two authentication modes in detail.
+- Read [DID formats](/concepts/did-formats) before choosing a persistent owner
+  DID or ephemeral session DID as a delegation target.
+- Read [Spaces](/guides/spaces) when the service must provision additional data
+  containers.
+- Continue with [Delegations](/guides/delegations) when the service acts on
+  behalf of another principal.
+- Use the [Node SDK reference](/reference/sdk/node) for the current constructor
+  options and primary methods.
+
+## Source note
+
+Use `tc.did` after `signIn()` when you need the owner DID for delegations. In
+session-only mode, the delegation must target the instance's session DID.

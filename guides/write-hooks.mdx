@@ -1,112 +1,52 @@
 ---
 title: "Write Hooks"
-description: "Subscribe to TinyCloud writes with SSE or durable webhooks"
+description: "Subscribe to TinyCloud writes with SSE or durable webhooks."
 icon: "bell"
 sidebarTitle: "Write Hooks"
 ---
 
-TinyCloud write hooks let you react to changes in `kv`, `sql`, and `duckdb` without polling. The same `tc.hooks` surface supports two delivery modes:
+Use write hooks when you need to react to TinyCloud writes without polling.
+The SDK exposes the same hook scope model for live SSE subscriptions and
+durable webhooks.
 
-- **SSE subscriptions** for live, in-process consumers
-- **Durable webhooks** for external systems that need POST delivery and retries
+## Choose a delivery mode
 
-Both modes use the same scope model:
+- use SSE when the consumer stays connected inside your app or worker
+- use webhooks when you need HTTP POST delivery, retries, or decoupled work
 
-| Field        | Meaning                                                                                                                                   |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `space`      | The TinyCloud space to observe                                                                                                            |
-| `service`    | One of `kv`, `sql`, or `duckdb`                                                                                                           |
-| `pathPrefix` | Optional path filter within that service                                                                                                  |
-| `abilities`  | Optional ability filter. Supported values are `tinycloud.kv/put`, `tinycloud.kv/del`, `tinycloud.sql/write`, and `tinycloud.duckdb/write` |
+Both modes scope to:
 
-A `pathPrefix` matches the exact path or anything below it. For example, `documents` matches `documents` and `documents/notes`.
+- `space`
+- `service`
+- optional `pathPrefix`
+- optional `abilities`
 
-## Supported Services
+## Subscribe to live writes
 
-Write hooks are available for:
-
-- `kv`
-- `sql`
-- `duckdb`
-
-For `sql` and `duckdb`, hook paths use the database/table form:
-
-```text
-<db_name>/<table_name>
-```
-
-For `kv`, the path is the key that was written or deleted.
-
-## Live SSE Subscriptions
-
-Use `tc.hooks.subscribe()` when your app can stay connected to TinyCloud and process events directly. The SDK multiplexes logical subscriptions onto one physical stream per host and invoker.
-
-<Tabs>
-<Tab title="Node SDK">
 ```typescript
-import { TinyCloudNode } from "@tinycloud/node-sdk";
-
-const tc = new TinyCloudNode({
-privateKey: process.env.WALLET_PRIVATE_KEY!,
-host: "https://node.tinycloud.xyz",
-});
-
 await tc.signIn();
-
-const stream = tc.hooks.subscribe([
-{
-space: tc.spaceId!,
-service: "sql",
-pathPrefix: "main.db",
-abilities: ["tinycloud.sql/write"],
-},
-]);
-
-for await (const event of stream) {
-console.log(event.type, event.service, event.path, event.actor);
-}
-
-````
-</Tab>
-
-<Tab title="Web SDK">
-```typescript
-import { TinyCloudWeb } from "@tinycloud/web-sdk";
-
-const tc = new TinyCloudWeb({
-  tinycloudHosts: ["https://node.tinycloud.xyz"],
-});
-
-await tc.signIn();
-const space = tc.spaceId!;
 
 const stream = tc.hooks.subscribe([
   {
-    space,
-    service: "duckdb",
-    pathPrefix: "analytics.db",
-    abilities: ["tinycloud.duckdb/write"],
+    space: tc.spaceId!,
+    service: "sql",
+    pathPrefix: "main.db",
+    abilities: ["tinycloud.sql/write"],
   },
 ]);
 
 for await (const event of stream) {
-  console.log(event.type, event.ability, event.path);
+  console.log(event.type, event.service, event.path);
 }
-````
+```
 
-</Tab>
-</Tabs>
+`subscribe()` is live-only. It does not replay missed events after reconnect.
 
-`subscribe()` returns an async iterable of raw `type: "write"` events. Each event is emitted after the write succeeds and is filtered by the scope you requested.
-The stream is live-only: there is no replay cursor, backfill, or missed-event recovery on reconnect.
+## Register a webhook
 
-## Durable Webhooks
-
-Use `tc.hooks.register()` when the receiver lives outside the current process and needs HTTP POST delivery.
-
-<Tabs>
-<Tab title="Register">
 ```typescript
+await tc.signIn();
+
 const created = await tc.hooks.register({
   space: tc.spaceId!,
   service: "kv",
@@ -115,27 +55,74 @@ const created = await tc.hooks.register({
   callbackUrl: "https://example.com/tinycloud/hooks",
   secret: process.env.TINYCLOUD_WEBHOOK_SECRET!,
 });
+```
 
-if (created.ok) {
-console.log(created.data.id);
-}
+The webhook secret is stored encrypted on the server. TinyCloud signs each
+delivery with `X-TinyCloud-Signature`.
 
-````
-</Tab>
+## Verify deliveries before parsing them
 
-<Tab title="List and unregister">
+The signature is `sha256=<hex HMAC>` over the exact request-body bytes. Capture
+the raw body and compare the HMAC in constant time before accepting the event.
+For example, with Express:
+
 ```typescript
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import express from 'express';
+
+const app = express();
+
+app.post('/tinycloud/hooks', express.raw({ type: 'application/json' }), (req, res) => {
+  const secret = process.env.TINYCLOUD_WEBHOOK_SECRET;
+  const signature = req.header('X-TinyCloud-Signature');
+  const match = signature?.match(/^sha256=([0-9a-f]{64})$/i);
+
+  if (!secret || !match) return res.sendStatus(401);
+
+  const expected = createHmac('sha256', secret).update(req.body).digest();
+  const received = Buffer.from(match[1], 'hex');
+  if (received.length !== expected.length || !timingSafeEqual(received, expected)) {
+    return res.sendStatus(401);
+  }
+
+  const event = JSON.parse(req.body.toString('utf8'));
+  console.log(event.id, event.service, event.path);
+  return res.sendStatus(204);
+});
+```
+
+Do not run JSON middleware before this route: re-serializing parsed JSON changes
+the signed bytes. Keep the webhook secret in a secret manager and rotate it by
+re-registering the hook.
+
+Each POST body is one write event:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `type` | `"write"` | Event kind |
+| `id` | `string` | Stable event identifier |
+| `space` | `string` | Affected TinyCloud space |
+| `service` | `string` | `kv`, `sql`, or `duckdb` |
+| `ability` | `string` | Capability for the write, such as `tinycloud.kv/put` |
+| `path` | `string` (optional) | Affected key or database path |
+| `actor` | `string` | DID that performed the write |
+| `epoch` | `string` | Node epoch identifier |
+| `eventIndex` | `number` | Event position within the epoch |
+| `timestamp` | `string` | Event time |
+
+Use `X-TinyCloud-Delivery-Id` as an idempotency key for delivery attempts and
+`X-TinyCloud-Event-Id` for the underlying event.
+
+## Inspect and remove hooks
+
+```typescript
+await tc.signIn();
+
 const list = await tc.hooks.list({
   space: tc.spaceId,
   service: "kv",
   pathPrefix: "documents",
 });
-
-if (list.ok) {
-  for (const hook of list.data) {
-    console.log(hook.id, hook.active, hook.callbackUrl);
-  }
-}
 
 await tc.hooks.unregister("hook-id", {
   target: {
@@ -144,70 +131,17 @@ await tc.hooks.unregister("hook-id", {
     pathPrefix: "documents",
   },
 });
-````
-
-</Tab>
-</Tabs>
-
-Webhook registration records include the subscription scope, callback URL, `active` flag, and creation time. The secret is stored encrypted on the server; keep the plaintext secret only in your own deployment or secret manager.
-The `secret` field is required. TinyCloud signs each delivery with `X-TinyCloud-Signature: sha256=<hex hmac>` over the raw request body.
-
-## Event Shape
-
-Write events follow the same raw payload shape across SSE and webhooks:
-
-```typescript
-{
-  type: "write",
-  id: string,
-  space: string,
-  service: "kv" | "sql" | "duckdb",
-  ability: string,
-  path?: string,
-  actor: string,
-  epoch: string,
-  eventIndex: number,
-  timestamp: string
-}
 ```
 
-`path` is the key for KV events and `<db>/<table>` for SQL and DuckDB events.
+## Delivery semantics
 
-Webhook deliveries use the same event payload as the HTTP body and are signed with `X-TinyCloud-Signature: sha256=<hex hmac>`.
+- SSE is best-effort live delivery only
+- webhooks are durable and at-least-once
+- duplicates are possible for webhooks, so receivers must be idempotent
 
-## Delivery Semantics
+The node normalizes `pathPrefix` by trimming surrounding slashes and matches
+the exact path or descendants beneath it.
 
-SSE is live-only. There is no replay cursor or backfill, and if a client falls behind or reconnects after a gap, missed events are not recovered.
+## Verification note
 
-Webhooks are durable and at-least-once. Duplicate deliveries are possible, so receivers must be idempotent.
-
-For KV webhooks, durable enqueue happens from the KV commit path. For SQL and DuckDB webhooks, durable enqueue happens after the write succeeds, so the delivery record is not in the same atomic transaction as the data write. That weaker atomicity is intentional and matches the shipped implementation.
-
-## Self-Hosting Notes
-
-If you self-host TinyCloud, hook-related limits live under the `[hooks]` config section:
-
-```toml
-[hooks]
-max_ticket_ttl_seconds = 300
-max_scopes_per_ticket = 32
-max_active_sse_streams = 100
-sse_broadcast_capacity = 1024
-max_webhook_subscriptions_per_space = 5
-webhook_timeout_seconds = 10
-webhook_max_attempts = 5
-```
-
-The same values can be overridden with nested `TINYCLOUD_` environment variables such as `TINYCLOUD_HOOKS__MAX_TICKET_TTL_SECONDS=300` and `TINYCLOUD_STORAGE__DATABASE="postgres://user:pass@localhost:5432/tinycloud"`.
-
-<Tip>
-  If you use filesystem-based staging or any temp-file/rename path during local
-  runs, keep `TMPDIR` on the same filesystem as the node data volume to avoid
-  cross-device `EXDEV` rename failures.
-</Tip>
-
-## When To Use Which
-
-- Use SSE when your consumer is already inside your app or worker process.
-- Use webhooks when you need external delivery, retry handling, or decoupled processing.
-- Use `kv` for key-level change notifications, and `sql` or `duckdb` when you need table-level write hooks.
+Verified against the TinyCloud SDK hook types and the node webhook dispatcher.

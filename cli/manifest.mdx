@@ -1,37 +1,33 @@
 ---
 title: "Manifests"
-description: "Resolve TinyCloud app manifests for CLI workflows"
+description: "Resolve app manifests into TinyCloud spaces and databases"
 icon: "scroll-text"
 sidebarTitle: "Manifests"
 ---
 
-Use `tc manifest resolve` to inspect an app manifest from a local file or URL and translate it into concrete TinyCloud CLI targets. The command uses the active authenticated profile to resolve short space names.
+Use `tc manifest resolve` when you want to turn a manifest into the concrete `--space` and `--db` values you should pass to other CLI commands.
 
 ```bash
-tc manifest resolve <source>
+tc manifest resolve ./manifest.json
+tc manifest resolve https://example.com/manifest.json
 ```
 
-The command prints the manifest identity, effective space, requested permissions, and SQL database basenames.
+## What it returns
 
-## Sources
+- App id, name, and manifest version
+- Effective owned-space name and resolved space URI
+- Permission entries with resolved paths
+- Derived SQL database basenames
+
+## Typical use
 
 ```bash
-tc manifest resolve ./tinycloud.manifest.json
-tc manifest resolve https://example.com/tinycloud.manifest.json
+tc manifest resolve ./manifest.json
+tc sql query --space applications --db xyz.tinycloud.listen/conversations "SELECT count(*) FROM conversation"
 ```
 
-## Use with SQL
-
-Manifest resolution is useful when an app stores databases in an application space.
-
-```bash
-tc manifest resolve ./tinycloud.manifest.json
-tc sql query \
-  --space applications \
-  --db xyz.tinycloud.listen/conversations \
-  "SELECT count(*) FROM conversation"
-```
+The command is read-only. It helps you line up manifest declarations with the CLI target values you need later.
 
 <Note>
-Public key-value HTTP routes are intentionally not documented for external use. Prefer SDK and CLI workflows unless a project-specific integration requires lower-level node APIs.
+The manifest command resolves against the active profile so it can compute the correct owned-space URI without contacting the node.
 </Note>

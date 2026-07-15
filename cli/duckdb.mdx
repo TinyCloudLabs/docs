@@ -1,91 +1,28 @@
 ---
 title: "DuckDB"
-description: "Query and manage DuckDB databases from the TinyCloud CLI"
+description: "Query, export, and import DuckDB databases"
 icon: "database-zap"
 sidebarTitle: "DuckDB"
 ---
 
 <Badge>Beta</Badge>
 
-The `tc duckdb` commands manage DuckDB databases in the active TinyCloud space. Use them for analytical workloads that fit DuckDB's columnar query model. The command family currently supports query, execute, schema describe, export, and import workflows.
+Use `tc duckdb` when you need DuckDB-specific query behavior instead of SQLite.
 
 ## Commands
 
-### tc duckdb query
-
-Run a read-only query.
-
 ```bash
-tc duckdb query <sql>
-```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--db <name>` | DuckDB database name | `default` |
-| `--params <json>` | JSON array of bind parameters for `?` placeholders | None |
-
-```bash
-tc duckdb query "SELECT type, count(*) AS total FROM events GROUP BY type" --db analytics
-```
-
-### tc duckdb execute
-
-Run a write or schema statement.
-
-```bash
-tc duckdb execute <sql>
-```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--db <name>` | DuckDB database name | `default` |
-| `--params <json>` | JSON array of bind parameters for `?` placeholders | None |
-
-```bash
-tc duckdb execute "CREATE TABLE IF NOT EXISTS events (type VARCHAR, created_at TIMESTAMP)" --db analytics
-```
-
-### tc duckdb describe
-
-Show tables, columns, and views.
-
-```bash
+tc duckdb query "SELECT count(*) FROM events" --db analytics
+tc duckdb execute "CREATE TABLE events (type VARCHAR)" --db analytics
 tc duckdb describe --db analytics
-```
-
-### tc duckdb export
-
-Download the raw DuckDB database file.
-
-```bash
 tc duckdb export --db analytics --output analytics.duckdb
-```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--db <name>` | DuckDB database name | `default` |
-| `-o, --output <file>` | Output file path | `export.duckdb` |
-
-### tc duckdb import
-
-Upload a local DuckDB database file.
-
-```bash
 tc duckdb import analytics.duckdb --db analytics
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--db <name>` | DuckDB database name | `default` |
+## Notes
 
-## Scripting
+- `--db` chooses the DuckDB database name
+- `--params` binds JSON-array parameters to `?` placeholders
+- `query` and `describe` emit JSON with `--json`
 
-Use `--json` for machine-readable output when querying or describing databases.
-
-```bash
-tc duckdb query "SELECT count(*) AS total FROM events" --db analytics --json | jq '.rows[0][0]'
-```
-
-<Note>
-DuckDB support is beta. Prefer SQLite via `tc sql` for operational app data unless you specifically need DuckDB query behavior.
-</Note>
+DuckDB is beta. Prefer `tc sql` for ordinary application data unless you specifically need DuckDB.

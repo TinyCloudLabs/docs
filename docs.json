@@ -5,7 +5,7 @@
   "colors": {
     "primary": "#2563EB",
     "light": "#60A5FA",
-    "dark": "#1D4ED8"
+    "dark": "#2563EB"
   },
   "font": {
     "headings": {
@@ -21,10 +21,10 @@
     "decoration": "grid"
   },
   "iconLibrary": "lucide",
-  "favicon": "/favicon.svg",
+  "favicon": "/logo/tinycloud-icon.png",
   "logo": {
-    "dark": "/logo/dark.svg",
-    "light": "/logo/light.svg"
+    "dark": "/logo/tinycloud-wordmark.png",
+    "light": "/logo/tinycloud-wordmark.png"
   },
   "contextual": {
     "options": [
@@ -42,95 +42,131 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Documentation",
+        "tab": "Start",
         "groups": [
           {
-            "group": "Getting Started",
-            "pages": ["index", "quickstart/web-sdk", "quickstart/node-sdk"]
+            "group": "Reader paths",
+            "pages": [
+              "index",
+              "start/browser-app",
+              "start/backend-service",
+              "start/protocol",
+              "start/operator"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Build",
+        "groups": [
+          {
+            "group": "Quickstarts",
+            "pages": ["quickstart/web-sdk", "quickstart/node-sdk"]
           },
           {
-            "group": "Guides",
+            "group": "Authentication and data",
             "pages": [
               "guides/authentication",
+              "guides/authentication/web",
+              "guides/authentication/node",
+              "openkey/tinycloud-integration",
               "guides/spaces",
+              "guides/spaces/provisioning",
               "guides/kv-storage",
-              "guides/sql-schema-and-migrations",
-              "guides/tinycloud-vfs",
-              "guides/write-hooks",
-              "guides/agent-readable-apps",
-              "guides/data-vault",
-              "guides/delegations",
-              "guides/sharing"
+              "guides/kv/basic-operations",
+              "guides/sql-schema-and-migrations"
             ]
           },
+          {
+            "group": "Collaboration and extensions",
+            "pages": [
+              "guides/delegations",
+              "guides/sharing",
+              "guides/data-vault",
+              "guides/write-hooks",
+              "guides/tinycloud-vfs",
+              "guides/agent-readable-apps"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Understand",
+        "groups": [
           {
             "group": "Concepts",
             "pages": [
+              "concepts/system-model",
+              "concepts/security-and-trust",
               "concepts/did-formats",
               "concepts/capabilities",
-              "concepts/app-manifests"
+              "concepts/app-manifests",
+              "concepts/data-vault"
             ]
+          },
+          {
+            "group": "SDK reference",
+            "pages": [
+              "reference/sdk/index",
+              "reference/sdk/web",
+              "reference/sdk/node"
+            ]
+          },
+          {
+            "group": "Protocol reference",
+            "pages": [
+              "reference/protocol/capabilities",
+              "reference/protocol/app-manifests",
+              "reference/protocol/delegations"
+            ]
+          },
+          {
+            "group": "Terminology",
+            "pages": ["reference/glossary"]
           }
         ]
       },
       {
-        "tab": "CLI",
+        "tab": "Operate",
         "groups": [
           {
-            "group": "Getting Started",
-            "pages": ["cli/overview", "cli/authentication"]
+            "group": "CLI",
+            "pages": [
+              "cli/overview",
+              "cli/authentication",
+              "cli/storage",
+              "cli/sql",
+              "cli/duckdb",
+              "cli/spaces",
+              "cli/secrets",
+              "cli/delegations",
+              "cli/auth-artifacts",
+              "cli/profiles",
+              "cli/status",
+              "cli/manifest",
+              "cli/diagnostics"
+            ]
           },
           {
-            "group": "Data",
-            "pages": ["cli/storage", "cli/sql", "cli/duckdb", "cli/spaces", "cli/secrets"]
+            "group": "Hosting",
+            "pages": [
+              "hosting/overview",
+              "hosting/configuration",
+              "hosting/docker",
+              "hosting/databases",
+              "hosting/storage",
+              "hosting/monitoring"
+            ]
           },
           {
-            "group": "Collaboration",
-            "pages": ["cli/delegations", "cli/auth-artifacts", "cli/profiles"]
+            "group": "OpenKey",
+            "pages": [
+              "openkey/index",
+              "openkey/quickstart",
+              "openkey/widget",
+              "openkey/oauth"
+            ]
           },
-          {
-            "group": "Operations",
-            "pages": ["cli/status", "cli/manifest", "cli/diagnostics"]
-          }
-        ]
-      },
-      {
-        "tab": "Hosting",
-        "groups": [
-          {
-            "group": "Getting Started",
-            "pages": ["hosting/overview", "hosting/configuration"]
-          },
-          {
-            "group": "Deployment",
-            "pages": ["hosting/docker", "hosting/databases", "hosting/storage"]
-          },
-          {
-            "group": "Operations",
-            "pages": ["hosting/monitoring"]
-          }
-        ]
-      },
-      {
-        "tab": "OpenKey",
-        "groups": [
-          {
-            "group": "Overview",
-            "pages": ["openkey/index"]
-          },
-          {
-            "group": "Getting Started",
-            "pages": ["openkey/quickstart", "openkey/widget"]
-          },
-          {
-            "group": "Integration",
-            "pages": ["openkey/oauth", "openkey/tinycloud-integration"]
-          }
-        ]
-      },
-      {
-        "tab": "Help",
-        "groups": [
           {
             "group": "Support",
             "pages": ["troubleshooting"]
@@ -139,21 +175,41 @@
       }
     ],
     "global": {
-      "anchors": []
+      "anchors": [
+        {
+          "anchor": "Start",
+          "icon": "house",
+          "href": "/"
+        },
+        {
+          "anchor": "Build",
+          "icon": "code",
+          "href": "/start/browser-app"
+        },
+        {
+          "anchor": "Understand",
+          "icon": "shield-check",
+          "href": "/start/protocol"
+        },
+        {
+          "anchor": "Operate",
+          "icon": "wrench",
+          "href": "/start/operator"
+        }
+      ]
     }
   },
   "navbar": {
     "links": [
       {
         "label": "Support",
-        "href": "https://discord.gg/tinycloud",
-        "type": "discord"
+        "href": "https://t.me/+-_2ufE0JgIcyMjYx"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.tinycloud.xyz"
+      "label": "Account",
+      "href": "https://account.tinycloud.xyz/"
     }
   },
   "footer": {

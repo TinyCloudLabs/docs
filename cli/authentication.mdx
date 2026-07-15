@@ -1,225 +1,85 @@
 ---
 title: "Authentication"
-description: "Sign in, manage sessions, and check identity"
+description: "Set up a profile and sign in with OpenKey or a local key"
 icon: "lock"
 sidebarTitle: "Authentication"
 ---
 
-The CLI uses key-based authentication with Sign-In with Ethereum (SIWE). You generate a local key pair, then authenticate with a TinyCloud node to establish a session.
+Use this page when you need a TinyCloud profile, a session, or a headless auth path for automation.
 
-## Authentication Flow
+## Pick a method
 
-<Steps>
-<Step title="Generate keys">
-`tc init` creates a new key pair and stores it in your profile directory.
-</Step>
-<Step title="Sign in">
-`tc auth login` opens a browser-based authentication flow. The node verifies your signature and issues a session token.
-</Step>
-<Step title="Session stored">
-The session is persisted locally. Subsequent commands use it automatically until it expires.
-</Step>
-</Steps>
+<CardGroup cols={2}>
+  <Card title="OpenKey" icon="key">
+    Browser-based sign-in. Best for interactive use.
+  </Card>
+  <Card title="Local key" icon="cpu">
+    Private-key sign-in. Best for CI, agents, and other headless workflows.
+  </Card>
+</CardGroup>
 
-## Commands
+## Start with a profile
 
-### tc init
-
-Initialize a new profile with a fresh key pair.
+`tc init` creates a profile directory, generates a keypair, and can optionally sign in immediately.
 
 ```bash
-tc init
+tc init --name my-app
+tc init --name my-app --key-only
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--name <name>` | Profile name | `default` |
-| `--key-only` | Generate keys without interactive setup | `false` |
-| `--host <url>` | Set the TinyCloud node URL | `https://node.tinycloud.xyz` |
-| `--paste` | Output the auth URL instead of opening a browser | `false` |
+Useful flags:
 
-<Tabs>
-<Tab title="Interactive">
-```bash
-$ tc init --name my-project
-  Generating key pair...
-  Profile "my-project" created.
-  Keys stored in ~/.tinycloud/profiles/my-project/
+| Flag | What it does |
+|---|---|
+| `--host <url>` | Set the node URL for the new profile |
+| `--default-space <name>` | Set the profile's default space name |
+| `--paste` | Use manual paste mode if the browser callback is unavailable |
+| `--no-popup` | Print the OpenKey URL instead of opening a browser |
 
-  Run `tc auth login --profile my-project` to sign in.
-```
-</Tab>
-
-<Tab title="Key only">
-```bash
-$ tc init --key-only --name ci-bot
-  Generating key pair...
-  Profile "ci-bot" created (key only).
-  DID: did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
-```
-</Tab>
-
-<Tab title="JSON output">
-```bash
-$ tc init --name my-project --json
-{
-  "profile": "my-project",
-  "did": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
-  "directory": "~/.tinycloud/profiles/my-project/"
-}
-```
-</Tab>
-</Tabs>
-
-### tc auth login
-
-Sign in to a TinyCloud node and establish a session.
+## Sign in
 
 ```bash
 tc auth login
+tc auth login --method openkey
+tc auth login --method local
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--paste` | Print the auth URL instead of opening a browser | `false` |
-
-<Tabs>
-<Tab title="Browser flow">
-```bash
-$ tc auth login
-  Opening browser for authentication...
-  Waiting for confirmation...
-  Signed in successfully.
-  Address:  0xd8dA...6045
-  Space:    tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default
-```
-</Tab>
-
-<Tab title="Paste mode (headless)">
-Use `--paste` when running on a headless server or in SSH sessions.
+OpenKey sign-in opens a browser flow. Local-key sign-in uses the profile's private key without a browser.
 
 ```bash
-$ tc auth login --paste
-  Visit this URL to authenticate:
-  https://node.tinycloud.xyz/auth/callback?token=abc123...
-
-  Waiting for confirmation...
-  Signed in successfully.
-```
-</Tab>
-
-<Tab title="JSON output">
-```bash
-$ tc auth login --json
-{
-  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
-  "expiresAt": "2026-03-08T10:30:00.000Z"
-}
-```
-</Tab>
-</Tabs>
-
-### tc auth logout
-
-Clear the current session.
-
-```bash
-tc auth logout
+tc auth login --method openkey --paste
+tc auth login --method openkey --no-popup
 ```
 
-```bash
-$ tc auth logout
-  Session cleared for profile "default".
-```
-
-### tc auth status
-
-Check the current authentication state.
+## Check state
 
 ```bash
 tc auth status
-```
-
-<Tabs>
-<Tab title="Human output">
-```bash
-$ tc auth status
-  Profile:  default
-  Address:  0xd8dA...6045
-  Space:    tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default
-  Session:  Active (expires in 23h 42m)
-  Node:     https://node.tinycloud.xyz
-```
-</Tab>
-
-<Tab title="JSON output">
-```bash
-$ tc auth status --json
-{
-  "profile": "default",
-  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-  "spaceId": "tinycloud:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045:default",
-  "session": {
-    "active": true,
-    "expiresAt": "2026-03-08T10:30:00.000Z"
-  },
-  "host": "https://node.tinycloud.xyz"
-}
-```
-</Tab>
-
-<Tab title="No session">
-```bash
-$ tc auth status
-  Profile:  default
-  Session:  Not signed in
-
-  Run `tc auth login` to sign in.
-```
-</Tab>
-</Tabs>
-
-### tc auth whoami
-
-Print your DID and address.
-
-```bash
 tc auth whoami
+tc auth logout
 ```
 
-<Tabs>
-<Tab title="Human output">
-```bash
-$ tc auth whoami
-  Address:  0xd8dA...6045
-  DID:      did:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-  Key DID:  did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
-```
-</Tab>
+`tc auth status` shows whether the profile is signed in, which DID is active, and whether the session is still valid.
 
-<Tab title="JSON output">
-```bash
-$ tc auth whoami --json
-{
-  "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-  "did": "did:pkh:eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-  "keyDid": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK"
-}
-```
-</Tab>
-</Tabs>
+## OpenKey host overrides
 
-## Automated Authentication
+OpenKey auth uses this resolution order:
 
-For CI/CD and scripted workflows, use `TC_PRIVATE_KEY` to skip the browser flow entirely.
+1. `TC_OPENKEY_HOST`
+2. `profile.json` `openkeyHost`
+3. `https://openkey.so`
+
+That lets you point a profile at a self-hosted OpenKey instance without changing the CLI command itself.
+
+## Automation
+
+Use `TC_PRIVATE_KEY` or `--private-key` for commands that need a signer in headless environments.
 
 ```bash
 export TC_PRIVATE_KEY=0xabc123...
-tc auth login
-# Signs in automatically using the private key
+tc auth login --method local
 ```
 
-<Warning>
-Keep `TC_PRIVATE_KEY` in your CI/CD secrets. Never hardcode it in scripts or commit it to version control.
-</Warning>
+<Note>
+The CLI source accepts both interactive OpenKey flows and local-key flows. `tc init` and `tc auth login` share the same browser callback and paste-mode behavior.
+</Note>
