@@ -38,6 +38,7 @@ system model or exact action names.
 ## Operate
 
 - `/cli/overview`
+- `/cli/mcp` - Delegated local stdio MCP server and secret authorization flow
 - `/cli/authentication`
 - `/cli/storage`
 - `/cli/sql`

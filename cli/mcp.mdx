@@ -1,0 +1,97 @@
+---
+title: "TinyCloud MCP"
+description: "Connect AI clients to delegated TinyCloud operations"
+icon: "bot"
+sidebarTitle: "MCP Server"
+---
+
+The TinyCloud MCP server exposes a small set of canonical CLI operations to
+Model Context Protocol clients over local stdio. It pins one TinyCloud profile
+when the process starts and uses delegated authority by default.
+
+<Warning>
+`@tinycloud/mcp` is a private beta and is not published to npm yet. The client
+configuration below applies after package publication is approved.
+</Warning>
+
+## Requirements
+
+- Node.js 20 or newer
+- A TinyCloud CLI profile
+- An MCP client that supports local stdio servers and structured tool results
+
+## Configure a client
+
+After installing `@tinycloud/mcp`, add a local stdio server to your MCP client:
+
+```json
+{
+  "mcpServers": {
+    "tinycloud": {
+      "command": "tinycloud-mcp",
+      "args": ["--profile", "agent"]
+    }
+  }
+}
+```
+
+The server captures the selected profile at startup. Restart it to select a
+different profile. Delegation imports persist, so retry can happen in the same
+process or a later one.
+
+## Available tools
+
+| Tool | Purpose |
+|---|---|
+| `tinycloud_status` | Inspect safe local profile state |
+| `tinycloud_auth_status` | Inspect authentication state |
+| `tinycloud_auth_capabilities` | Inspect validated active capabilities |
+| `tinycloud_auth_request` | Create or recover an exact permission request |
+| `tinycloud_auth_import` | Validate and import a request-bound delegation |
+| `tinycloud_secrets_get` | Read and decrypt one delegated secret |
+
+These tools use the same versioned operation contracts as the CLI projections.
+Results use one of four statuses: `ok`, `authority_required`, `setup_required`,
+or `error`.
+
+## Delegated secret flow
+
+1. Call `tinycloud_secrets_get` with the secret name and scope.
+2. If the result is `authority_required`, use its structured request and
+   approval action to obtain the exact capabilities. The server never silently
+   falls back to owner authority.
+3. Import the approved delegation with `tinycloud_auth_import`.
+4. Retry `tinycloud_secrets_get`. Requests are persisted so approval and retry
+   can happen in separate client sessions.
+5. If the result is `setup_required`, follow its Secret Manager action to add
+   the missing value, then retry.
+
+Secret values appear only in the structured result, not in the text result,
+TinyCloud logs, errors, request files, or delegation files. Your MCP client may
+retain structured results in its own transcript, so use a client and retention
+policy appropriate for secrets.
+
+## Owner profiles
+
+Owner-profile data access is disabled by default. To opt in, select the profile
+explicitly and pass both flags:
+
+```json
+{
+  "mcpServers": {
+    "tinycloud-owner": {
+      "command": "tinycloud-mcp",
+      "args": ["--profile", "owner", "--allow-owner-profile"]
+    }
+  }
+}
+```
+
+Use this mode only when the MCP host should have the owner's full authority.
+Omitting either flag keeps owner data execution closed.
+
+## Related CLI workflows
+
+- [Profiles](/cli/profiles)
+- [Auth artifacts](/cli/auth-artifacts)
+- [Secrets, vault, and variables](/cli/secrets)
