@@ -39,7 +39,7 @@ system model or exact action names.
 ## Operate
 
 - `/cli/overview`
-- `/cli/mcp` - Public beta local stdio MCP server, exploration tools, and delegated authorization
+- `/cli/mcp` - Local stdio MCP server, exploration tools, and delegated authorization
 - `/cli/account` - Read-only live account space and application discovery commands
 - `/cli/authentication`
 - `/cli/storage`

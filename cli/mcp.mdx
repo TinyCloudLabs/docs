@@ -9,23 +9,18 @@ The TinyCloud MCP server exposes a small set of canonical CLI operations to
 Model Context Protocol clients over local stdio. It pins one TinyCloud profile
 when the process starts and uses delegated authority by default.
 
-<Warning>
-Use the `@tinycloud/mcp@beta` dist-tag throughout the public beta. Do not pin
-this guide to a specific prerelease or substitute an undocumented final tag.
-</Warning>
-
 ## Requirements
 
 - Node.js 20 or newer
-- The TinyCloud CLI beta and a delegated profile
+- The TinyCloud CLI and a delegated profile
 - An MCP client that supports local stdio servers and structured tool results
 
 ## Configure a client
 
-Install both beta packages with Node.js 20 or newer:
+Install both packages with Node.js 20 or newer:
 
 ```bash
-npm install --global @tinycloud/cli@beta @tinycloud/mcp@beta
+npm install --global @tinycloud/cli @tinycloud/mcp
 ```
 
 Before starting MCP with a newly created `delegate-session` profile, complete
