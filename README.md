@@ -37,6 +37,7 @@ page should remain hand-off only: do not edit it directly.
 - `/start/backend-service` - Node SDK path and sign-in mode decision
 - `/start/protocol` - Capability, manifest, and delegation vocabulary
 - `/start/operator` - CLI, hosting, OpenKey, and troubleshooting path
+- `/guides/browser-e2e-testing` - Browser E2E account bootstrap without passkey automation
 - `/concepts/system-model` - High-level model of identity, spaces, capabilities, and services
 - `/concepts/security-and-trust` - Trust boundaries and what TinyCloud does or does not guarantee
 - `/reference/glossary` - TinyCloud vocabulary

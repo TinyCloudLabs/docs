@@ -17,6 +17,7 @@ system model or exact action names.
 - `/quickstart/web-sdk`
 - `/quickstart/node-sdk`
 - `/guides/authentication`
+- `/guides/browser-e2e-testing` - Browser E2E account bootstrap without passkey automation
 - `/guides/spaces`
 - `/guides/kv-storage`
 - `/guides/delegations`
