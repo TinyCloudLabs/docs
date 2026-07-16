@@ -10,8 +10,8 @@ Model Context Protocol clients over local stdio. It pins one TinyCloud profile
 when the process starts and uses delegated authority by default.
 
 <Warning>
-`@tinycloud/mcp` is a private beta and is not published to npm yet. The client
-configuration below applies after package publication is approved.
+Use the `@tinycloud/mcp@beta` dist-tag throughout the public beta. Do not pin
+this guide to a specific prerelease or substitute an undocumented final tag.
 </Warning>
 
 ## Requirements
@@ -22,7 +22,13 @@ configuration below applies after package publication is approved.
 
 ## Configure a client
 
-After installing `@tinycloud/mcp`, add a local stdio server to your MCP client:
+Install the beta with Node.js 20 or newer:
+
+```bash
+npm install --global @tinycloud/mcp@beta
+```
+
+Then add the local stdio server to your MCP client:
 
 ```json
 {
@@ -49,10 +55,18 @@ process or a later one.
 | `tinycloud_auth_request` | Create or recover an exact permission request |
 | `tinycloud_auth_import` | Validate and import a request-bound delegation |
 | `tinycloud_secrets_get` | Read and decrypt one delegated secret |
+| `tinycloud_account_spaces_list` | List the canonical account space registry |
+| `tinycloud_account_applications_list` | List registered apps and manifests |
+| `tinycloud_kv_list` | List keys in one selected space or prefix |
+| `tinycloud_kv_get` | Read one selected KV key |
 
 These tools use the same versioned operation contracts as the CLI projections.
 Results use one of four statuses: `ok`, `authority_required`, `setup_required`,
 or `error`.
+
+For the MCP-first account and data discovery sequence, including a separate
+owner agent that grants exact read requests, see
+[Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud).
 
 ## Delegated secret flow
 

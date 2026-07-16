@@ -1,0 +1,64 @@
+---
+title: "Account discovery"
+description: "Inspect the canonical account space and application registries"
+icon: "scan-search"
+sidebarTitle: "Account Discovery"
+---
+
+The account registry connects a TinyCloud identity to its known spaces and
+registered application manifests. Use the live commands below for read-only,
+canonical owner-side discovery.
+
+<Warning>
+Use an explicit owner profile on this page. Current `tc account` commands
+derive the account registry from the active profile; a delegate profile does
+not automatically retarget them to the delegating owner's account. Delegated
+agents should use the MCP workflow in
+[Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud).
+</Warning>
+
+## List spaces
+
+```bash
+tc --profile owner --quiet --json account spaces list --live
+tc --profile owner --quiet --json account spaces info <SPACE_ID>
+```
+
+The list returns each space ID, name, owner DID, type, status, permissions, and
+timestamps. Pass the returned full space ID to `info` or to another command's
+`--space` flag.
+
+<Warning>
+For read-only exploration, keep `--live`. Without it, `account spaces list`
+prefers the materialized SQLite index and may synchronize accessible spaces
+into the account registry when the index is empty.
+</Warning>
+
+## List applications
+
+```bash
+tc --profile owner --quiet --json account apps list --live
+tc --profile owner --quiet --json account apps info <APP_ID>
+```
+
+Application records contain registered manifests. Use their declared spaces,
+prefixes, databases, and knowledge metadata to decide what to inspect next.
+The registry record grants no additional data authority by itself.
+
+## Inspect selected KV data
+
+```bash
+tc --profile owner --quiet --json kv list --space <SPACE_URI> --prefix <PREFIX>
+tc --profile owner --quiet --json kv get <KEY> --space <SPACE_URI>
+```
+
+The active owner profile must still hold `tinycloud.kv/list` or
+`tinycloud.kv/get` authority for the selected resource. See
+[Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud) for
+the request, owner grant, import, and retry exchange.
+
+## Read-only boundary
+
+The workflow on this page does not use `account spaces sync`, `register`,
+`remove`, application registration, KV writes, or deletion. Those are separate
+mutating operations and require explicit user intent and authority.

@@ -1,0 +1,113 @@
+---
+title: "Access and explore my TinyCloud"
+description: "Give an agent narrow read access, discover account spaces and apps, and inspect selected data"
+icon: "folder-search-2"
+sidebarTitle: "Explore my TinyCloud"
+---
+
+Use this workflow when an agent needs to discover what is in a user's
+TinyCloud without receiving the user's owner identity. The delegated path uses
+MCP. The CLI section is an owner-side inspection fallback, not an equivalent
+delegate workflow.
+
+<Warning>
+Keep the agent on a `delegate-session` profile. Do not start MCP with an owner
+profile or `--allow-owner-profile` for exploration. A delegation is a bearer
+artifact: approve only the requested read capabilities and transfer it through
+a channel appropriate for account access.
+</Warning>
+
+## MCP path
+
+Create a delegated agent profile once if one does not already exist:
+
+```bash
+tc profile create agent --posture delegate-session --operator agent
+```
+
+Configure `@tinycloud/mcp@beta` with an explicit delegated profile as described
+in [TinyCloud MCP](/cli/mcp). The public beta exploration surface is:
+
+| Tool | Read-only purpose |
+|---|---|
+| `tinycloud_account_spaces_list` | List spaces in the canonical account registry |
+| `tinycloud_account_applications_list` | List applications and their registered manifests |
+| `tinycloud_kv_list` | List keys in one selected space, optionally under a prefix |
+| `tinycloud_kv_get` | Read one selected key |
+
+Call `tinycloud_account_spaces_list` first. Compare its space IDs with
+`tinycloud_account_applications_list`, then choose a space and call
+`tinycloud_kv_list`. Read individual keys with `tinycloud_kv_get` only after
+their names and app context are known.
+
+Do not treat an application name as permission to read every key in its space.
+Use its manifest and any linked knowledge bundle to identify relevant prefixes
+and data shapes. See [Agent-readable Apps](/guides/agent-readable-apps).
+
+## Two-agent approval
+
+Use separate delegate and owner agents when the exploration tool returns
+`authority_required`.
+
+1. The delegate agent calls the read tool and saves the returned
+   `tinycloud.auth.request` object exactly as `request.json`. Do not edit its
+   request ID, audience, host, or capabilities.
+2. The owner agent reviews the artifact. It must contain only the account
+   registry or selected KV read capabilities expected for this step.
+3. The owner agent grants that exact request with an explicit owner profile:
+
+```bash
+tc --profile owner --quiet --json auth grant request.json --yes > delegation.json
+```
+
+4. The delegate agent passes the complete delegation object to
+   `tinycloud_auth_import`.
+5. The delegate agent retries the same exploration tool. Imports persist in
+   the selected profile, so approval and retry may happen in different MCP
+   process sessions.
+
+Repeat the exchange if a later `tinycloud_kv_list` or `tinycloud_kv_get` call
+needs a narrower capability that was not in the first request. Do not replace
+that request with a broad space-wide grant.
+
+## Owner CLI inspection
+
+When MCP is unavailable, the owner can inspect the same registries locally and
+return a read-only summary to the agent. Use an explicit owner profile,
+machine-readable output, and canonical live account reads:
+
+```bash
+tc --profile owner --quiet --json account spaces list --live
+tc --profile owner --quiet --json account apps list --live
+tc --profile owner --quiet --json account spaces info <SPACE_ID>
+tc --profile owner --quiet --json account apps info <APP_ID>
+```
+
+`--live` matters for read-only discovery. The default indexed spaces path may
+refresh and register accessible spaces when its index is empty.
+
+After selecting a space, list keys and read only the chosen key:
+
+```bash
+tc --profile owner --quiet --json kv list --space <SPACE_URI> --prefix <PREFIX>
+tc --profile owner --quiet --json kv get <KEY> --space <SPACE_URI>
+```
+
+Current `tc account` commands derive the account registry from the active
+profile. Do not run these commands with a delegate profile and assume they
+target the owner's account. Use the MCP tools and their canonical per-operation
+requests for delegated exploration.
+
+## Stop conditions
+
+Stop and return the structured result instead of widening authority when:
+
+- the owner rejects or changes the request
+- a space or app is absent from the canonical account registry
+- the app manifest does not explain a prefix or value shape
+- a command would write, register, sync, delete, or revoke data
+- the next step needs a secret value that the user did not request
+
+Secret tools have an additional transcript boundary: the MCP server keeps
+secret values out of text results and TinyCloud logs, but the MCP client may
+retain structured results. See [TinyCloud MCP](/cli/mcp) before reading secrets.
