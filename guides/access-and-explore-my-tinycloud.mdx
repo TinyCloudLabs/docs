@@ -19,11 +19,11 @@ a channel appropriate for account access.
 
 ## MCP path
 
-Install the CLI and MCP beta packages with Node.js 20 or newer, then create a
+Install the CLI and MCP packages with Node.js 20 or newer, then create a
 delegated agent profile once if one does not already exist:
 
 ```bash
-npm install --global @tinycloud/cli@beta @tinycloud/mcp@beta
+npm install --global @tinycloud/cli @tinycloud/mcp
 tc profile create agent --posture delegate-session --operator agent
 ```
 
@@ -52,7 +52,7 @@ tc --profile agent --quiet --json auth import delegation.json
 This one-time import establishes the delegated session. It does not grant app,
 prefix, key, write, or secret access beyond the exact account-space listing
 request. Configure MCP with the same explicit profile as described in
-[TinyCloud MCP](/cli/mcp). The public beta exploration surface is:
+[TinyCloud MCP](/cli/mcp). The exploration surface is:
 
 | Tool | Read-only purpose |
 |---|---|
