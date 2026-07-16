@@ -48,6 +48,7 @@
             "group": "Reader paths",
             "pages": [
               "index",
+              "guides/access-and-explore-my-tinycloud",
               "start/browser-app",
               "start/backend-service",
               "start/protocol",
@@ -135,6 +136,7 @@
             "pages": [
               "cli/overview",
               "cli/mcp",
+              "cli/account",
               "cli/authentication",
               "cli/storage",
               "cli/sql",
