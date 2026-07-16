@@ -68,6 +68,7 @@
             "pages": [
               "guides/authentication",
               "guides/authentication/web",
+              "guides/browser-e2e-testing",
               "guides/authentication/node",
               "openkey/tinycloud-integration",
               "guides/spaces",

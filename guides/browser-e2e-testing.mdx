@@ -1,0 +1,207 @@
+---
+title: "Browser E2E testing without passkeys"
+description: "Bootstrap a test-only wallet account and exercise the real OpenKey and TinyCloud browser flow in Playwright."
+icon: "test-tube"
+sidebarTitle: "Browser E2E testing"
+---
+
+Use this pattern when a browser app signs in through OpenKey and TinyCloud, but
+an end-to-end test must run unattended. It replaces the human passkey ceremony
+with a test-only EIP-1193 wallet. The application still uses its production
+OpenKey external-wallet path, requests a real SIWE signature, and initializes
+TinyCloud normally.
+
+This is a browser-test technique, not an application authentication mode. Do
+not add a test private key, a bypass flag, or a mock signer to production app
+code.
+
+## What the bootstrap covers
+
+The test account bootstrap has two boundaries:
+
+1. Before navigation, Playwright installs a test-only wallet provider that can
+   answer account, chain, and `personal_sign` requests.
+2. After the test selects that wallet in OpenKey, the application performs its
+   usual TinyCloud initialization. With `autoCreateSpace: true`, that creates
+   the app space when needed. If the app uses encrypted data, its initializer
+   must also create or reuse the owner's encryption network.
+
+The browser never creates an OpenKey passkey and the test never approves a
+passkey prompt. It still verifies the integration points that matter: OpenKey
+widget selection, wallet-backed signing, TinyCloud session setup, and an
+authorized read or write.
+
+## Bootstrap a test account
+
+Install the wallet before `page.goto()`. The example uses a deterministic
+Anvil development key so the account is reproducible; it must be used only for
+test data and must never hold funds, production data, or reusable credentials.
+
+```typescript
+import { expect, test, type Page } from "@playwright/test";
+import { fileURLToPath } from "node:url";
+
+const TEST_PRIVATE_KEY =
+  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const TEST_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+const TEST_WALLET_NAME = "TinyCloud E2E Wallet";
+const ETHERS_UMD_PATH = fileURLToPath(
+  new URL("../node_modules/ethers/dist/ethers.umd.min.js", import.meta.url),
+);
+
+function exposeTestShadowRoots() {
+  return () => {
+    const attachShadow = Element.prototype.attachShadow;
+    Element.prototype.attachShadow = function (init: ShadowRootInit) {
+      return attachShadow.call(this, { ...init, mode: "open" });
+    };
+  };
+}
+
+function installTestWallet() {
+  return ({
+    address,
+    privateKey,
+    walletName,
+  }: {
+    address: string;
+    privateKey: string;
+    walletName: string;
+  }) => {
+    const ethers = (window as any).ethers;
+    const wallet = new ethers.Wallet(privateKey);
+    const provider = {
+      selectedAddress: address,
+      chainId: "0x1",
+      async request({
+        method,
+        params = [],
+      }: {
+        method: string;
+        params?: unknown[];
+      }) {
+        switch (method) {
+          case "eth_requestAccounts":
+          case "eth_accounts":
+            return [address];
+          case "eth_chainId":
+            return "0x1";
+          case "personal_sign": {
+            const message = params[0];
+            if (typeof message !== "string")
+              throw new Error("personal_sign missing message");
+            return message.startsWith("0x")
+              ? wallet.signMessage(ethers.utils.arrayify(message))
+              : wallet.signMessage(message);
+          }
+          case "wallet_getPermissions":
+          case "wallet_requestPermissions":
+            return [{ parentCapability: "eth_accounts" }];
+          default:
+            return null;
+        }
+      },
+      on: () => provider,
+      removeListener: () => provider,
+      isConnected: () => true,
+    };
+
+    const announce = () =>
+      window.dispatchEvent(
+        new CustomEvent("eip6963:announceProvider", {
+          detail: {
+            info: {
+              uuid: "8fd9b04a-e8a0-4c43-9d87-5af504aa1f0d",
+              name: walletName,
+              icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E',
+              rdns: "xyz.tinycloud.e2e-wallet",
+            },
+            provider,
+          },
+        }),
+      );
+
+    Object.defineProperty(window, "ethereum", {
+      value: provider,
+      configurable: true,
+    });
+    window.addEventListener("eip6963:requestProvider", announce);
+    announce();
+  };
+}
+
+async function bootstrapTestAccount(page: Page) {
+  await page.addInitScript(exposeTestShadowRoots());
+  await page.addInitScript({ path: ETHERS_UMD_PATH });
+  await page.addInitScript(installTestWallet(), {
+    address: TEST_ADDRESS,
+    privateKey: TEST_PRIVATE_KEY,
+    walletName: TEST_WALLET_NAME,
+  });
+}
+```
+
+`addInitScript()` runs before the application's scripts, so OpenKey's widget
+can discover the provider through EIP-6963. Opening shadow roots makes the
+widget's wallet picker visible to Playwright; keep that behavior in the test
+only.
+
+## Drive the real application flow
+
+Use your application's existing OpenKey entry point and select the injected
+external wallet. The selectors below are from TinyCloud Secret Manager; replace
+the button selector with your app's stable test id.
+
+```typescript
+test("creates and reads a record through OpenKey", async ({ page }) => {
+  await bootstrapTestAccount(page);
+
+  await page.goto("/app");
+  await page.getByTestId("connect-openkey").click();
+  await page
+    .frameLocator('iframe[src*="openkey.so/widget/embed/connect"]')
+    .getByText(/or use an external wallet/i)
+    .click();
+  await page.getByText(TEST_WALLET_NAME).click();
+
+  // Assert your app's completion state only after its normal TinyCloud
+  // initializer has signed in and provisioned the required account resources.
+  await expect(page.getByTestId("network-decrypt-ready")).toBeVisible();
+
+  // Exercise one useful app operation, then read it back and remove it.
+});
+```
+
+For Secret Manager, its normal initializer calls `signIn()`, creates its
+`secrets` space when absent, then creates or reuses the owner-scoped default
+encryption network before marking the UI as decrypt-ready. Other applications
+should keep the same shape: bootstrap the signer in the test, but provision
+spaces, schemas, networks, and other account resources in the app's normal
+initialization path.
+
+## Keep runs isolated
+
+- Use a dedicated test account and test-only resources. A deterministic key is
+  public test infrastructure, not a secret.
+- Use a distinct app or space prefix for E2E data; do not point a test account
+  at user-owned production records.
+- Delete every record the test creates, including after a retry when practical.
+- Run tests serially when they share a deterministic account, or derive a
+  unique resource name from the Playwright worker and test run.
+- Do not live-test provider credentials in this flow. Use a syntactically valid
+  dummy value and disable provider calls, unless the provider integration is
+  explicitly the subject of the test.
+
+## When to use a mock instead
+
+Use this account bootstrap when the behavior under test includes OpenKey widget
+integration, SIWE signing, TinyCloud provisioning, or authorization. Use a
+module mock for fast component tests and for error states that the real service
+cannot reliably produce. Keep at least one smoke test on this real path.
+
+## Related pages
+
+- [Web sign-in](/guides/authentication/web)
+- [App manifests](/concepts/app-manifests)
+- [Spaces provisioning](/guides/spaces/provisioning)
+- [OpenKey TinyCloud integration](/openkey/tinycloud-integration)
