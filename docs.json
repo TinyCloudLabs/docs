@@ -134,6 +134,7 @@
             "group": "CLI",
             "pages": [
               "cli/overview",
+              "cli/mcp",
               "cli/authentication",
               "cli/storage",
               "cli/sql",
