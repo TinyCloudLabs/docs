@@ -4,10 +4,78 @@ TinyCloud docs are organized around reader intent and Diataxis. Start at `/`
 to choose a path, then move into concepts or reference when you need the
 system model or exact action names.
 
+Full documentation corpus: https://docs.tinycloud.xyz/llms-full.txt
+
+## Agent access quickstart
+
+TinyCloud MCP is the separate `@tinycloud/mcp` package, installed alongside
+`@tinycloud/cli`. It is a local stdio server, not a hosted HTTP endpoint and
+not a subcommand embedded in `tc`. Both packages require Node.js 20 or newer.
+
+The current MCP exploration surface is read-only. It can discover account
+spaces and applications, list KV keys, read selected KV values, and read a
+delegated secret. It does not currently expose generic KV write, delete, or
+file-management tools. Treat file-like values according to the owning app's
+manifest and schema.
+
+Install the stable packages and create a delegated agent profile:
+
+```sh
+npm install --global @tinycloud/cli @tinycloud/mcp
+tc profile create agent --posture delegate-session --operator agent
+```
+
+A fresh delegate profile must bootstrap once. The delegate emits one exact
+account-registry request:
+
+```sh
+tc --profile agent --quiet --json auth request \
+  --cap tinycloud.kv:account:spaces/:get,list \
+  --emit request.json
+```
+
+An authenticated owner reviews and grants that exact artifact, then the
+delegate imports the returned delegation:
+
+```sh
+tc --profile owner --quiet --json auth grant request.json --yes > delegation.json
+tc --profile agent --quiet --json auth import delegation.json
+```
+
+Configure the MCP client to start the server with that explicit profile:
+
+```json
+{
+  "mcpServers": {
+    "tinycloud": {
+      "command": "tinycloud-mcp",
+      "args": ["--profile", "agent"]
+    }
+  }
+}
+```
+
+Start exploration with these exact tools:
+
+- `tinycloud_account_spaces_list` - list the canonical account space registry
+- `tinycloud_account_applications_list` - list registered apps and manifests
+- `tinycloud_kv_list` - list keys in one selected space or prefix
+- `tinycloud_kv_get` - read one selected KV key
+
+When a tool returns `authority_required`, preserve its returned
+`tinycloud.auth.request` exactly. The owner grants that artifact without
+widening it, the delegate imports the full delegation with
+`tinycloud_auth_import`, and the agent retries the original tool.
+
+Complete readable pages:
+
+- MCP reference (Markdown): https://docs.tinycloud.xyz/cli/mcp.md
+- Delegated exploration guide (Markdown): https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud.md
+
 ## Entry points
 
 - `/` - Homepage and reader-journey selector
-- `/guides/access-and-explore-my-tinycloud` - MCP-first delegated account, app, and KV exploration
+- `https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - MCP-first delegated account, app, and KV exploration
 - `/start/browser-app` - Web SDK path from sign-in to first KV write
 - `/start/backend-service` - Node SDK path and sign-in mode decision
 - `/start/protocol` - Capability, manifest, and delegation vocabulary
@@ -39,7 +107,7 @@ system model or exact action names.
 ## Operate
 
 - `/cli/overview`
-- `/cli/mcp` - Local stdio MCP server, exploration tools, and delegated authorization
+- `https://docs.tinycloud.xyz/cli/mcp` - Local stdio MCP server, exploration tools, and delegated authorization
 - `/cli/account` - Read-only live account space and application discovery commands
 - `/cli/authentication`
 - `/cli/storage`
