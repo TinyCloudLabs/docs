@@ -5,15 +5,20 @@ icon: "bot"
 sidebarTitle: "MCP Server"
 ---
 
-The TinyCloud MCP server exposes a small set of canonical CLI operations to
-Model Context Protocol clients over local stdio. It pins one TinyCloud profile
-when the process starts and uses delegated authority by default.
+The TinyCloud MCP server exposes 16 canonical TinyCloud operations to Model
+Context Protocol clients over local stdio. It pins one TinyCloud profile when
+the process starts and uses delegated authority by default.
 
 ## Requirements
 
 - Node.js 20 or newer
 - The TinyCloud CLI and a delegated profile
+- `@tinycloud/mcp` 0.2.0 or newer
+- A TinyCloud node running 1.6.0 or newer
 - An MCP client that supports local stdio servers and structured tool results
+
+The node release must be deployed before the stable MCP package is published;
+this 16-tool documentation is published only after both are available.
 
 ## Configure a client
 
@@ -53,19 +58,116 @@ process or a later one.
 | `tinycloud_auth_capabilities` | Inspect validated active capabilities |
 | `tinycloud_auth_request` | Create or recover an exact permission request |
 | `tinycloud_auth_import` | Validate and import a request-bound delegation |
-| `tinycloud_secrets_get` | Read and decrypt one delegated secret |
 | `tinycloud_account_spaces_list` | List the canonical account space registry |
 | `tinycloud_account_applications_list` | List registered apps and manifests |
 | `tinycloud_kv_list` | List keys in one selected space or prefix |
 | `tinycloud_kv_get` | Read one selected KV key |
+| `tinycloud_kv_head` | Read metadata and the ETag for one selected KV key |
+| `tinycloud_kv_put` | Create, conditionally replace, or explicitly upsert one selected KV key |
+| `tinycloud_kv_delete` | Delete one selected KV key, optionally only when its ETag matches |
+| `tinycloud_sql_schema_inspect` | Inspect tables, views, indexes, and triggers in one SQLite database |
+| `tinycloud_sql_query` | Run one bounded read-only query against one SQLite database |
+| `tinycloud_sql_execute` | Run one positional-parameterized `INSERT`, `UPDATE`, or `DELETE` |
+| `tinycloud_secrets_get` | Read and decrypt one delegated secret |
 
 These tools use the same versioned operation contracts as the CLI projections.
 Results use one of four statuses: `ok`, `authority_required`, `setup_required`,
 or `error`.
 
+Every data operation plans authority for the exact space and key, prefix, or
+database in its input. When authority is missing, the tool returns
+`authority_required` with a `tinycloud.auth.request`; it does not widen the
+request or silently fall back to owner authority. Generic KV tools reject the
+TinyCloud `account` and `secrets` spaces. Use the dedicated account and secret
+tools for those protected spaces.
+
 For the MCP-first account and data discovery sequence, including a separate
 owner agent that grants exact read requests, see
 [Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud).
+Account registry discovery is capped at 1,000 records, 1 MiB per record, and 4
+MiB total serialized output. It fails closed instead of returning a partial
+registry.
+
+## KV data safety
+
+`tinycloud_kv_list` returns at most 100 keys by default, accepts a limit from 1
+through 1,000, and reports whether the result was truncated. KV reads and
+writes are limited to 1 MiB per value.
+
+`tinycloud_kv_get` returns the byte length, metadata, and a tagged
+representation. Base64 is the default and preserves arbitrary files exactly;
+request `text` or `json` only when the bytes use that representation.
+`tinycloud_kv_put` accepts one of these tagged content objects:
+
+```json
+{ "encoding": "utf8", "value": "# Field notes\n" }
+{ "encoding": "json", "value": { "status": "draft" } }
+{ "encoding": "base64", "value": "AAECAw==" }
+```
+
+Choose the write mode deliberately:
+
+- `create` succeeds only when the key does not exist.
+- `replace` requires the current strong ETag from `tinycloud_kv_head` or
+  `tinycloud_kv_get` and fails if the value changed.
+- `upsert` writes without a precondition and can overwrite an existing value.
+
+For deletion, pass the current ETag to `tinycloud_kv_delete` when concurrent
+changes must be preserved. A failed create, replace, or guarded delete returns
+a precondition error instead of overwriting or deleting newer data.
+If a conditional mutation reports a retryable database serialization conflict,
+re-read the key state, which may still be absent. If it exists, compare its
+current ETag before deciding whether to retry. Deletion immediately removes
+the key from reads and listings, but retained content-addressed blob bytes,
+including historical versions, continue to count toward storage quota unless a
+future garbage collector safely reclaims them.
+
+## SQLite reads
+
+`tinycloud_sql_schema_inspect` uses a fixed query to list user tables, views,
+indexes, and triggers. `tinycloud_sql_query` accepts exactly one SQLite
+`SELECT`, optional bind parameters, and no write, DDL, attachment, pragma, or
+multi-statement input. Both read tools request read authority for one exact
+database.
+
+Queries default to 100 rows and 1 MiB. Callers may request up to 1,000 rows and
+4 MiB. Schema inspection is capped at 500 objects and 1 MiB. Limits are sent to
+the node and verified again by the MCP operation; excess results fail rather
+than being silently truncated. SQL BLOB parameters use
+`{ "type": "blob", "base64": "..." }`; BLOB results add `byteLength` to the
+same tagged representation.
+
+## SQLite writes
+
+`tinycloud_sql_execute` is a destructive, non-idempotent tool. It accepts
+exactly one `INSERT`, `UPDATE`, or `DELETE`, requires at least one positional
+`?` placeholder, and requires one `params` value per placeholder. It rejects
+literal-only mutations, CTEs, DDL, pragmas, attachments, and multiple
+statements. The input must also set
+`acknowledgeDatabaseWideAuthority: true`.
+
+```json
+{
+  "space": "<SPACE_URI>",
+  "database": "notes",
+  "sql": "UPDATE notes SET body = ? WHERE id = ?",
+  "params": ["reviewed", 42],
+  "acknowledgeDatabaseWideAuthority": true
+}
+```
+
+<Warning>
+Approving `tinycloud.sql/write` grants full read, write, and schema-mutation
+authority over the exact database. The capability is not scoped to the table,
+row, statement, or mutation types accepted by `tinycloud_sql_execute`. The MCP
+tool enforces its narrower DML contract, but the delegation can authorize
+broader database operations when used outside that tool. Grant it only when
+database-wide authority is acceptable.
+</Warning>
+
+Execution failures are never marked automatically retryable. Because the tool
+is non-idempotent, inspect database state before deciding whether another write
+is safe.
 
 ## Delegated secret flow
 
