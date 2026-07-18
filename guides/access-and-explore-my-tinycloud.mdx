@@ -65,6 +65,7 @@ request. Configure MCP with the same explicit profile as described in
 | `tinycloud_kv_delete` | Delete one selected key, optionally guarded by its ETag |
 | `tinycloud_sql_schema_inspect` | Inspect one selected SQLite database |
 | `tinycloud_sql_query` | Run one bounded `SELECT` against one selected SQLite database |
+| `tinycloud_sql_execute` | Run one positional-parameterized `INSERT`, `UPDATE`, or `DELETE` |
 
 The remaining six tools manage the selected session and protected secret flow:
 
@@ -131,8 +132,37 @@ DDL, pragmas, attachments, or multiple statements.
 Queries default to 100 rows and 1 MiB and allow explicit limits up to 1,000 rows
 and 4 MiB. Oversized results fail instead of being silently truncated. SQLite
 BLOB parameters use `{ "type": "blob", "base64": "..." }`; BLOB results use
-the same tag and include `byteLength`. Each SQL tool requests read capability
-for the exact database, not the entire space.
+the same tag and include `byteLength`. Each SQL read tool requests read
+capability for the exact database, not the entire space.
+
+### Mutate SQLite data
+
+`tinycloud_sql_execute` is destructive and non-idempotent. It accepts exactly
+one `INSERT`, `UPDATE`, or `DELETE` with at least one positional `?` placeholder
+and one `params` value per placeholder. The input must explicitly include
+`acknowledgeDatabaseWideAuthority: true`:
+
+```json
+{
+  "space": "<SPACE_URI>",
+  "database": "notes",
+  "sql": "INSERT INTO notes (body, status) VALUES (?, ?)",
+  "params": ["Review delegation boundaries", "draft"],
+  "acknowledgeDatabaseWideAuthority": true
+}
+```
+
+The tool rejects literal-only mutations, CTEs, DDL, pragmas, attachments, and
+multiple statements. Its result reports the statement type, changed-row count,
+and last inserted row ID when available.
+
+<Warning>
+The requested `tinycloud.sql/write` capability is broader than this tool.
+Approving it grants full read, write, and schema-mutation authority over the
+exact database, including when the delegation is used outside MCP. It is not
+scoped to a table, row, SQL statement, or the three mutation types enforced by
+`tinycloud_sql_execute`. Approve only when database-wide authority is intended.
+</Warning>
 
 ## Two-agent approval
 
@@ -145,6 +175,8 @@ Use separate delegate and owner agents when a data tool returns
 2. The owner agent reviews the artifact. It must contain only the exact
    account-registry, KV key or prefix, or SQLite database capabilities expected
    for this step. A write or delete request must match the user's stated action.
+   For `tinycloud.sql/write`, the owner must separately accept that the actual
+   capability is database-wide rather than table- or row-scoped.
 3. The owner agent grants that exact request with an explicit owner profile:
 
 ```bash
@@ -197,7 +229,9 @@ Stop and return the structured result instead of widening authority when:
 - a space or app is absent from the canonical account registry
 - the app manifest does not explain a prefix or value shape
 - a write or delete was not explicitly requested, or its exact target is unclear
-- a SQL request is not one bounded read-only `SELECT`
+- a SQL read request is not one bounded read-only `SELECT`
+- a SQL mutation lacks the explicit database-wide-authority acknowledgment
+- the owner does not accept database-wide SQL write and schema authority
 - the next step needs a secret value that the user did not request
 
 Secret tools have an additional transcript boundary: the MCP server keeps

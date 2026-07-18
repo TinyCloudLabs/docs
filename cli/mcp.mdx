@@ -5,7 +5,7 @@ icon: "bot"
 sidebarTitle: "MCP Server"
 ---
 
-The TinyCloud MCP server exposes 15 canonical TinyCloud operations to Model
+The TinyCloud MCP server exposes 16 canonical TinyCloud operations to Model
 Context Protocol clients over local stdio. It pins one TinyCloud profile when
 the process starts and uses delegated authority by default.
 
@@ -62,6 +62,7 @@ process or a later one.
 | `tinycloud_kv_delete` | Delete one selected KV key, optionally only when its ETag matches |
 | `tinycloud_sql_schema_inspect` | Inspect tables, views, indexes, and triggers in one SQLite database |
 | `tinycloud_sql_query` | Run one bounded read-only query against one SQLite database |
+| `tinycloud_sql_execute` | Run one positional-parameterized `INSERT`, `UPDATE`, or `DELETE` |
 | `tinycloud_secrets_get` | Read and decrypt one delegated secret |
 
 These tools use the same versioned operation contracts as the CLI projections.
@@ -112,7 +113,8 @@ a precondition error instead of overwriting or deleting newer data.
 `tinycloud_sql_schema_inspect` uses a fixed query to list user tables, views,
 indexes, and triggers. `tinycloud_sql_query` accepts exactly one SQLite
 `SELECT`, optional bind parameters, and no write, DDL, attachment, pragma, or
-multi-statement input. Both tools request read authority for one exact database.
+multi-statement input. Both read tools request read authority for one exact
+database.
 
 Queries default to 100 rows and 1 MiB. Callers may request up to 1,000 rows and
 4 MiB. Schema inspection is capped at 500 objects and 1 MiB. Limits are sent to
@@ -120,6 +122,34 @@ the node and verified again by the MCP operation; excess results fail rather
 than being silently truncated. SQL BLOB parameters use
 `{ "type": "blob", "base64": "..." }`; BLOB results add `byteLength` to the
 same tagged representation.
+
+## SQLite writes
+
+`tinycloud_sql_execute` is a destructive, non-idempotent tool. It accepts
+exactly one `INSERT`, `UPDATE`, or `DELETE`, requires at least one positional
+`?` placeholder, and requires one `params` value per placeholder. It rejects
+literal-only mutations, CTEs, DDL, pragmas, attachments, and multiple
+statements. The input must also set
+`acknowledgeDatabaseWideAuthority: true`.
+
+```json
+{
+  "space": "<SPACE_URI>",
+  "database": "notes",
+  "sql": "UPDATE notes SET body = ? WHERE id = ?",
+  "params": ["reviewed", 42],
+  "acknowledgeDatabaseWideAuthority": true
+}
+```
+
+<Warning>
+Approving `tinycloud.sql/write` grants full read, write, and schema-mutation
+authority over the exact database. The capability is not scoped to the table,
+row, statement, or mutation types accepted by `tinycloud_sql_execute`. The MCP
+tool enforces its narrower DML contract, but the delegation can authorize
+broader database operations when used outside that tool. Grant it only when
+database-wide authority is acceptable.
+</Warning>
 
 ## Delegated secret flow
 
