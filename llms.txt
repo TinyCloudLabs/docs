@@ -12,7 +12,7 @@ TinyCloud MCP is the separate `@tinycloud/mcp` package, installed alongside
 `@tinycloud/cli`. It is a local stdio server, not a hosted HTTP endpoint and
 not a subcommand embedded in `tc`. Both packages require Node.js 20 or newer.
 The 16-tool surface requires `@tinycloud/mcp` 0.2.0 or newer and a deployed
-TinyCloud node running 1.5.0 or newer. Release order is node deployment, stable
+TinyCloud node running 1.6.0 or newer. Release order is node deployment, stable
 MCP publication, then documentation publication.
 
 The MCP data surface can discover account spaces and applications; list, read,
