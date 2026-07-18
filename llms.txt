@@ -11,6 +11,9 @@ Full documentation corpus: https://docs.tinycloud.xyz/llms-full.txt
 TinyCloud MCP is the separate `@tinycloud/mcp` package, installed alongside
 `@tinycloud/cli`. It is a local stdio server, not a hosted HTTP endpoint and
 not a subcommand embedded in `tc`. Both packages require Node.js 20 or newer.
+The 16-tool surface requires `@tinycloud/mcp` 0.2.0 or newer and a deployed
+TinyCloud node running 1.5.0 or newer. Release order is node deployment, stable
+MCP publication, then documentation publication.
 
 The MCP data surface can discover account spaces and applications; list, read,
 inspect, create, replace, upsert, and delete selected KV values; inspect one
@@ -72,8 +75,9 @@ Use these exact data tools after selecting the delegated profile:
 KV values are capped at 1 MiB. Base64 is the default lossless representation;
 UTF-8 and JSON are explicit tagged alternatives. Use `create` to prevent
 overwrite, or read an ETag with `tinycloud_kv_head` and pass it to `replace` or
-delete for optimistic concurrency. On a retryable conditional conflict, read
-the current ETag before retrying. Deleted keys disappear from reads and lists
+delete for optimistic concurrency. On a retryable database serialization
+conflict, re-read key state, which may still be absent, and compare the current
+ETag when present before retrying. Deleted keys disappear from reads and lists
 immediately, while retained content-addressed blob bytes, including historical
 versions, count toward quota unless a future garbage collector safely reclaims
 them. Account discovery is capped at 1,000 records, 1 MiB per record, and 4 MiB

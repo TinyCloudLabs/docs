@@ -19,6 +19,10 @@ a channel appropriate for account access.
 
 ## MCP path
 
+This 16-tool workflow requires `@tinycloud/mcp` 0.2.0 or newer and a deployed
+TinyCloud node running 1.5.0 or newer. The node release is deployed first, the
+stable MCP package is published second, and this guide is published last.
+
 Install the CLI and MCP packages with Node.js 20 or newer, then create a
 delegated agent profile once if one does not already exist:
 
@@ -124,9 +128,10 @@ ETag, and available content metadata.
 
 Delete only a selected key. Passing the ETag from `tinycloud_kv_head` to
 `tinycloud_kv_delete` prevents deleting a value that changed after inspection.
-If a conditional mutation reports a retryable conflict, read the current ETag
-before deciding whether to retry. Deletion removes the key from reads and
-listings immediately; retained content-addressed blob bytes, including
+If a conditional mutation reports a retryable database serialization conflict,
+re-read the key state, which may still be absent. If it exists, compare its
+current ETag before deciding whether to retry. Deletion removes the key from
+reads and listings immediately; retained content-addressed blob bytes, including
 historical versions, continue to count toward storage quota unless a future
 garbage collector safely reclaims them.
 Generic KV tools cannot access the protected `account` or `secrets` spaces.

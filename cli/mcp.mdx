@@ -13,7 +13,12 @@ the process starts and uses delegated authority by default.
 
 - Node.js 20 or newer
 - The TinyCloud CLI and a delegated profile
+- `@tinycloud/mcp` 0.2.0 or newer
+- A TinyCloud node running 1.5.0 or newer
 - An MCP client that supports local stdio servers and structured tool results
+
+The node release must be deployed before the stable MCP package is published;
+this 16-tool documentation is published only after both are available.
 
 ## Configure a client
 
@@ -110,8 +115,9 @@ Choose the write mode deliberately:
 For deletion, pass the current ETag to `tinycloud_kv_delete` when concurrent
 changes must be preserved. A failed create, replace, or guarded delete returns
 a precondition error instead of overwriting or deleting newer data.
-If a conditional mutation reports a retryable conflict, read the current ETag
-and decide whether to retry against that version. Deletion immediately removes
+If a conditional mutation reports a retryable database serialization conflict,
+re-read the key state, which may still be absent. If it exists, compare its
+current ETag before deciding whether to retry. Deletion immediately removes
 the key from reads and listings, but retained content-addressed blob bytes,
 including historical versions, continue to count toward storage quota unless a
 future garbage collector safely reclaims them.
