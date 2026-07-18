@@ -120,6 +120,10 @@ ETag, and available content metadata.
 
 Delete only a selected key. Passing the ETag from `tinycloud_kv_head` to
 `tinycloud_kv_delete` prevents deleting a value that changed after inspection.
+If a conditional mutation reports a retryable conflict, read the current ETag
+before deciding whether to retry. Deletion removes the key from reads and
+listings immediately; retained historical blob bytes continue to count toward
+storage quota until garbage collection reclaims them.
 Generic KV tools cannot access the protected `account` or `secrets` spaces.
 
 ## Inspect SQLite

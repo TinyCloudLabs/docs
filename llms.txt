@@ -72,7 +72,10 @@ Use these exact data tools after selecting the delegated profile:
 KV values are capped at 1 MiB. Base64 is the default lossless representation;
 UTF-8 and JSON are explicit tagged alternatives. Use `create` to prevent
 overwrite, or read an ETag with `tinycloud_kv_head` and pass it to `replace` or
-delete for optimistic concurrency. SQL query defaults are 100 rows and 1 MiB;
+delete for optimistic concurrency. On a retryable conditional conflict, read
+the current ETag before retrying. Deleted keys disappear from reads and lists
+immediately, while retained historical blob bytes count toward quota until
+garbage collection reclaims them. SQL query defaults are 100 rows and 1 MiB;
 hard maxima are 1,000 rows and 4 MiB. Oversized SQL results fail without silent
 truncation, and SQL BLOBs use tagged base64 values.
 

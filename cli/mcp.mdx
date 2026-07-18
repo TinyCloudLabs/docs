@@ -107,6 +107,10 @@ Choose the write mode deliberately:
 For deletion, pass the current ETag to `tinycloud_kv_delete` when concurrent
 changes must be preserved. A failed create, replace, or guarded delete returns
 a precondition error instead of overwriting or deleting newer data.
+If a conditional mutation reports a retryable conflict, read the current ETag
+and decide whether to retry against that version. Deletion immediately removes
+the key from reads and listings, but retained historical blob bytes continue to
+count toward storage quota until garbage collection reclaims them.
 
 ## SQLite reads
 
