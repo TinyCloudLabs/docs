@@ -96,7 +96,9 @@ writes are limited to 1 MiB per value.
 
 `tinycloud_kv_get` returns the byte length, metadata, and a tagged
 representation. Base64 is the default and preserves arbitrary files exactly;
-request `text` or `json` only when the bytes use that representation.
+request `text` or `json` only when the bytes use that representation. A decoded
+GET can carry a weak representation ETag; use `tinycloud_kv_head` when a strong
+validator is needed for a conditional mutation.
 `tinycloud_kv_put` accepts one of these tagged content objects:
 
 ```json
@@ -108,8 +110,8 @@ request `text` or `json` only when the bytes use that representation.
 Choose the write mode deliberately:
 
 - `create` succeeds only when the key does not exist.
-- `replace` requires the current strong ETag from `tinycloud_kv_head` or
-  `tinycloud_kv_get` and fails if the value changed.
+- `replace` requires the current strong ETag from `tinycloud_kv_head` and fails
+  if the value changed.
 - `upsert` writes without a precondition and can overwrite an existing value.
 
 For deletion, pass the current ETag to `tinycloud_kv_delete` when concurrent
