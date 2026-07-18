@@ -4,7 +4,9 @@ TinyCloud docs are organized around reader intent and Diataxis. Start at `/`
 to choose a path, then move into concepts or reference when you need the
 system model or exact action names.
 
-Full documentation corpus: https://docs.tinycloud.xyz/llms-full.txt
+For release-sensitive MCP details, use the current Markdown pages linked below.
+The Mintlify-generated `/llms-full.txt` aggregate is cached separately and can
+lag a documentation deployment.
 
 ## Agent access quickstart
 
