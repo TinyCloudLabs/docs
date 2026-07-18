@@ -1,6 +1,6 @@
 ---
 title: "Access and explore my TinyCloud"
-description: "Give an agent narrow read access, discover account spaces and apps, and inspect selected data"
+description: "Give an agent exact delegated access to discover, read, and safely update selected TinyCloud data"
 icon: "folder-search-2"
 sidebarTitle: "Explore my TinyCloud"
 ---
@@ -12,8 +12,8 @@ delegate workflow.
 
 <Warning>
 Keep the agent on a `delegate-session` profile. Do not start MCP with an owner
-profile or `--allow-owner-profile` for exploration. A delegation is a bearer
-artifact: approve only the requested read capabilities and transfer it through
+profile or `--allow-owner-profile` for data work. A delegation is a bearer
+artifact: approve only the exact requested capabilities and transfer it through
 a channel appropriate for account access.
 </Warning>
 
@@ -50,16 +50,32 @@ tc --profile agent --quiet --json auth import delegation.json
 ```
 
 This one-time import establishes the delegated session. It does not grant app,
-prefix, key, write, or secret access beyond the exact account-space listing
+prefix, key, write, SQL, or secret access beyond the exact account-space listing
 request. Configure MCP with the same explicit profile as described in
-[TinyCloud MCP](/cli/mcp). The exploration surface is:
+[TinyCloud MCP](/cli/mcp). The data surface is:
 
-| Tool | Read-only purpose |
+| Tool | Purpose |
 |---|---|
 | `tinycloud_account_spaces_list` | List spaces in the canonical account registry |
 | `tinycloud_account_applications_list` | List applications and their registered manifests |
 | `tinycloud_kv_list` | List keys in one selected space, optionally under a prefix |
 | `tinycloud_kv_get` | Read one selected key |
+| `tinycloud_kv_head` | Read metadata and the current ETag for one selected key |
+| `tinycloud_kv_put` | Create, conditionally replace, or explicitly upsert one selected key |
+| `tinycloud_kv_delete` | Delete one selected key, optionally guarded by its ETag |
+| `tinycloud_sql_schema_inspect` | Inspect one selected SQLite database |
+| `tinycloud_sql_query` | Run one bounded `SELECT` against one selected SQLite database |
+
+The remaining six tools manage the selected session and protected secret flow:
+
+| Tool | Purpose |
+|---|---|
+| `tinycloud_status` | Inspect safe local profile state |
+| `tinycloud_auth_status` | Inspect authentication state |
+| `tinycloud_auth_capabilities` | Inspect validated active capabilities |
+| `tinycloud_auth_request` | Create or recover an exact permission request |
+| `tinycloud_auth_import` | Validate and import a request-bound delegation |
+| `tinycloud_secrets_get` | Read one specifically delegated secret |
 
 Call `tinycloud_account_spaces_list` first. Compare its space IDs with
 `tinycloud_account_applications_list`, then choose a space and call
@@ -70,16 +86,65 @@ Do not treat an application name as permission to read every key in its space.
 Use its manifest and any linked knowledge bundle to identify relevant prefixes
 and data shapes. See [Agent-readable Apps](/guides/agent-readable-apps).
 
+## Store a file safely
+
+TinyCloud KV values can hold arbitrary bytes. After selecting the target space
+and key, call `tinycloud_kv_put` with tagged content. For a Markdown file the
+tool input can be:
+
+```json
+{
+  "space": "<SPACE_URI>",
+  "key": "agent-notes/sqlite-safety.md",
+  "mode": "create",
+  "content": {
+    "encoding": "utf8",
+    "value": "# SQLite safety notes\n\nUse bind parameters and bounded reads.\n"
+  },
+  "contentType": "text/markdown; charset=utf-8"
+}
+```
+
+If that returns `authority_required`, complete the exact request flow below and
+retry the same input. `create` cannot overwrite an existing key. To update a
+known value safely, call `tinycloud_kv_head`, copy its strong quoted `etag`, and
+use `mode: "replace"` with that ETag. Use `mode: "upsert"` only when overwriting
+without a concurrency check is intentional.
+
+For binary files, base64-encode the bytes and use
+`{ "encoding": "base64", "value": "..." }`. KV reads and writes are capped at
+1 MiB. `tinycloud_kv_get` defaults to base64 and also supports explicit `text`
+and `json` representations. It returns the representation tag, byte length,
+ETag, and available content metadata.
+
+Delete only a selected key. Passing the ETag from `tinycloud_kv_head` to
+`tinycloud_kv_delete` prevents deleting a value that changed after inspection.
+Generic KV tools cannot access the protected `account` or `secrets` spaces.
+
+## Inspect SQLite
+
+Call `tinycloud_sql_schema_inspect` with an exact `space` and `database` first.
+Then call `tinycloud_sql_query` with the same target, exactly one SQLite
+`SELECT`, and optional bind `params`. These MCP tools do not execute writes,
+DDL, pragmas, attachments, or multiple statements.
+
+Queries default to 100 rows and 1 MiB and allow explicit limits up to 1,000 rows
+and 4 MiB. Oversized results fail instead of being silently truncated. SQLite
+BLOB parameters use `{ "type": "blob", "base64": "..." }`; BLOB results use
+the same tag and include `byteLength`. Each SQL tool requests read capability
+for the exact database, not the entire space.
+
 ## Two-agent approval
 
-Use separate delegate and owner agents when the exploration tool returns
+Use separate delegate and owner agents when a data tool returns
 `authority_required`.
 
-1. The delegate agent calls the read tool and saves the returned
+1. The delegate agent calls the data tool and saves the returned
    `tinycloud.auth.request` object exactly as `request.json`. Do not edit its
    request ID, audience, host, or capabilities.
-2. The owner agent reviews the artifact. It must contain only the account
-   registry or selected KV read capabilities expected for this step.
+2. The owner agent reviews the artifact. It must contain only the exact
+   account-registry, KV key or prefix, or SQLite database capabilities expected
+   for this step. A write or delete request must match the user's stated action.
 3. The owner agent grants that exact request with an explicit owner profile:
 
 ```bash
@@ -92,9 +157,9 @@ tc --profile owner --quiet --json auth grant request.json --yes > delegation.jso
    the selected profile, so approval and retry may happen in different MCP
    process sessions.
 
-Repeat the exchange if a later `tinycloud_kv_list` or `tinycloud_kv_get` call
-needs a narrower capability that was not in the first request. Do not replace
-that request with a broad space-wide grant.
+Repeat the exchange if a later KV or SQLite call needs a capability that was not
+in the first request. Do not replace an exact request with a broad space-wide
+grant.
 
 ## Owner CLI inspection
 
@@ -131,7 +196,8 @@ Stop and return the structured result instead of widening authority when:
 - the owner rejects or changes the request
 - a space or app is absent from the canonical account registry
 - the app manifest does not explain a prefix or value shape
-- a command would write, register, sync, delete, or revoke data
+- a write or delete was not explicitly requested, or its exact target is unclear
+- a SQL request is not one bounded read-only `SELECT`
 - the next step needs a secret value that the user did not request
 
 Secret tools have an additional transcript boundary: the MCP server keeps

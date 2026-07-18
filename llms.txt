@@ -12,11 +12,11 @@ TinyCloud MCP is the separate `@tinycloud/mcp` package, installed alongside
 `@tinycloud/cli`. It is a local stdio server, not a hosted HTTP endpoint and
 not a subcommand embedded in `tc`. Both packages require Node.js 20 or newer.
 
-The current MCP exploration surface is read-only. It can discover account
-spaces and applications, list KV keys, read selected KV values, and read a
-delegated secret. It does not currently expose generic KV write, delete, or
-file-management tools. Treat file-like values according to the owning app's
-manifest and schema.
+The MCP data surface can discover account spaces and applications; list, read,
+inspect, create, replace, upsert, and delete selected KV values; inspect one
+SQLite schema; run one bounded read-only SQLite `SELECT`; and read a delegated
+secret. Generic KV access blocks the protected `account` and `secrets` spaces.
+Treat file-like values according to the owning app's manifest and schema.
 
 Install the stable packages and create a delegated agent profile:
 
@@ -55,12 +55,24 @@ Configure the MCP client to start the server with that explicit profile:
 }
 ```
 
-Start exploration with these exact tools:
+Use these exact data tools after selecting the delegated profile:
 
 - `tinycloud_account_spaces_list` - list the canonical account space registry
 - `tinycloud_account_applications_list` - list registered apps and manifests
 - `tinycloud_kv_list` - list keys in one selected space or prefix
 - `tinycloud_kv_get` - read one selected KV key
+- `tinycloud_kv_head` - read metadata and the ETag for one selected KV key
+- `tinycloud_kv_put` - create, ETag-replace, or explicitly upsert one selected KV key
+- `tinycloud_kv_delete` - delete one selected KV key, optionally guarded by its ETag
+- `tinycloud_sql_schema_inspect` - inspect one exact SQLite database
+- `tinycloud_sql_query` - run one bounded `SELECT` against one exact SQLite database
+
+KV values are capped at 1 MiB. Base64 is the default lossless representation;
+UTF-8 and JSON are explicit tagged alternatives. Use `create` to prevent
+overwrite, or read an ETag with `tinycloud_kv_head` and pass it to `replace` or
+delete for optimistic concurrency. SQL query defaults are 100 rows and 1 MiB;
+hard maxima are 1,000 rows and 4 MiB. Oversized SQL results fail without silent
+truncation, and SQL BLOBs use tagged base64 values.
 
 When a tool returns `authority_required`, preserve its returned
 `tinycloud.auth.request` exactly. The owner grants that artifact without
@@ -75,7 +87,7 @@ Complete readable pages:
 ## Entry points
 
 - `/` - Homepage and reader-journey selector
-- `https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - MCP-first delegated account, app, and KV exploration
+- `https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - MCP-first delegated discovery, safe KV CRUD, and SQLite reads
 - `/start/browser-app` - Web SDK path from sign-in to first KV write
 - `/start/backend-service` - Node SDK path and sign-in mode decision
 - `/start/protocol` - Capability, manifest, and delegation vocabulary
@@ -107,7 +119,7 @@ Complete readable pages:
 ## Operate
 
 - `/cli/overview`
-- `https://docs.tinycloud.xyz/cli/mcp` - Local stdio MCP server, exploration tools, and delegated authorization
+- `https://docs.tinycloud.xyz/cli/mcp` - Local stdio MCP server with 15 delegated session, KV, SQL, and secret tools
 - `/cli/account` - Read-only live account space and application discovery commands
 - `/cli/authentication`
 - `/cli/storage`
