@@ -79,6 +79,9 @@ tools for those protected spaces.
 For the MCP-first account and data discovery sequence, including a separate
 owner agent that grants exact read requests, see
 [Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud).
+Account registry discovery is capped at 1,000 records, 1 MiB per record, and 4
+MiB total serialized output. It fails closed instead of returning a partial
+registry.
 
 ## KV data safety
 
@@ -109,8 +112,9 @@ changes must be preserved. A failed create, replace, or guarded delete returns
 a precondition error instead of overwriting or deleting newer data.
 If a conditional mutation reports a retryable conflict, read the current ETag
 and decide whether to retry against that version. Deletion immediately removes
-the key from reads and listings, but retained historical blob bytes continue to
-count toward storage quota until garbage collection reclaims them.
+the key from reads and listings, but retained content-addressed blob bytes,
+including historical versions, continue to count toward storage quota unless a
+future garbage collector safely reclaims them.
 
 ## SQLite reads
 
@@ -154,6 +158,10 @@ tool enforces its narrower DML contract, but the delegation can authorize
 broader database operations when used outside that tool. Grant it only when
 database-wide authority is acceptable.
 </Warning>
+
+Execution failures are never marked automatically retryable. Because the tool
+is non-idempotent, inspect database state before deciding whether another write
+is safe.
 
 ## Delegated secret flow
 

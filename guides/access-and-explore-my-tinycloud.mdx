@@ -83,6 +83,10 @@ Call `tinycloud_account_spaces_list` first. Compare its space IDs with
 `tinycloud_kv_list`. Read individual keys with `tinycloud_kv_get` only after
 their names and app context are known.
 
+Account registry discovery is capped at 1,000 records, 1 MiB per record, and 4
+MiB total serialized output. It fails closed instead of returning a partial
+registry.
+
 Do not treat an application name as permission to read every key in its space.
 Use its manifest and any linked knowledge bundle to identify relevant prefixes
 and data shapes. See [Agent-readable Apps](/guides/agent-readable-apps).
@@ -122,8 +126,9 @@ Delete only a selected key. Passing the ETag from `tinycloud_kv_head` to
 `tinycloud_kv_delete` prevents deleting a value that changed after inspection.
 If a conditional mutation reports a retryable conflict, read the current ETag
 before deciding whether to retry. Deletion removes the key from reads and
-listings immediately; retained historical blob bytes continue to count toward
-storage quota until garbage collection reclaims them.
+listings immediately; retained content-addressed blob bytes, including
+historical versions, continue to count toward storage quota unless a future
+garbage collector safely reclaims them.
 Generic KV tools cannot access the protected `account` or `secrets` spaces.
 
 ## Inspect SQLite
@@ -167,6 +172,10 @@ exact database, including when the delegation is used outside MCP. It is not
 scoped to a table, row, SQL statement, or the three mutation types enforced by
 `tinycloud_sql_execute`. Approve only when database-wide authority is intended.
 </Warning>
+
+Execution failures are never marked automatically retryable. Because the tool
+is non-idempotent, inspect database state before deciding whether another write
+is safe.
 
 ## Two-agent approval
 

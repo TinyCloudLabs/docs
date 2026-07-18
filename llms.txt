@@ -74,8 +74,11 @@ UTF-8 and JSON are explicit tagged alternatives. Use `create` to prevent
 overwrite, or read an ETag with `tinycloud_kv_head` and pass it to `replace` or
 delete for optimistic concurrency. On a retryable conditional conflict, read
 the current ETag before retrying. Deleted keys disappear from reads and lists
-immediately, while retained historical blob bytes count toward quota until
-garbage collection reclaims them. SQL query defaults are 100 rows and 1 MiB;
+immediately, while retained content-addressed blob bytes, including historical
+versions, count toward quota unless a future garbage collector safely reclaims
+them. Account discovery is capped at 1,000 records, 1 MiB per record, and 4 MiB
+total output and fails rather than returning a partial registry. SQL query
+defaults are 100 rows and 1 MiB;
 hard maxima are 1,000 rows and 4 MiB. Oversized SQL results fail without silent
 truncation, and SQL BLOBs use tagged base64 values.
 
@@ -85,6 +88,8 @@ one positional `?`, one `params` value per placeholder, and
 `UPDATE`, or `DELETE`, but its requested `tinycloud.sql/write` capability grants
 full read, write, and schema-mutation authority over the exact database outside
 the narrower tool. This authority is not table- or row-scoped.
+Execution failures are not automatically retryable; inspect database state
+before considering another non-idempotent write.
 
 When a tool returns `authority_required`, preserve its returned
 `tinycloud.auth.request` exactly. The owner grants that artifact without
