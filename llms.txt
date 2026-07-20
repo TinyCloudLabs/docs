@@ -10,12 +10,24 @@ lag a documentation deployment.
 
 ## Agent access quickstart
 
-TinyCloud MCP is the separate `@tinycloud/mcp` package, installed alongside
-`@tinycloud/cli`. It is a local stdio server, not a hosted HTTP endpoint and
-not a subcommand embedded in `tc`. Both packages require Node.js 20 or newer.
-The 16-tool surface requires `@tinycloud/mcp` 0.2.0 or newer and a deployed
-TinyCloud node running 1.6.0 or newer. Release order is node deployment, stable
-MCP publication, then documentation publication.
+TinyCloud MCP supports two transports. Remote clients such as Claude web,
+Claude mobile, and Claude Desktop connect to the hosted Streamable HTTP
+resource at `https://mcp.tinycloud.xyz/mcp`. It uses OpenKey OAuth and exposes
+`tinycloud_connect` plus the 16 canonical TinyCloud tools. Local clients can
+instead install the separate `@tinycloud/mcp` package alongside
+`@tinycloud/cli` and run its stdio server. The MCP server is not a subcommand
+embedded in `tc`.
+
+For hosted access, add `https://mcp.tinycloud.xyz/mcp` as a custom connector,
+complete the OpenKey sign-in, and call `tinycloud_connect`. If it returns an
+`approvalUrl`, open that URL, approve the account-registry delegation, then
+call `tinycloud_connect` again. Continue only after it returns
+`connected: true`. Later `authority_required` results carry an exact approval
+URL; approve the request and retry the original tool unchanged.
+
+Hosted mode requires `@tinycloud/mcp` 0.3.0 or newer on the service. Local
+stdio requires Node.js 20 or newer, `@tinycloud/mcp` 0.2.0 or newer, and a
+deployed TinyCloud node running 1.6.0 or newer.
 
 The MCP data surface can discover account spaces and applications; list, read,
 inspect, create, replace, upsert, and delete selected KV values; inspect one
@@ -24,7 +36,8 @@ SQLite `INSERT`, `UPDATE`, or `DELETE`; and read a delegated secret. Generic KV
 access blocks the protected `account` and `secrets` spaces. Treat file-like
 values according to the owning app's manifest and schema.
 
-Install the stable packages and create a delegated agent profile:
+For local stdio, install the stable packages and create a delegated agent
+profile:
 
 ```sh
 npm install --global @tinycloud/cli @tinycloud/mcp
@@ -106,10 +119,13 @@ Complete readable pages:
 
 - MCP reference (Markdown): https://docs.tinycloud.xyz/cli/mcp.md
 - Delegated exploration guide (Markdown): https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud.md
+- Hosted MCP operations guide (Markdown): https://docs.tinycloud.xyz/hosting/mcp.md
 
 ## Entry points
 
 - `/` - Homepage and reader-journey selector
+- `https://mcp.tinycloud.xyz/mcp` - Hosted Streamable HTTP MCP connector for remote clients
+- `https://docs.tinycloud.xyz/cli/mcp` - Hosted and local MCP setup and tool reference
 - `https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - MCP-first delegated discovery, safe KV CRUD, and SQLite operations
 - `/start/browser-app` - Web SDK path from sign-in to first KV write
 - `/start/backend-service` - Node SDK path and sign-in mode decision
@@ -142,7 +158,7 @@ Complete readable pages:
 ## Operate
 
 - `/cli/overview`
-- `https://docs.tinycloud.xyz/cli/mcp` - Local stdio MCP server with 16 delegated session, KV, SQL, and secret tools
+- `https://docs.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 17 tools and local stdio MCP with 16 tools
 - `/cli/account` - Read-only live account space and application discovery commands
 - `/cli/authentication`
 - `/cli/storage`
@@ -157,6 +173,7 @@ Complete readable pages:
 - `/cli/manifest`
 - `/cli/diagnostics`
 - `/hosting/overview`
+- `/hosting/mcp` - Deploy the OAuth-protected hosted MCP resource
 - `/hosting/configuration`
 - `/hosting/docker`
 - `/hosting/databases`
