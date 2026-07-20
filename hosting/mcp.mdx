@@ -1,0 +1,71 @@
+---
+title: "Host the MCP server"
+description: "Deploy TinyCloud Streamable HTTP MCP with OpenKey OAuth"
+icon: "bot"
+---
+
+Run the hosted MCP server when remote clients need a public Streamable HTTP
+endpoint. It is an OAuth resource server, not an owner authority: every tenant
+gets a separate generated session key and can use only capabilities approved
+through OpenKey.
+
+## Container
+
+```bash
+docker run --rm -p 3000:3000 \
+  -e TC_MCP_PUBLIC_URL=https://mcp.example.com/mcp \
+  -e TC_MCP_STATE_SECRET="$(openssl rand -hex 32)" \
+  -v tinycloud-mcp-state:/var/lib/tinycloud-mcp \
+  ghcr.io/tinycloudlabs/tinycloud-mcp:latest
+```
+
+Terminate TLS at a reverse proxy and preserve the public `Host` header. The
+service refuses unexpected hosts and requires HTTPS for non-local public URLs.
+
+## Configuration
+
+| Variable | Required | Purpose |
+|---|---:|---|
+| `TC_MCP_PUBLIC_URL` | Yes | Exact public MCP resource URL, including `/mcp` |
+| `TC_MCP_STATE_DIR` | Yes | Absolute path to the persistent tenant-state volume; the image defaults to `/var/lib/tinycloud-mcp` |
+| `TC_MCP_STATE_SECRET` | Yes | At least 32 bytes used to derive tenant IDs and sign one-time approval state |
+| `TC_MCP_OAUTH_METADATA_URL` | No | OpenKey authorization-server metadata URL |
+| `TC_OPENKEY_HOST` | No | OpenKey browser approval origin; defaults to `https://openkey.so` |
+| `TC_HOST` | No | TinyCloud node; defaults to `https://node.tinycloud.xyz` |
+| `TC_MCP_ALLOWED_ORIGINS` | No | Comma-separated origins for direct browser requests |
+| `TC_MCP_APPROVAL_TTL_SECONDS` | No | One-time approval link lifetime; defaults to 300 seconds |
+| `TC_MCP_DELEGATION_EXPIRY` | No | Delegation duration sent to OpenKey; defaults to `1h` |
+| `PORT` | No | HTTP listen port; defaults to 3000 |
+
+Keep the state secret stable. Rotating it intentionally disconnects existing
+OAuth subjects from their stored delegates. Back up the state volume and
+encrypt it at rest; it contains delegate private keys and signed capabilities,
+but no owner keys or OAuth access tokens.
+
+## Scaling boundary
+
+The filesystem store supports one service replica. It uses async-scoped tenant
+roots and per-profile locks inside that replica, but does not provide a
+distributed key-creation or approval transaction. Do not point multiple
+replicas at the same volume. A multi-replica deployment needs a shared
+transactional state provider.
+
+## OAuth requirements
+
+The OpenKey issuer must allow:
+
+- Dynamic client registration for remote MCP clients
+- The `tinycloud:mcp` scope
+- The exact `TC_MCP_PUBLIC_URL` as an OAuth resource audience
+- The `https://tinycloud.xyz/owner_dids` access-token claim
+
+The MCP resource validates signature, issuer, audience, expiry, and scope on
+every request. The browser approval callback is short-lived, HMAC-bound,
+single-use, and cryptographically validated by the TinyCloud SDK before the
+delegation is persisted.
+
+<Warning>
+The service processes plaintext values and SQL results for capabilities a user
+approves. Treat its runtime and observability pipeline as part of the data trust
+boundary. Do not log request bodies or structured tool results.
+</Warning>

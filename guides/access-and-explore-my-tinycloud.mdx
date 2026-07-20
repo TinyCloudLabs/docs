@@ -19,6 +19,15 @@ a channel appropriate for account access.
 
 ## MCP path
 
+For Claude web/mobile and other remote clients, add
+`https://mcp.tinycloud.xyz/mcp` as a custom connector. Call
+`tinycloud_connect`, approve its one-time OpenKey link, and call it again before
+continuing with account discovery below. Hosted mode creates and maintains the
+delegate profile for you and requires `@tinycloud/mcp` 0.3.0 or newer on the
+hosted service.
+
+For a local MCP client, continue with the CLI bootstrap in this section.
+
 This 16-tool workflow requires `@tinycloud/mcp` 0.2.0 or newer and a deployed
 TinyCloud node running 1.6.0 or newer. The node release is deployed first, the
 stable MCP package is published second, and this guide is published last.
