@@ -155,6 +155,7 @@
             "group": "Hosting",
             "pages": [
               "hosting/overview",
+              "hosting/mcp",
               "hosting/configuration",
               "hosting/docker",
               "hosting/databases",

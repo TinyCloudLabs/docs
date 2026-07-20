@@ -6,21 +6,53 @@ sidebarTitle: "MCP Server"
 ---
 
 The TinyCloud MCP server exposes 16 canonical TinyCloud operations to Model
-Context Protocol clients over local stdio. It pins one TinyCloud profile when
-the process starts and uses delegated authority by default.
+Context Protocol clients. Use the hosted Streamable HTTP endpoint from web and
+mobile clients, or run the local stdio transport when data and delegate keys
+must remain on your machine. Both paths use scoped, revocable authority.
+
+## Connect Claude web or mobile
+
+Add a custom connector in Claude and use this URL:
+
+```text
+https://mcp.tinycloud.xyz/mcp
+```
+
+Claude discovers OpenKey OAuth from the endpoint, registers its OAuth client,
+and asks you to sign in. After the connector is enabled:
+
+1. Ask Claude to call `tinycloud_connect`.
+2. Open the returned `approvalUrl` and approve the account-registry delegation
+   in OpenKey.
+3. Ask Claude to call `tinycloud_connect` again. It now returns
+   `connected: true`.
+4. Ask Claude to list your spaces, then perform the KV or SQLite operation you
+   want. When a tool returns `authority_required`, open its `approval.url` and
+   retry the same tool unchanged.
+
+Hosted mode adds `tinycloud_connect` to the 16 canonical tools. The service
+stores a distinct delegated session key for each OpenKey OAuth subject and
+accepts only delegations from an owner DID carried by that subject's
+resource-bound access token. It never receives an owner private key.
+
+<Warning>
+The hosted service can observe plaintext operation inputs and results while it
+executes them, including delegated secrets. Use local stdio instead when the
+service operator must not be in that trust boundary.
+</Warning>
 
 ## Requirements
 
 - Node.js 20 or newer
-- The TinyCloud CLI and a delegated profile
-- `@tinycloud/mcp` 0.2.0 or newer
+- The TinyCloud CLI and a delegated profile for local stdio
+- `@tinycloud/mcp` 0.3.0 or newer for hosted mode; 0.2.0 or newer for local stdio
 - A TinyCloud node running 1.6.0 or newer
-- An MCP client that supports local stdio servers and structured tool results
+- An MCP client that supports structured tool results
 
 The node release must be deployed before the stable MCP package is published;
 this 16-tool documentation is published only after both are available.
 
-## Configure a client
+## Configure local stdio
 
 Install both packages with Node.js 20 or newer:
 
