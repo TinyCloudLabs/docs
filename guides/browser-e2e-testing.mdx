@@ -1,15 +1,16 @@
 ---
-title: "Browser E2E testing without passkeys"
-description: "Bootstrap a test-only wallet account and exercise the real OpenKey and TinyCloud browser flow in Playwright."
+title: "Automated OpenKey + TinyCloud E2E testing"
+description: "Run unattended, agent-driven, or CI browser tests against the real OpenKey and TinyCloud flow."
 icon: "test-tube"
-sidebarTitle: "Browser E2E testing"
+sidebarTitle: "Automated browser E2E"
 ---
 
 Use this pattern when a browser app signs in through OpenKey and TinyCloud, but
-an end-to-end test must run unattended. It replaces the human passkey ceremony
-with a test-only EIP-1193 wallet. The application still uses its production
-OpenKey external-wallet path, requests a real SIWE signature, and initializes
-TinyCloud normally.
+an end-to-end test must run unattended—whether from an agent, CI, or a local
+automation loop. It replaces the human passkey ceremony with a test-only
+EIP-1193 wallet. The application still uses its production OpenKey
+external-wallet path, requests a real SIWE signature, and initializes TinyCloud
+normally.
 
 This is a browser-test technique, not an application authentication mode. Do
 not add a test private key, a bypass flag, or a mock signer to production app

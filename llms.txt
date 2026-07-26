@@ -137,7 +137,7 @@ Complete readable pages:
 - `/quickstart/web-sdk`
 - `/quickstart/node-sdk`
 - `/guides/authentication`
-- `/guides/browser-e2e-testing` - Browser E2E account bootstrap without passkey automation
+- `/guides/browser-e2e-testing` - Automated OpenKey + TinyCloud E2E testing for agents and CI
 - `/guides/spaces`
 - `/guides/kv-storage`
 - `/guides/delegations`
