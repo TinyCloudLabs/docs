@@ -40,15 +40,12 @@ test data and must never hold funds, production data, or reusable credentials.
 
 ```typescript
 import { expect, test, type Page } from "@playwright/test";
-import { fileURLToPath } from "node:url";
+import { Wallet, utils } from "ethers";
 
 const TEST_PRIVATE_KEY =
   "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const TEST_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const TEST_WALLET_NAME = "TinyCloud E2E Wallet";
-const ETHERS_UMD_PATH = fileURLToPath(
-  new URL("../node_modules/ethers/dist/ethers.umd.min.js", import.meta.url),
-);
 
 function exposeTestShadowRoots() {
   return () => {
@@ -62,15 +59,11 @@ function exposeTestShadowRoots() {
 function installTestWallet() {
   return ({
     address,
-    privateKey,
     walletName,
   }: {
     address: string;
-    privateKey: string;
     walletName: string;
   }) => {
-    const ethers = (window as any).ethers;
-    const wallet = new ethers.Wallet(privateKey);
     const provider = {
       selectedAddress: address,
       chainId: "0x1",
@@ -91,9 +84,7 @@ function installTestWallet() {
             const message = params[0];
             if (typeof message !== "string")
               throw new Error("personal_sign missing message");
-            return message.startsWith("0x")
-              ? wallet.signMessage(ethers.utils.arrayify(message))
-              : wallet.signMessage(message);
+            return (window as any).__openkeyE2ESignMessage(message);
           }
           case "wallet_getPermissions":
           case "wallet_requestPermissions":
@@ -132,20 +123,25 @@ function installTestWallet() {
 }
 
 async function bootstrapTestAccount(page: Page) {
+  const wallet = new Wallet(TEST_PRIVATE_KEY);
+  await page.exposeFunction("__openkeyE2ESignMessage", (message: string) => {
+    return wallet.signMessage(
+      message.startsWith("0x") ? utils.arrayify(message) : message,
+    );
+  });
   await page.addInitScript(exposeTestShadowRoots());
-  await page.addInitScript({ path: ETHERS_UMD_PATH });
   await page.addInitScript(installTestWallet(), {
     address: TEST_ADDRESS,
-    privateKey: TEST_PRIVATE_KEY,
     walletName: TEST_WALLET_NAME,
   });
 }
 ```
 
-`addInitScript()` runs before the application's scripts, so OpenKey's widget
-can discover the provider through EIP-6963. Opening shadow roots makes the
-widget's wallet picker visible to Playwright; keep that behavior in the test
-only.
+`exposeFunction()` installs the signer before navigation and avoids depending
+on the order of multiple browser init scripts. `addInitScript()` then installs
+the provider before the application's scripts, so OpenKey's widget can discover
+it through EIP-6963. Opening shadow roots makes the widget's wallet picker
+visible to Playwright; keep that behavior in the test only.
 
 ## Drive the real application flow
 
@@ -160,7 +156,7 @@ test("creates and reads a record through OpenKey", async ({ page }) => {
   await page.goto("/app");
   await page.getByTestId("connect-openkey").click();
   await page
-    .frameLocator('iframe[src*="openkey.so/widget/embed/connect"]')
+    .frameLocator('iframe[src*="/widget/embed/connect"]')
     .getByText(/or use an external wallet/i)
     .click();
   await page.getByText(TEST_WALLET_NAME).click();
@@ -206,3 +202,4 @@ cannot reliably produce. Keep at least one smoke test on this real path.
 - [App manifests](/concepts/app-manifests)
 - [Spaces provisioning](/guides/spaces/provisioning)
 - [OpenKey TinyCloud integration](/openkey/tinycloud-integration)
+- [Run OpenKey locally](/openkey/local-development)
