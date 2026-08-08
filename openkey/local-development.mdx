@@ -1,0 +1,142 @@
+---
+title: "Local development"
+description: "Run OpenKey and TinyCloud Secret Manager locally and verify the complete browser flow"
+icon: "laptop-code"
+---
+
+Use this setup when you are changing OpenKey or a browser app that consumes
+OpenKey and need a repeatable local integration check. The verified smoke flow
+runs the OpenKey API, OpenKey widget, and TinyCloud Secret Manager on your
+machine, then connects a test-only wallet and exercises a real encrypted secret
+write, reload, read, and delete.
+
+<Note>
+This setup runs OpenKey and Secret Manager locally. By default, encrypted KV
+and SQL requests still use the TinyCloud development node at
+`https://node.tinycloud.xyz`.
+</Note>
+
+## Prerequisites
+
+- Bun 1.2 or later
+- A Chromium-compatible Playwright browser
+- Local `openkey` and `secret-manager` checkouts in sibling directories
+
+```text
+development/
+├── openkey/
+└── secret-manager/
+```
+
+## Create the local environment files
+
+From the `secret-manager` checkout:
+
+```bash
+cp .env.example .env
+cp e2e/openkey.env.example ../openkey/.env
+```
+
+The OpenKey template uses PGlite, development TEE sealing, local-only test
+credentials, and CORS origins for both local web apps. The Secret Manager
+template points its OpenKey SDK at `http://127.0.0.1:5173`.
+
+Both generated `.env` files are ignored by Git. Do not replace their test-only
+values with production credentials.
+
+## Prepare both repositories
+
+Still from `secret-manager`:
+
+```bash
+bun --cwd ../openkey install --frozen-lockfile
+bun --cwd ../openkey run db:push
+bun --cwd ../openkey run build
+bun install --frozen-lockfile
+bunx playwright install chromium
+bun run build
+```
+
+OpenKey's build step is required on a clean checkout because the API imports
+workspace packages such as `@openkey/db` from their built output. `db:push`
+initializes the local PGlite schema and generates the Prisma client.
+
+## Run the end-to-end smoke test
+
+```bash
+bun run test:smoke
+```
+
+Playwright starts and stops these local services:
+
+| Service | URL | Purpose |
+| --- | --- | --- |
+| OpenKey API | `http://127.0.0.1:3001` | Auth, authorization, and signing API |
+| OpenKey web | `http://127.0.0.1:5173` | Connect and signing widgets |
+| Secret Manager | `http://127.0.0.1:4187` | Application under test |
+
+The test uses a public Anvil development key through OpenKey's normal external
+wallet path. A passing run proves that the local widget discovered the wallet,
+the wallet signed the TinyCloud SIWE request, and Secret Manager could write,
+reload, decrypt, and delete its placeholder secret.
+
+To watch the browser interaction:
+
+```bash
+bun run test:smoke --headed
+```
+
+## Interactive development loop
+
+For hot reload, prepare the repositories once as above, then run each process
+in a separate terminal.
+
+From `openkey`:
+
+```bash
+bun run --env-file=.env apps/api/src/index.ts
+```
+
+From `openkey` in a second terminal:
+
+```bash
+bun run --cwd apps/web --env-file=../../.env dev --host 127.0.0.1
+```
+
+From `secret-manager`:
+
+```bash
+bun run dev --host 127.0.0.1 --port 4187
+```
+
+Open `http://127.0.0.1:4187/app`. If the first OpenKey widget request falls
+back to a popup while Vite performs its cold compile, wait for the OpenKey web
+server to finish and retry the connection.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="The OpenKey API cannot resolve @openkey/db">
+    Run `bun --cwd ../openkey run build` from Secret Manager, or `bun run build`
+    from OpenKey, before starting the API.
+  </Accordion>
+  <Accordion title="Playwright says a web server exited early">
+    Confirm ports `3001`, `5173`, and `4187` are free and that both `.env` files
+    were created from the checked-in templates.
+  </Accordion>
+  <Accordion title="The widget does not offer the test wallet">
+    Run the checked-in `test:smoke` flow. Its Playwright bootstrap installs the
+    wallet before application scripts execute and asserts that OpenKey received
+    `hasEoa=true`.
+  </Accordion>
+  <Accordion title="Secret Manager stays on Preparing TinyCloud session">
+    Verify that `VITE_TINYCLOUD_HOST` is reachable. The default smoke flow needs
+    network access to `https://node.tinycloud.xyz`.
+  </Accordion>
+</AccordionGroup>
+
+## Related pages
+
+- [Automated OpenKey + TinyCloud E2E testing](/guides/browser-e2e-testing)
+- [OpenKey widget](/openkey/widget)
+- [TinyCloud integration](/openkey/tinycloud-integration)

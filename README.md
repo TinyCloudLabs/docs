@@ -43,6 +43,7 @@ page should remain hand-off only: do not edit it directly.
 - `/reference/glossary` - TinyCloud vocabulary
 - `/reference/protocol/capabilities` - Generated capability registry for exact action names and status
 - `/openkey/index` - OpenKey overview and integration path
+- `/openkey/local-development` - Run OpenKey and Secret Manager locally for development
 
 ## Publishing
 
