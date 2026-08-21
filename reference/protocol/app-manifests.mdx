@@ -24,6 +24,75 @@ manifest as version 1.
 }
 ```
 
+## Complete runtime app manifest
+
+This example is deliberately explicit about app data and secret authority. It
+disables the default tier, names the default space and prefix, and declares the
+runtime capabilities the app uses. The composer still adds space-level
+capability introspection and, by default, account-registry permissions.
+
+```json
+{
+  "manifest_version": 1,
+  "app_id": "com.example.research-notes",
+  "name": "Research Notes",
+  "description": "Private notes with a searchable index and optional provider sync.",
+  "icon": "https://example.com/research-notes-icon.png",
+  "appVersion": "1.0.0",
+  "space": "applications",
+  "prefix": "com.example.research-notes",
+  "knowledge": true,
+  "defaults": false,
+  "expiry": "30d",
+  "includePublicSpace": false,
+  "permissions": [
+    {
+      "service": "tinycloud.kv",
+      "path": "documents/",
+      "actions": ["get", "put", "del", "list", "metadata"],
+      "description": "Read and write note documents."
+    },
+    {
+      "service": "tinycloud.sql",
+      "path": "search-index",
+      "actions": ["read", "write", "schema"],
+      "description": "Create and query the note search index."
+    }
+  ],
+  "secrets": {
+    "MODEL_API_KEY": {
+      "actions": ["read"],
+      "description": "Read an optional model provider key."
+    },
+    "PROVIDER_REFRESH_TOKEN": {
+      "scope": "research-notes",
+      "actions": ["read", "write", "delete"],
+      "expiry": "7d",
+      "description": "Manage the provider sync token for this app."
+    }
+  }
+}
+```
+
+The SDK resolves the important entries as follows:
+
+| Manifest entry | Space | Resolved path | Runtime call |
+| --- | --- | --- | --- |
+| KV `documents/` | `applications` | `com.example.research-notes/documents/` | `tc.kv.withPrefix("com.example.research-notes/documents/")` |
+| SQL `search-index` | `applications` | `com.example.research-notes/search-index` | `tc.sql.db("com.example.research-notes/search-index")` |
+| Global `MODEL_API_KEY` | `secrets` | `vault/secrets/MODEL_API_KEY` | `tc.secrets.get("MODEL_API_KEY")` |
+| Scoped `PROVIDER_REFRESH_TOKEN` | `secrets` | `vault/secrets/scoped/research-notes/PROVIDER_REFRESH_TOKEN` | `tc.secrets.get("PROVIDER_REFRESH_TOKEN", { scope: "research-notes" })` |
+
+`secrets` declarations request access; they do not contain or create secret
+values. Store values with `tc.secrets.put(...)`, `tc secrets put`, or TinyCloud
+Secrets using the same name and scope. A scoped lookup does not fall back to a
+global secret: the name and scope together identify one vault entry.
+
+The example omits `did` because an ordinary app manifest grants its signed-in
+session access. Add `did` only to a manifest that targets a known backend or
+agent delegate. If that DID is learned at runtime, compose a separate delegate
+manifest in application code rather than hard-coding it here.
+
 ## Fields
 
 | Field | Required | Meaning |
@@ -48,6 +117,34 @@ The TinyCloud App Kit schema also accepts a descriptive top-level `resources`
 object for app packaging. The JS SDK manifest composer does not currently read
 that object when it builds sign-in capabilities; declare runtime authority in
 `permissions`, `defaults`, and `secrets` instead.
+
+## Secret declarations
+
+Use the object form when a secret needs a scope, non-default actions, an
+expiry, or a user-facing description. The manifest object key is the secret
+name unless the object sets `name` explicitly.
+
+```json
+{
+  "secrets": {
+    "READ_ONLY_KEY": true,
+    "GLOBAL_TOKEN": ["read", "write"],
+    "APP_TOKEN": {
+      "name": "PROVIDER_TOKEN",
+      "scope": "my-app",
+      "actions": ["read", "write", "delete"],
+      "expiry": "7d",
+      "description": "Token used by the provider sync job."
+    }
+  }
+}
+```
+
+`true` means read access. Secret actions accept `read`, `write`, `delete`,
+`list`, and `metadata`; the SDK expands them to the backing encrypted vault KV
+actions. Secret names use upper snake case. Scopes are normalized to lowercase
+kebab case, and `default` and `global` are reserved—omit `scope` for a global
+secret.
 
 ## Permission entries
 
