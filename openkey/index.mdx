@@ -39,9 +39,11 @@ OpenKey OAuth is separate from TinyCloud sign-in:
 
 An OpenKey account can hold several keys. Each key is a separate TinyCloud
 owner with its own spaces and data. One key is **primary**: OpenKey preselects
-it when an app or the CLI asks for approval, and apps that request
-`tinycloud:manage-key` use it. Change it from **Dashboard → Keys** by opening a
-key and choosing **Make primary**. Switching the primary key does not move any
+it on `/delegate` approvals (the CLI, agents, and MCP connect), and apps that
+request `tinycloud:manage-key` use it. Widget sign-in still asks the user to
+pick when the account has several keys. To change it, open a key from **Your
+Keys** on the dashboard with **Manage** and choose **Make primary**; only
+OpenKey-managed keys can be primary. Switching the primary key does not move any
 data between owners.
 
 ## Approving CLI and agent requests

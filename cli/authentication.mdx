@@ -121,11 +121,11 @@ manifest for those.
 ## Which OpenKey key signed in
 
 An OpenKey account can hold several keys, and each key is a separate owner with
-its own spaces. The account's **primary** key is the one apps use by default;
-to change it, open the key under **Dashboard → Keys** in OpenKey and choose
-**Make primary**. OpenKey
-preselects the primary key on the approval page, and other keys sit behind
-**Use a different key**.
+its own spaces. OpenKey preselects the account's **primary** key on CLI and
+agent approval pages, and other keys sit behind **Use a different key**. To
+change it, open a key from **Your Keys** on the OpenKey dashboard with
+**Manage**, then choose **Make primary**. Only OpenKey-managed keys can be
+primary.
 
 <Note>
 CLI 1.1.0 beta records whether the approving key was primary (`tc auth status`
@@ -143,17 +143,18 @@ tc context --json
 tc auth logout
 ```
 
-`tc auth status` shows which DID is active and whether the profile has a stored session; it does not check that the session is still valid. `tc context` reports the selected profile, owner and session DIDs, host, space, and local session state (`present`, `expired`, or `missing`) as JSON, without contacting the node.
+`tc auth status` shows which DID is active and whether the profile has a stored session; it does not check that the session is still valid. `tc context` reports the selected profile, owner and session DIDs, host, space, and local session state (`present`, `expired`, `missing`, or `unknown-expiry`) as JSON, without contacting the node.
 
 ## When a session expires
 
 OpenKey browser and paste sessions last 7 days unless you pass `--expiry`;
-device sessions default to 30 days, their maximum. A command run on an expired
-session fails with `AUTH_REQUIRED` (exit `3`). Sign in again with
-the same command you used to create the session.
+device sessions default to 30 days, their maximum. When `tc context` shows
+the session as `expired`, sign in again with the same command you used to
+create it.
 
 <Note>
-In CLI 1.1.0 beta the hint names the right sign-in for the profile: scoped
+In CLI 1.1.0 beta, every command run on an expired session fails with
+`AUTH_REQUIRED` (exit `3`) before contacting the node, and the hint names the right sign-in for the profile: scoped
 paste login for a delegate, `--method local` for a local key, and `--method
 openkey` for an OpenKey owner. `tc auth login` and `tc auth logout` on a
 profile that does not exist fail with `PROFILE_NOT_FOUND`.

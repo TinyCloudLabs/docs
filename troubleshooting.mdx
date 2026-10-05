@@ -25,8 +25,9 @@ tc auth login --method local
 
 ## Session expired or sign-in required
 
-**Symptom:** a command fails with `AUTH_REQUIRED` (exit `3`), or
-`tc context --json` shows `"state": "expired"`.
+**Symptom:** `tc context --json` shows `"state": "expired"`, or a command fails
+with `AUTH_REQUIRED` (exit `3`; every command in CLI 1.1.0 beta, headless
+`tc secrets` commands in 1.0.0).
 
 **Fix:** sign in again the same way the profile was created: `tc auth login`
 for an OpenKey owner, `tc auth login --method local` for a local key, or the

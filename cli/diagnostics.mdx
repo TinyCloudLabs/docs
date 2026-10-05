@@ -44,7 +44,9 @@ tc completion fish
 
 ## Exit codes and error output
 
-With `--json`, errors go to stderr as `{ "error": { "code", "message", "hint" } }`.
+When stdout is not a terminal, errors go to stderr as
+`{ "error": { "code", "message", "hint" } }`. CLI 1.1.0 beta also does this
+for `--json` at a terminal.
 Branch on `error.code`; the exit status groups related codes.
 
 | Exit | Meaning |
