@@ -8,7 +8,7 @@ sidebarTitle: "Share"
 `tc share` publishes files from your space as links that open in the Share
 viewer at `share.tinycloud.xyz`. A link is either a **bearer link** that
 anyone holding the URL can read, or an **addressed link** that only a named
-email address, email domain, or DID can open.
+email address or email domain can open.
 
 ## Enable publishing
 
@@ -23,9 +23,10 @@ tc --profile publisher enable share
 
 `tc enable share` is the same as
 `tc auth login --device --manifest builtin:share-publishing`. It opens an
-OpenKey device approval for a narrow scope: `kv/get`, `kv/put`,
-`kv/metadata`, and `kv/list` on the `shares/` prefix, plus Share's own
-sender-history path. Add `--replace-session` only if you mean to replace the
+OpenKey device approval for a narrow scope: `capabilities/read` on the space,
+`kv/get` and `kv/put` on `xyz.tinycloud.share/shares/` (bearer-link files), and
+`kv/get`, `kv/metadata`, `kv/put`, and `kv/list` on `shares/` (addressed
+shares). Add `--replace-session` only if you mean to replace the
 profile's current session with the narrower one.
 
 ## Publish
@@ -47,7 +48,7 @@ metadata.
 | `--notify` | Email an invitation to an exact-email recipient | off |
 | `--expires <duration>` | `1h`, `7d`, `1w`, or an ISO date | `7d`, clamped to the session |
 | `--action <actions...>` | Addressed permission: `read`, `list`, or `edit` | `read` |
-| `--prefix` | Publish several files beneath one addressed prefix | off |
+| `--prefix` | Publish several files beneath one addressed prefix (the viewer cannot open folders yet) | off |
 | `--name <filename>` | Filename for stdin input | `stdin.md` |
 | `--media-type <type>` | Media type for a single input | inferred |
 | `--max-bytes <bytes>` | Bound the input size | 100 MiB maximum |
@@ -75,7 +76,7 @@ invisible characters are refused with `UNSAFE_FILENAME`.
 | | Bearer (`--to anyone`) | Addressed (`--to email:`, `domain:`, DID) |
 |---|---|---|
 | URL form | `share.tinycloud.xyz/viewer#tc1=...` | `share.tinycloud.xyz/s/inline#v=2&p=...` |
-| Who can read | Anyone with the complete URL | Only the recipient, after proving the email address or DID |
+| Who can read | Anyone with the complete URL | Only the recipient, after proving the email address |
 | Content | Signed delegation to the stored file | Encrypted; sealed envelope |
 | Revoke | Ends the delegation; cannot recall copies already read | Revokes the share's signed policy at your node |
 
@@ -86,21 +87,29 @@ Email recipients claim an addressed link in the Share viewer by entering an
 8-digit code sent to that mailbox. A `domain:` target accepts any verified
 mailbox at exactly that domain; subdomains do not match.
 
+<Warning>
+The CLI can publish to a DID (`--to did:...`), but the Share viewer cannot open
+DID-addressed links yet. Use an email address or domain for links people open
+in a browser.
+</Warning>
+
 ### Email invitations
 
 `--notify` sends the recipient an invitation email with the link. It applies
-to exact-email targets. If delivery fails after the share is stored, publish
-exits `9` and you can retry without republishing:
+to exact-email targets. Invitations can be sent until the earlier of the
+share's expiry or five minutes after publication. If delivery fails within
+that window, publish exits `9` and you can retry without republishing:
 
 ```bash
 tc share notify <id> --to alice@example.com
 ```
 
+After the window closes, send the link yourself or publish again.
+
 <Note>
 `@tinycloud/cli` 1.1.0 beta adds domain invitations
-(`--to domain:example.com --notify --notify-to bob@example.com`), reports a
-repeat invitation as `already-delivered`, and closes the invitation window at
-the earlier of the share's expiry or five minutes after publication.
+(`--to domain:example.com --notify --notify-to bob@example.com`) and reports a
+repeat invitation as `already-delivered`.
 </Note>
 
 ## Inspect and receive
@@ -127,8 +136,9 @@ tc share revoke <id>
 tc share revoke <id> --ancestor   # also revoke the owner delegation ancestry
 ```
 
-Sender history is stored encrypted in your own space, so it follows the
-profile's owner across machines.
+Sender history is an encrypted file in the profile's local cache, so `list`,
+`show`, `notify`, and `revoke` only know about shares published from that
+profile on that machine.
 
 ## Errors
 
@@ -137,11 +147,13 @@ output rather than relying on the exit status alone.
 
 | Exit | Codes | Meaning |
 |---|---|---|
-| `2` | `INVALID_ARGUMENT`, `SESSION_LIFETIME_EXCEEDED`, `UNSUPPORTED_LINK`, `UNSUPPORTED_TARGET` | Fix the command |
+| `2` | `INVALID_ARGUMENT`, `INVALID_LINK`, `ORIGIN_MISMATCH`, `SESSION_LIFETIME_EXCEEDED`, `UNSUPPORTED_LINK`, `UNSUPPORTED_TARGET` | Fix the command or link |
 | `3` | `AUTH_REQUIRED` | Sign in, or run `tc enable share` |
-| `4` | `UNAVAILABLE`, `UPLOAD_FAILED`, `NOT_FOUND`, `EXPIRED`, `STORAGE_QUOTA_EXCEEDED` | Nothing was shared |
+| `4` | `UPLOAD_FAILED`, `STORAGE_QUOTA_EXCEEDED`, `UNAVAILABLE` | Publish failed; nothing was shared |
+| `4` | `NOT_FOUND`, `EXPIRED` | The share or history record is gone or expired |
 | `5` | `PERMISSION_DENIED` | The session lacks the scope, or carries restrictions a bearer link cannot honor |
-| `6` | `CLAIM_REQUIRED`, `DEVICE_AUTH_REQUIRED` | The recipient or owner must act in a browser |
+| `5` | `SIGNATURE_INVALID`, `CID_MISMATCH`, `DECRYPT_FAILED`, `ENVELOPE_INVALID`, `CAPABILITY_INVALID`, `CONTENT_INTEGRITY_FAILED` | A received link failed verification; do not trust it |
+| `6` | `CLAIM_REQUIRED`, `DEVICE_AUTH_REQUIRED`, `REGISTRY_REJECTED` | The recipient or owner must act, or the registry refused the owner's location record |
 | `7` | `MAX_BYTES_EXCEEDED` | Input or download exceeds `--max-bytes` |
 | `8` | `UNSAFE_FILENAME`, `OUTPUT_EXISTS` | Rename the file, or pass `--force` on receive |
 | `9` | partial failure | Stored, but the invitation email failed; retry `tc share notify` |

@@ -34,22 +34,24 @@ those limits stays visible as source.
 
 ## Claiming an addressed link
 
-An addressed link names who may open it: one email address, everyone at an
-email domain, or a DID.
+An addressed link names who may open it: one email address or everyone at an
+email domain.
 
 - **Email address:** the recipient enters the 8-digit code Share emails to
   that mailbox. No TinyCloud account is needed.
 - **Email domain:** the recipient chooses which of their mailboxes to verify.
   Any verified mailbox at exactly that domain works; subdomains do not.
-- **DID:** the recipient continues with OpenKey, which confirms that the
-  current session holds the named DID before anything opens.
 
-After a successful claim the viewer decrypts the file in the browser. Signed-in
-recipients can keep it in their own space under **Files for you**.
+The viewer cannot open DID-addressed links or multi-file (`--prefix`) shares
+yet.
+
+After a successful claim the viewer decrypts the file in the browser. Any
+recipient can choose **Save a private copy**, sign in with OpenKey, and keep
+the file in their own space under **Files for you**.
 
 ## Receive shares in your app
 
-`TinyCloudWeb` exposes `share.receive()` for addressed links. Configure the
+`TinyCloudWeb` exposes `share.receive()` for email and email-domain links. Configure the
 Share and registry origins your app trusts:
 
 ```typescript
@@ -79,6 +81,9 @@ session. `"auto"` picks the account when one is signed in.
 
 ### Keep a copy
 
+`importInto()` needs a signed-in account session; with `identity: "receiver"`
+or no one signed in, sign in before importing.
+
 ```typescript
 const imported = await received.importInto(tcw, { namespace: "files-for-you" });
 // imported.status is "imported" or "existing"
@@ -107,7 +112,7 @@ share itself expires.
 
 | Code | Meaning |
 |---|---|
-| `PROOF_REJECTED` | The credential did not match the share's recipient |
+| `PROOF_REJECTED` | The email issuer rejected a code; the inline view asks again |
 | `VERIFICATION_FAILED` | Too many wrong codes (`proof_attempts_exhausted`) |
 | `ISSUER_UNREADY` | The email issuer is rate limiting (`rate_limited`); retry later |
 
