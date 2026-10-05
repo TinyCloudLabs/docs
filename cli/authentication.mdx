@@ -9,14 +9,22 @@ Use this page when you need a TinyCloud profile, a session, or a headless auth p
 
 ## Pick a method
 
-<CardGroup cols={2}>
+<CardGroup cols={3}>
   <Card title="OpenKey" icon="key">
-    Browser-based sign-in. Best for interactive use.
+    Browser or paste sign-in. Best for interactive use.
+  </Card>
+  <Card title="OpenKey device" icon="smartphone">
+    The owner approves on their phone. Best for agents and servers.
   </Card>
   <Card title="Local key" icon="cpu">
-    Private-key sign-in. Best for CI, agents, and other headless workflows.
+    Private-key sign-in. Best for CI against a key you control.
   </Card>
 </CardGroup>
+
+Give each purpose its own profile, such as `publisher` for Share publishing or
+`agent-secrets` for an agent that reads API keys. Signing an existing profile
+in again for a different purpose can replace the session another app relies
+on.
 
 ## Start with a profile
 
@@ -51,15 +59,102 @@ tc auth login --method openkey --paste
 tc auth login --method openkey --no-popup
 ```
 
+## Request only what you need
+
+`--manifest` asks OpenKey for one app manifest's permissions instead of the
+default abilities. The owner sees every capability on the consent page and may
+uncheck some; the JSON result lists `permissions` (approved) and `declined`.
+
+```bash
+tc --profile my-app auth login --method openkey --manifest ./manifest.json --expiry 7d
+tc --profile my-app auth login --method openkey --paste --manifest ./manifest.json
+```
+
+| Flag | What it does |
+|---|---|
+| `--manifest <file\|base64:json>` | Request one space's permissions from an app manifest; `builtin:share-publishing` covers `tc share publish` |
+| `--expiry <duration>` | Session lifetime from approval: `1h`, `7d`, at least `1m`. ISO dates are refused |
+| `--owner <did:pkh:...>` | Refuse an approval by any other identity |
+| `--replace-session` | Allow replacing a live session with a narrower, different, or shorter one |
+
+A profile that already recorded an owner is held to that owner on every later
+login. A live session is only replaced by a scope that keeps everything it
+holds and lasts at least as long; anything else fails with `SESSION_IN_USE`
+and saves nothing.
+
+## Device login for agents and servers
+
+Use device login when the owner cannot open a browser on the machine running
+`tc`. It requires a KV-scoped manifest.
+
+```bash
+tc init --name publisher --key-only
+tc --profile publisher auth login --device --manifest builtin:share-publishing --expiry 7d
+```
+
+The command prints one approval line to stderr and keeps polling for about 10
+minutes:
+
+```
+Approve on your phone: https://openkey.so/device?user_code=ABCD-EFGH (code ABCD-EFGH)
+```
+
+The owner opens the link, signs in to OpenKey, confirms they started the
+request, and approves. The code alone grants nothing. Device sessions default
+to 30 days, the maximum.
+
+Device login is limited to KV access and `capabilities/read` in one space. It
+cannot grant SQL, secrets, or encryption; use browser or paste login with a
+manifest for those.
+
+| Error | Meaning |
+|---|---|
+| `DEVICE_AUTH_DENIED` | The owner declined |
+| `DEVICE_AUTH_EXPIRED` | Nobody approved within the window; run it again |
+| `DEVICE_AUTH_RATE_LIMITED` | Five device requests from this network in 10 minutes; wait |
+| `SCOPE_REJECTED` | OpenKey does not grant that capability over device login |
+| `DEVICE_AUTH_UNSUPPORTED_SCOPE` | The manifest asks for secrets or encryption |
+
+## Which OpenKey key signed in
+
+An OpenKey account can hold several keys, and each key is a separate owner with
+its own spaces. The account's **primary** key is the one apps use by default;
+to change it, open the key under **Dashboard → Keys** in OpenKey and choose
+**Make primary**. OpenKey
+preselects the primary key on the approval page, and other keys sit behind
+**Use a different key**.
+
+<Note>
+CLI 1.1.0 beta records whether the approving key was primary (`tc auth status`
+shows `Primary Key`) and warns on stderr when it was not. `tc auth login --owner
+<did>` no longer needs `--manifest`. `--paste` also accepts the eight-character
+code OpenKey shows instead of the full delegation.
+</Note>
+
 ## Check state
 
 ```bash
 tc auth status
 tc auth whoami
+tc context --json
 tc auth logout
 ```
 
-`tc auth status` shows whether the profile is signed in, which DID is active, and whether the session is still valid.
+`tc auth status` shows whether the profile is signed in, which DID is active, and whether the session is still valid. `tc context` reports the selected profile, owner and session DIDs, host, space, and local session state (`present`, `expired`, or `missing`) as JSON, without contacting the node.
+
+## When a session expires
+
+OpenKey browser and paste sessions last 7 days unless you pass `--expiry`;
+device sessions default to 30 days, their maximum. A command run on an expired
+session fails with `AUTH_REQUIRED` (exit `3`). Sign in again with
+the same command you used to create the session.
+
+<Note>
+In CLI 1.1.0 beta the hint names the right sign-in for the profile: scoped
+paste login for a delegate, `--method local` for a local key, and `--method
+openkey` for an OpenKey owner. `tc auth login` and `tc auth logout` on a
+profile that does not exist fail with `PROFILE_NOT_FOUND`.
+</Note>
 
 ## OpenKey host overrides
 

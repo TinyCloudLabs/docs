@@ -62,7 +62,9 @@ The OpenKey issuer must allow:
 The MCP resource validates signature, issuer, audience, expiry, and scope on
 every request. The browser approval callback is short-lived, HMAC-bound,
 single-use, and cryptographically validated by the TinyCloud SDK before the
-delegation is persisted.
+delegation is persisted. The approval page names the account that asked, and
+the callback refuses a delegation signed by any other account with
+`403 approval_owner_mismatch` (`@tinycloud/mcp` 0.3.3 and later).
 
 <Warning>
 The service processes plaintext values and SQL results for capabilities a user

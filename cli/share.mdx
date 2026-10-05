@@ -1,0 +1,164 @@
+---
+title: "Share Files"
+description: "Publish files as Share links, address them to a person or domain, and revoke them"
+icon: "send"
+sidebarTitle: "Share"
+---
+
+`tc share` publishes files from your space as links that open in the Share
+viewer at `share.tinycloud.xyz`. A link is either a **bearer link** that
+anyone holding the URL can read, or an **addressed link** that only a named
+email address, email domain, or DID can open.
+
+## Enable publishing
+
+Publishing needs a session that can write to Share's paths in your space.
+Approve that scope once through OpenKey, preferably on a dedicated profile so
+your existing app profiles keep their sessions:
+
+```bash
+tc init --name publisher --key-only
+tc --profile publisher enable share
+```
+
+`tc enable share` is the same as
+`tc auth login --device --manifest builtin:share-publishing`. It opens an
+OpenKey device approval for a narrow scope: `kv/get`, `kv/put`,
+`kv/metadata`, and `kv/list` on the `shares/` prefix, plus Share's own
+sender-history path. Add `--replace-session` only if you mean to replace the
+profile's current session with the narrower one.
+
+## Publish
+
+```bash
+tc share publish ./report.md                            # bearer link (default --to anyone)
+tc share publish ./report.md --to alice@example.com     # addressed: one email address
+tc share publish ./report.md --to domain:example.com    # addressed: anyone verified at the domain
+tc share publish ./report.md --to did:pkh:eip155:1:0x...  # addressed: one DID
+cat notes.md | tc share publish - --name notes.md       # from stdin
+```
+
+Human output is exactly one URL. Use `--json` for versioned, redacted
+metadata.
+
+| Flag | Purpose | Default |
+|---|---|---|
+| `--to <target>` | `anyone`, an email address, `email:<addr>`, `domain:<name>`, or a DID | `anyone` |
+| `--notify` | Email an invitation to an exact-email recipient | off |
+| `--expires <duration>` | `1h`, `7d`, `1w`, or an ISO date | `7d`, clamped to the session |
+| `--action <actions...>` | Addressed permission: `read`, `list`, or `edit` | `read` |
+| `--prefix` | Publish several files beneath one addressed prefix | off |
+| `--name <filename>` | Filename for stdin input | `stdin.md` |
+| `--media-type <type>` | Media type for a single input | inferred |
+| `--max-bytes <bytes>` | Bound the input size | 100 MiB maximum |
+| `--binary` | Allow non-UTF-8 bearer content | off |
+
+### Expiry
+
+Without `--expires`, publish requests seven days. A session-only profile
+cannot grant longer than its own session, so the CLI clamps the request,
+prints a notice to stderr, and reports `"expiryClamped": true` in JSON. An
+explicit `--expires` past the session's end fails with
+`SESSION_LIFETIME_EXCEEDED`.
+
+### Filenames
+
+A filename with characters other than `A-Z a-z 0-9 . _ -`, a leading
+character that is not a letter or digit, `..`, or more than 128 characters is
+stored under a readable URI-safe name: `Q3 plan (draft).md` becomes
+`Q3-plan-draft.md`, and `.env` becomes `share.env`. Bearer links show the
+stored name; addressed links keep the original. Names with control or
+invisible characters are refused with `UNSAFE_FILENAME`.
+
+## Bearer and addressed links
+
+| | Bearer (`--to anyone`) | Addressed (`--to email:`, `domain:`, DID) |
+|---|---|---|
+| URL form | `share.tinycloud.xyz/viewer#tc1=...` | `share.tinycloud.xyz/s/inline#v=2&p=...` |
+| Who can read | Anyone with the complete URL | Only the recipient, after proving the email address or DID |
+| Content | Signed delegation to the stored file | Encrypted; sealed envelope |
+| Revoke | Ends the delegation; cannot recall copies already read | Revokes the share's signed policy at your node |
+
+The part after `#` is the read authority. Browsers never send it to a server,
+but keep complete URLs out of logs, analytics, and issue trackers.
+
+Email recipients claim an addressed link in the Share viewer by entering an
+8-digit code sent to that mailbox. A `domain:` target accepts any verified
+mailbox at exactly that domain; subdomains do not match.
+
+### Email invitations
+
+`--notify` sends the recipient an invitation email with the link. It applies
+to exact-email targets. If delivery fails after the share is stored, publish
+exits `9` and you can retry without republishing:
+
+```bash
+tc share notify <id> --to alice@example.com
+```
+
+<Note>
+`@tinycloud/cli` 1.1.0 beta adds domain invitations
+(`--to domain:example.com --notify --notify-to bob@example.com`), reports a
+repeat invitation as `already-delivered`, and closes the invitation window at
+the earlier of the share's expiry or five minutes after publication.
+</Note>
+
+## Inspect and receive
+
+```bash
+printf '%s' "$SHARE_URL" | tc share inspect --stdin --json   # verify and print safe metadata
+printf '%s' "$SHARE_URL" | tc share receive --stdin --stdout # verified bytes of a bearer link
+tc share receive "$SHARE_URL" --output ./downloads
+```
+
+`receive` reads bearer links without a TinyCloud account. For an addressed
+link it exits `6` with `CLAIM_REQUIRED`: the recipient opens it in the Share
+viewer instead. `receive` writes a sanitized filename and will not overwrite
+an existing file unless you pass `--force`. Older `?tc2` links and pre-1.0
+blob-backed links are not accepted.
+
+## History and revoke
+
+```bash
+tc share list --json              # encrypted sender history, without complete URLs
+tc share show <id>                # one record
+tc share show <id> --reveal-link  # include the complete URL
+tc share revoke <id>
+tc share revoke <id> --ancestor   # also revoke the owner delegation ancestry
+```
+
+Sender history is stored encrypted in your own space, so it follows the
+profile's owner across machines.
+
+## Errors
+
+`tc share` uses its own exit codes. Read the structured `error.code` in JSON
+output rather than relying on the exit status alone.
+
+| Exit | Codes | Meaning |
+|---|---|---|
+| `2` | `INVALID_ARGUMENT`, `SESSION_LIFETIME_EXCEEDED`, `UNSUPPORTED_LINK`, `UNSUPPORTED_TARGET` | Fix the command |
+| `3` | `AUTH_REQUIRED` | Sign in, or run `tc enable share` |
+| `4` | `UNAVAILABLE`, `UPLOAD_FAILED`, `NOT_FOUND`, `EXPIRED`, `STORAGE_QUOTA_EXCEEDED` | Nothing was shared |
+| `5` | `PERMISSION_DENIED` | The session lacks the scope, or carries restrictions a bearer link cannot honor |
+| `6` | `CLAIM_REQUIRED`, `DEVICE_AUTH_REQUIRED` | The recipient or owner must act in a browser |
+| `7` | `MAX_BYTES_EXCEEDED` | Input or download exceeds `--max-bytes` |
+| `8` | `UNSAFE_FILENAME`, `OUTPUT_EXISTS` | Rename the file, or pass `--force` on receive |
+| `9` | partial failure | Stored, but the invitation email failed; retry `tc share notify` |
+
+A session whose Share authority carries signed restrictions (caveats) cannot
+publish a bearer link, because the link's delegation cannot carry them. The
+CLI refuses with `PERMISSION_DENIED` before uploading anything. Approve Share
+publishing on a fresh profile without restrictions.
+
+<Note>
+In `@tinycloud/cli` 1.1.0 beta, a full space exits `10` with
+`STORAGE_QUOTA_EXCEEDED` or `STORAGE_LIMIT_REACHED`, matching the rest of the
+CLI. See [When storage is full](/troubleshooting#storage-is-full).
+</Note>
+
+## Related
+
+- [Share viewer](/guides/share-viewer) for what recipients see and how apps receive shares
+- [Sharing links](/guides/sharing) for SDK-generated bearer tokens
+- [Delegations](/cli/delegations) for persistent DID-to-DID access

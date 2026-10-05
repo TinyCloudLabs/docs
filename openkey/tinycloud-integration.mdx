@@ -23,19 +23,12 @@ Use OpenKey here when you want TinyCloud to keep its SIWE flow but replace a bro
 ```typescript
 import { OpenKey, OpenKeyProvider } from "@openkey/sdk";
 import { TinyCloudWeb } from "@tinycloud/web-sdk";
-import { providers } from "ethers";
 
 const openkey = new OpenKey({ host: "https://openkey.so", appName: "My TinyCloud App" });
 const authResult = await openkey.connect();
-const eip1193Provider = new OpenKeyProvider(openkey, authResult);
-const web3Provider = new providers.Web3Provider(eip1193Provider);
 
 const tcw = new TinyCloudWeb({
-  providers: {
-    web3: {
-      driver: web3Provider,
-    },
-  },
+  provider: new OpenKeyProvider(openkey, authResult),
 });
 
 await tcw.signIn();
@@ -44,14 +37,22 @@ await tcw.kv.put("hello", "world");
 
 ## Why this shape
 
-The TinyCloud Web SDK expects an ethers-compatible provider. The OpenKey SDK's provider wrapper supplies that compatibility.
+`@tinycloud/web-sdk` 3.0 signs through a raw EIP-1193 provider: it calls
+`provider.request()` directly. `OpenKeyProvider` is an EIP-1193 provider that
+answers `eth_accounts`, `eth_requestAccounts`, `eth_chainId`, `personal_sign`,
+and `eth_signTypedData_v4` with the connected OpenKey key, so pass it as is.
+
+<Warning>
+Do not wrap it in an ethers `Web3Provider` or `BrowserProvider`. Web SDK 2.x
+accepted an ethers provider; 3.0 needs the raw EIP-1193 object.
+</Warning>
 
 ## TinyCloud-specific advice
 
 - Keep the OpenKey host separate from the TinyCloud host
-- Use `providers.web3.driver` for the TinyCloud Web SDK integration shown in the OpenKey repo
+- Pass the provider as `provider`; `providers.web3.driver` still works and takes the same raw EIP-1193 object
 - Treat this as a sign-in flow, not an OAuth flow
 
 <Note>
-The integration example mirrors the OpenKey SDK repository's TinyCloud example, so the API shape matches the source-backed integration path.
+Verified against `@openkey/sdk` 0.10.2 and `@tinycloud/web-sdk` 3.0.0.
 </Note>

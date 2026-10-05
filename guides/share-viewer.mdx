@@ -1,0 +1,125 @@
+---
+title: "Share Viewer and Receiving"
+description: "What recipients see at share.tinycloud.xyz, and how a browser app receives addressed shares"
+icon: "inbox"
+sidebarTitle: "Share Viewer"
+---
+
+Share links published with [`tc share publish`](/cli/share) open in the Share
+viewer at `share.tinycloud.xyz`. This page covers what the viewer shows, how
+recipients claim addressed links, and how your own browser app can receive
+and keep a share with the Web SDK.
+
+## What the viewer previews
+
+| Content | Shown as |
+|---|---|
+| Markdown (`.md`, `text/markdown`) | Rendered document, including Mermaid diagrams |
+| Text (`text/*`, `.txt`, `.csv`, `.log`, `.json`, `.yaml`) | Source view |
+| Images other than SVG | Inline image |
+| Single-file HTML | Sandboxed page, on bearer links only |
+| SVG, JavaScript, anything else | Download only |
+
+Files larger than 1 MB, and text that is not valid UTF-8, are download only.
+
+**HTML pages** run in an isolated frame with a notice that the page comes from
+the sender. The frame cannot read the link or the viewer's session, or make
+signed-in requests to the viewer. It can still reveal the reader's IP address
+to the sender. Addressed links never run HTML, because the viewer holds the
+recipient's credential there; they offer a download instead.
+
+**Mermaid** fenced blocks render as diagrams, up to 12 per document, 20,000
+characters of source each, and 5 seconds of render time each. A diagram over
+those limits stays visible as source.
+
+## Claiming an addressed link
+
+An addressed link names who may open it: one email address, everyone at an
+email domain, or a DID.
+
+- **Email address:** the recipient enters the 8-digit code Share emails to
+  that mailbox. No TinyCloud account is needed.
+- **Email domain:** the recipient chooses which of their mailboxes to verify.
+  Any verified mailbox at exactly that domain works; subdomains do not.
+- **DID:** the recipient continues with OpenKey, which confirms that the
+  current session holds the named DID before anything opens.
+
+After a successful claim the viewer decrypts the file in the browser. Signed-in
+recipients can keep it in their own space under **Files for you**.
+
+## Receive shares in your app
+
+`TinyCloudWeb` exposes `share.receive()` for addressed links. Configure the
+Share and registry origins your app trusts:
+
+```typescript
+import { TinyCloudWeb } from "@tinycloud/web-sdk";
+
+const tcw = new TinyCloudWeb({
+  shareReceiver: {
+    expectedShareOrigin: "https://share.tinycloud.xyz",
+    registryOrigin: "https://registry.tinycloud.xyz",
+  },
+});
+
+const received = await tcw.share.receive(shareUrl, {
+  identity: "auto",                       // "account", "receiver", or "auto"
+  interaction: { kind: "inline", mountTarget: "#claim" },
+  onProgress: (event) => console.log(event.state, event.status),
+});
+
+console.log(received.recipient); // { kind: "exactEmail", email } or { kind: "emailDomain", domain }
+const file = await received.get();
+console.log(file.filename, file.mediaType, file.bytes.byteLength);
+```
+
+`identity: "receiver"` proves the credential with a browser session key and
+does not need a TinyCloud account. `"account"` uses the signed-in user's
+session. `"auto"` picks the account when one is signed in.
+
+### Keep a copy
+
+```typescript
+const imported = await received.importInto(tcw, { namespace: "files-for-you" });
+// imported.status is "imported" or "existing"
+```
+
+### Hand access to another key
+
+A received share can be re-delegated, including decryption, to another key
+such as an account's session key. The delegate opens the same URL with the
+delegation instead of proving the credential again:
+
+```typescript
+const delegation = await received.delegate({ to: accountSessionDid });
+const again = await tcw.share.receive(shareUrl, {
+  identity: "account",
+  interaction: { kind: "inline", mountTarget: "#claim" },
+  delegation,
+});
+```
+
+`delegate()` and sessions opened from a received share default to the
+longest lifetime the share allows, so a kept share stays readable until the
+share itself expires.
+
+### Errors
+
+| Code | Meaning |
+|---|---|
+| `PROOF_REJECTED` | The credential did not match the share's recipient |
+| `VERIFICATION_FAILED` | Too many wrong codes (`proof_attempts_exhausted`) |
+| `ISSUER_UNREADY` | The email issuer is rate limiting (`rate_limited`); retry later |
+
+## Publish from code
+
+`@tinycloud/share-sdk` is the library behind `tc share`. It exports
+`publishTargetShare`, `prepareAddressedShare`, `notifyShare`,
+`canonicalShareFilename`, and `addressedCredentialRequirement`. Most apps
+should publish through the CLI or the Share app and only receive in code.
+
+## Related
+
+- [Share files](/cli/share) to publish, notify, and revoke from the terminal
+- [Sharing links](/guides/sharing) for SDK `tc1:` bearer tokens
+- [Security and trust](/concepts/security-and-trust) for what a bearer URL grants

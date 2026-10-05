@@ -8,14 +8,19 @@ Use this page when you need the TinyCloud vocabulary before you read a guide or 
 
 | Term | Meaning | Where to read next |
 | --- | --- | --- |
+| Addressed share | A Share link only a named email address, email domain, or DID can open; the content is encrypted and the recipient proves who they are. | [Share files](/cli/share) |
+| Bearer link | A Share link that anyone holding the complete URL can read until it expires. | [Share files](/cli/share) |
 | Capability | A scoped permission expressed as a TinyCloud ability string such as `tinycloud.kv/get`. | [Capabilities](/concepts/capabilities) |
 | Capability registry | The generated reference for exact action names, aliases, and statuses from the canonical node registry. | [Capability Registry](/reference/protocol/capabilities) |
+| Device login | OpenKey approval on another device, such as a phone, for a CLI or agent session limited to KV access in one space. | [CLI authentication](/cli/authentication#device-login-for-agents-and-servers) |
 | Delegation | A signed attenuation of a capability that can be passed to another principal. | [Delegations](/guides/delegations) |
 | Encryption network | The network-scoped resource used by TinyCloud's encryption flows. | [App manifests](/concepts/app-manifests) and [Data Vault](/guides/data-vault) |
 | Manifest | The app-level request that describes identity, data, and requested capabilities. | [App manifests](/concepts/app-manifests) |
+| Primary key | The OpenKey key an account uses by default; each key is a separate owner. | [OpenKey](/openkey/index#keys-and-the-primary-key) |
 | Owner DID | The persistent DID returned by `tc.did` after sign-in. | [DID Formats](/concepts/did-formats) |
 | Session DID | The ephemeral `did:key` returned by `tc.sessionDid`. | [DID Formats](/concepts/did-formats) |
 | Space | A user-owned data container with a deterministic ID. | [Spaces](/guides/spaces) |
+| Storage full | The state where an account's storage is used up: reads keep working and writes fail with `STORAGE_QUOTA_EXCEEDED`. | [Troubleshooting](/troubleshooting#storage-is-full) |
 | OpenKey | The external signer that can back TinyCloud sign-in without a browser wallet extension. | [TinyCloud Integration](/openkey/tinycloud-integration) |
 
 ## Related entry points

@@ -86,6 +86,30 @@ tc secrets network init
 tc secrets network show
 ```
 
+## Storage is full
+
+**Symptom:** a write fails with `STORAGE_QUOTA_EXCEEDED`, or with
+`STORAGE_LIMIT_REACHED` when one write is larger than the space left.
+
+**What still works:** reads. Nothing from the refused write was saved, so the
+space is unchanged.
+
+**Fix:** do not retry the write. Free up space or upgrade the plan at
+[account.tinycloud.xyz/billing](https://account.tinycloud.xyz/billing)
+(`tc account billing portal --open`).
+
+| Surface | What you see |
+|---|---|
+| CLI 1.0.0 | `tc kv put` exits `1`; `tc share publish` exits `4` |
+| CLI 1.1.0 beta | Every command exits `10`: `TinyCloud storage is full; nothing was written.` |
+| SDK | A failed `Result` with `error.code` `STORAGE_QUOTA_EXCEEDED` or `STORAGE_LIMIT_REACHED`; `meta.usedBytes` and `meta.limitBytes` when the node reports them |
+| MCP 0.4.0 beta | `STORAGE_QUOTA_EXCEEDED` with `retryable: false` |
+
+In apps, treat this as a read-only state rather than an outage: keep showing
+the user's data and disable writes. SDK 3.1.0 beta adds
+`isStorageFullError(error)` to test for both codes, and reports them from SQL
+and DuckDB writes too.
+
 ## A permission request is waiting
 
 **Symptom:** You created a request artifact, but the action still fails.

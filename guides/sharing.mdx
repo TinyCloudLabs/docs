@@ -9,6 +9,13 @@ Sharing links provide read-only access to one KV key without requiring the
 recipient to have a TinyCloud account. The SDK packages a scoped delegation
 and an ephemeral private key into a `tc1:` bearer token.
 
+<Tip>
+To send a file that opens in the Share viewer, or to address it to an email
+address or domain, use [`tc share publish`](/cli/share) and the
+[Share viewer](/guides/share-viewer) instead. This page covers the lower-level
+SDK token.
+</Tip>
+
 ## Store data and generate a link
 
 The generating SDK instance must be signed in and have delegation capability.
@@ -33,6 +40,22 @@ console.log(shareUrl);
 `sharing.generate()` is available from both the Node and Web SDKs. By default,
 the generated delegation grants `tinycloud.kv/get` and
 `tinycloud.kv/metadata` for the selected key.
+
+`data.url` is `${baseUrl}/share/tc1:...` when you pass `baseUrl`, and the bare
+`tc1:` token otherwise. Your app decides where that URL opens.
+
+### Check before you generate
+
+A session can only issue a sharing delegation from authority it holds without
+restrictions. `preflightGenerate()` answers that without side effects:
+
+```typescript
+const check = tc.sharing.preflightGenerate({ path: "my-document" });
+// "ok", "caveated" (only restricted authority covers it), or "not-covered"
+```
+
+Generate only on `"ok"`. A caveated session cannot pass its restrictions on to
+the link's delegation.
 
 ## Receive the same key
 

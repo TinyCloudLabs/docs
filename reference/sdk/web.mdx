@@ -26,12 +26,13 @@ This is a curated client overview. Use the TypeScript declarations shipped with 
 | `sessionStorageKeyPrefix` | `string` | unset | Isolates persisted sessions |
 | `sessionExpirationMs` | `number` | Node default applies when omitted | Passed through to `TinyCloudNode` |
 | `domain` | `string` | Browser hostname or `app.tinycloud.xyz` | SIWE domain |
-| `provider` | `any` | unset | Browser wallet/provider bridge |
+| `provider` | `any` | unset | Raw EIP-1193 provider used for SIWE (3.0 no longer accepts ethers providers) |
 | `notifications` | `NotificationConfig` | unset | Browser notifications and toasts |
 | `manifest` | `Manifest \| Manifest[]` | unset | Drives manifest-based sign-in |
 | `capabilityRequest` | `ComposedManifestRequest` | unset | Takes precedence over `manifest` |
 | `signStrategy` | `SignStrategy` | unset | Browser signing strategy |
 | `includeAccountRegistryPermissions` | `boolean` | `true` | Manifest composition option |
+| `shareReceiver` | `ShareReceiverServiceOptions` | unset | Required for `share.receive()`; see [Share viewer](/guides/share-viewer) |
 
 ## Primary methods
 
@@ -58,14 +59,15 @@ This is a curated client overview. Use the TypeScript declarations shipped with 
 - `kvPrefix`
 - `spaces`
 - `sharing`
+- `share` (addressed share receiving)
 - `delegations`
 
 ## Notes
 
 - `signIn()` uses the browser signer and then creates the underlying `TinyCloudNode`.
 - `persistSession` is browser-side behavior only.
-- `sessionExpirationMs` is forwarded to the node layer; the node default is 7 days when it is omitted.
+- `sessionExpirationMs` is forwarded to the node layer; the node default is 30 days when it is omitted.
 
 <Note>
-Verified against `@tinycloud/web-sdk` 2.7.0.
+Verified against `@tinycloud/web-sdk` 3.0.0.
 </Note>

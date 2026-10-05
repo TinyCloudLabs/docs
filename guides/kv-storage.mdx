@@ -24,7 +24,11 @@ TinyCloud KV is the direct read/write API for data inside a space. Use it when y
 - KV values live inside the user's TinyCloud space.
 - The same `tc.kv` surface exists in both SDKs.
 - Space naming and key naming are separate concerns.
+- When the account's storage is full, reads keep working and `put` returns a
+  failed result with `error.code` `STORAGE_QUOTA_EXCEEDED`, or
+  `STORAGE_LIMIT_REACHED` when one value is larger than the space left. Keep
+  the app usable read-only; see [Storage is full](/troubleshooting#storage-is-full).
 
 <Note>
-Verified against the KV service shipped with TinyCloud SDK 2.7.0.
+Verified against the KV service shipped with TinyCloud SDK 3.0.0.
 </Note>

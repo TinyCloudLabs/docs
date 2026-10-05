@@ -19,7 +19,7 @@ browser app.
 npm create vite@latest openkey-demo -- --template vanilla-ts
 cd openkey-demo
 npm install
-npm install @openkey/sdk@0.9.0
+npm install @openkey/sdk@0.10.2
 ```
 
 Replace `src/main.ts` with:
@@ -75,6 +75,23 @@ replace that result with the address and a hex-encoded signature.
 `signMessage()` uses that `keyId` and returns the signature plus the signing
 address. The default `iframe` mode falls back to a popup if the app's content
 security policy blocks the frame.
+
+## Sign out
+
+```typescript
+const { revoked } = await openkey.signOut();
+if (!revoked) console.warn("Signed out here, but OpenKey could not confirm the session was revoked.");
+```
+
+`signOut()` clears local state, cancels any open OpenKey flows, and asks OpenKey
+to end the session. It resolves to `{ requestId, revoked }`: `revoked: true`
+means OpenKey confirmed the old session no longer works.
+
+<Note>
+Since 0.10.2 the embedding page never receives an OpenKey session token:
+`getSessionToken()` always returns `null`. Server-side signing needs an OAuth
+access token; see [OAuth](/openkey/oauth).
+</Note>
 
 ## Next step
 
