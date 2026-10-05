@@ -117,16 +117,16 @@ widening it, the delegate imports the full delegation with
 
 Complete readable pages:
 
-- MCP reference (Markdown): https://protocol.tinycloud.xyz/cli/mcp.md
-- Delegated exploration guide (Markdown): https://protocol.tinycloud.xyz/guides/access-and-explore-my-tinycloud.md
-- Hosted MCP operations guide (Markdown): https://protocol.tinycloud.xyz/hosting/mcp.md
+- MCP reference (Markdown): https://docs.tinycloud.xyz/cli/mcp.md
+- Delegated exploration guide (Markdown): https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud.md
+- Hosted MCP operations guide (Markdown): https://docs.tinycloud.xyz/hosting/mcp.md
 
 ## Entry points
 
 - `/` - Homepage and reader-journey selector
 - `https://mcp.tinycloud.xyz/mcp` - Hosted Streamable HTTP MCP connector for remote clients
-- `https://protocol.tinycloud.xyz/cli/mcp` - Hosted and local MCP setup and tool reference
-- `https://protocol.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - MCP-first delegated discovery, safe KV CRUD, and SQLite operations
+- `https://docs.tinycloud.xyz/cli/mcp` - Hosted and local MCP setup and tool reference
+- `https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - MCP-first delegated discovery, safe KV CRUD, and SQLite operations
 - `/start/browser-app` - Web SDK path from sign-in to first KV write
 - `/start/backend-service` - Node SDK path and sign-in mode decision
 - `/start/protocol` - Capability, manifest, and delegation vocabulary
@@ -170,7 +170,7 @@ Complete readable pages:
 ## Operate
 
 - `/cli/overview`
-- `https://protocol.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 17 tools and local stdio MCP with 16 tools
+- `https://docs.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 17 tools and local stdio MCP with 16 tools
 - `/cli/account` - Read-only live account space and application discovery commands
 - `/cli/authentication`
 - `/cli/storage`
