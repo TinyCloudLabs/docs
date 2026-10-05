@@ -38,6 +38,9 @@ page should remain hand-off only: do not edit it directly.
 - `/start/protocol` - Capability, manifest, and delegation vocabulary
 - `/start/operator` - CLI, hosting, OpenKey, and troubleshooting path
 - `/guides/browser-e2e-testing` - Automated OpenKey + TinyCloud E2E testing for agents and CI
+- `/guides/agent-skills` - Install the `tc-cli` agent skill and app skill packs
+- `/guides/share-viewer` - Share viewer content rules and Web SDK share receiving
+- `/cli/share` - Publish, notify, inspect, receive, and revoke Share links
 - `/concepts/system-model` - High-level model of identity, spaces, capabilities, and services
 - `/concepts/security-and-trust` - Trust boundaries and what TinyCloud does or does not guarantee
 - `/reference/glossary` - TinyCloud vocabulary

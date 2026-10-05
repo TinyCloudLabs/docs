@@ -72,6 +72,9 @@ const child = await bob.createSubDelegation(delegation, {
 
 The child must stay within the parent's resources and action set, cannot
 outlive the parent, and cannot bypass a parent's sub-delegation restriction.
+Without `expiryMs`, `createSubDelegation` defaults to the longest lifetime the
+parent allows. Sessions activated from a received delegation default the same
+way.
 
 ## Revoke access
 

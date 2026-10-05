@@ -25,7 +25,7 @@ call `tinycloud_connect` again. Continue only after it returns
 `connected: true`. Later `authority_required` results carry an exact approval
 URL; approve the request and retry the original tool unchanged.
 
-Hosted mode requires `@tinycloud/mcp` 0.3.0 or newer on the service. Local
+Hosted mode requires `@tinycloud/mcp` 0.3.3 or newer on the service. Local
 stdio requires Node.js 20 or newer, `@tinycloud/mcp` 0.2.0 or newer, and a
 deployed TinyCloud node running 1.6.0 or newer.
 
@@ -117,16 +117,16 @@ widening it, the delegate imports the full delegation with
 
 Complete readable pages:
 
-- MCP reference (Markdown): https://docs.tinycloud.xyz/cli/mcp.md
-- Delegated exploration guide (Markdown): https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud.md
-- Hosted MCP operations guide (Markdown): https://docs.tinycloud.xyz/hosting/mcp.md
+- MCP reference (Markdown): https://protocol.tinycloud.xyz/cli/mcp.md
+- Delegated exploration guide (Markdown): https://protocol.tinycloud.xyz/guides/access-and-explore-my-tinycloud.md
+- Hosted MCP operations guide (Markdown): https://protocol.tinycloud.xyz/hosting/mcp.md
 
 ## Entry points
 
 - `/` - Homepage and reader-journey selector
 - `https://mcp.tinycloud.xyz/mcp` - Hosted Streamable HTTP MCP connector for remote clients
-- `https://docs.tinycloud.xyz/cli/mcp` - Hosted and local MCP setup and tool reference
-- `https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - MCP-first delegated discovery, safe KV CRUD, and SQLite operations
+- `https://protocol.tinycloud.xyz/cli/mcp` - Hosted and local MCP setup and tool reference
+- `https://protocol.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - MCP-first delegated discovery, safe KV CRUD, and SQLite operations
 - `/start/browser-app` - Web SDK path from sign-in to first KV write
 - `/start/backend-service` - Node SDK path and sign-in mode decision
 - `/start/protocol` - Capability, manifest, and delegation vocabulary
@@ -136,12 +136,18 @@ Complete readable pages:
 
 - `/quickstart/web-sdk`
 - `/quickstart/node-sdk`
+- `/guides/agent-skills` - Install the `tc-cli` agent skill and app skill packs
 - `/guides/authentication`
+- `/guides/authentication/web`
+- `/guides/authentication/node`
 - `/guides/browser-e2e-testing` - Automated OpenKey + TinyCloud E2E testing for agents and CI
 - `/guides/spaces`
+- `/guides/spaces/provisioning`
 - `/guides/kv-storage`
+- `/guides/kv/basic-operations`
 - `/guides/delegations`
-- `/guides/sharing`
+- `/guides/sharing` - SDK `tc1:` bearer tokens
+- `/guides/share-viewer` - What Share recipients see; receive addressed shares with the Web SDK
 - `/guides/data-vault`
 - `/guides/write-hooks`
 - `/guides/sql-schema-and-migrations`
@@ -152,13 +158,19 @@ Complete readable pages:
 - `/concepts/did-formats`
 - `/concepts/capabilities`
 - `/concepts/app-manifests`
+- `/concepts/data-vault`
 - `/reference/glossary`
 - `/reference/protocol/capabilities`
+- `/reference/protocol/app-manifests`
+- `/reference/protocol/delegations`
+- `/reference/sdk/index`
+- `/reference/sdk/web`
+- `/reference/sdk/node`
 
 ## Operate
 
 - `/cli/overview`
-- `https://docs.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 17 tools and local stdio MCP with 16 tools
+- `https://protocol.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 17 tools and local stdio MCP with 16 tools
 - `/cli/account` - Read-only live account space and application discovery commands
 - `/cli/authentication`
 - `/cli/storage`
@@ -167,6 +179,7 @@ Complete readable pages:
 - `/cli/spaces`
 - `/cli/secrets`
 - `/cli/delegations`
+- `/cli/share` - Publish bearer and addressed Share links, notify, and revoke
 - `/cli/auth-artifacts`
 - `/cli/profiles`
 - `/cli/status`
@@ -180,6 +193,7 @@ Complete readable pages:
 - `/hosting/storage`
 - `/hosting/monitoring`
 - `/openkey/index`
+- `/openkey/local-development`
 - `/openkey/quickstart`
 - `/openkey/widget`
 - `/openkey/oauth`

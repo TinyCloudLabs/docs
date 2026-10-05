@@ -18,6 +18,8 @@ TinyCloud is built around cryptographic proofs and attenuated capabilities. The 
 - A session DID is not a durable user identity. Use `tc.did` after `signIn()` when you need the owner's DID.
 - An ability listed in the whitepaper is not automatically a shipped action. Check the generated registry and implementation docs.
 - OpenKey OAuth is not the same thing as TinyCloud authentication. TinyCloud still uses SIWE for its own sign-in flow.
+- Revoking a bearer Share link stops new reads, but cannot recall copies already downloaded. Anyone holding the complete URL can read it until then. Use an addressed share when only one person or domain should read it.
+- An HTML page shared as a bearer link runs in a sandboxed frame. It cannot read the link or the viewer's session, but it can reveal the reader's IP address to the sender.
 
 ## Trust boundaries
 
@@ -27,6 +29,8 @@ TinyCloud is built around cryptographic proofs and attenuated capabilities. The 
 | Authorization | Capabilities are delegated, scoped, and revocable. | [Capabilities](/concepts/capabilities) and [Delegations](/guides/delegations) |
 | Storage | Spaces isolate user data, and the docs describe encryption flows separately when client-side encryption is involved. | [Spaces](/guides/spaces) and [Data Vault](/guides/data-vault) |
 | App requests | Manifests describe requested permissions and delegation targets before sign-in. | [App manifests](/concepts/app-manifests) |
+| Sharing | The part of a Share URL after `#` is the read authority and is never sent to a server. Addressed shares are encrypted and enforced by a signed policy at the owner's node. | [Share files](/cli/share) |
+| Agents | An agent holds only what the owner approved for its profile through OpenKey, and the owner sees each capability before approving. | [Agent skills](/guides/agent-skills) |
 
 ## Security posture
 

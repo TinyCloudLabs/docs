@@ -27,11 +27,14 @@ sidebarTitle: "Overview"
 ## Install
 
 ```bash
-npm install -g @tinycloud/cli@0.7.7
+npm install -g @tinycloud/cli@1.0.0
 tc --version
 ```
 
 The CLI requires Node.js 20 or later.
+
+Agents can learn the CLI from its built-in skill; see
+[Agent skills](/guides/agent-skills).
 
 ## Defaults
 
@@ -40,21 +43,22 @@ The CLI requires Node.js 20 or later.
 | Flag or env | Purpose |
 |---|---|
 | `--profile` / `TC_PROFILE` | Select the active profile |
-| `--host` / `TC_HOST` | Override the TinyCloud node URL |
+| `--host` / `TC_HOST` | Override the TinyCloud node URL (default `https://tee.node.tinycloud.xyz`) |
 | `--json` | Force machine-readable output |
 | `--quiet` | Suppress banner output |
 | `TC_OPENKEY_HOST` | Override the OpenKey host used by browser auth |
-| `TC_PRIVATE_KEY` | Provide a headless private key for auth-required commands |
+| `TC_PRIVATE_KEY` | Private key for `tc vault`, `tc vars`, and `tc secrets` |
+| `TC_HOME` | Move the profile store from `~/.tinycloud` |
 
 ## What the CLI covers
 
 - Authentication and session management
 - Key-value storage
 - SQLite and DuckDB database operations
-- Spaces and delegations
+- Spaces, delegations, and Share links
 - Secrets, vault, and plaintext variables
 - Manifest resolution and local state inspection
 
 ## Source note
 
-Command names, flags, and defaults on the CLI pages are verified against `@tinycloud/cli` 0.7.7.
+Command names, flags, and defaults on the CLI pages are verified against `@tinycloud/cli` 1.0.0.

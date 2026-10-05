@@ -17,6 +17,24 @@ tc profile switch staging
 tc profile delete staging
 ```
 
+`tc profile create` also takes `--posture` (`owner-openkey`, `delegate-session`,
+or `local-owner-key`) and `--operator` (`human` or `agent`).
+
+The profile is chosen from `--profile`, then `TC_PROFILE`, then the configured
+default, then `default`. The node host is chosen from `--host`, then `TC_HOST`,
+then a discovered local node, then the profile's `host`, then
+`https://tee.node.tinycloud.xyz`.
+
+## Inspect a profile
+
+```bash
+tc --profile publisher context --json
+```
+
+`tc context` reports the profile, owner and session DIDs, host, space, and
+whether the local session is `present`, `expired`, `missing`, or has an unknown
+expiry. It reads local state only and does not test access.
+
 ## Default space
 
 ```bash
@@ -28,9 +46,13 @@ The default space is the short name used when you omit `--space` on `tc kv` and 
 
 ## What each profile stores
 
-- `profile.json` for host, DID, posture, and default space
+- `profile.json` for host, DID, owner, posture, and default space
 - `key.json` for the local keypair
 - `session.json` for the active session
+- `additional-delegations.json` and `auth-grants.jsonl` for imported and granted access
+
+Profiles live in `~/.tinycloud/profiles/<name>/` (or under `TC_HOME`), with
+files written `0600` in `0700` directories.
 
 ## Practical use
 

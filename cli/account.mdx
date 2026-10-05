@@ -17,6 +17,20 @@ agents should use the MCP workflow in
 [Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud).
 </Warning>
 
+## Account summary and billing
+
+```bash
+tc --profile owner --json account status
+tc account billing status
+tc account billing portal --open
+```
+
+`account status` returns the owner DID, host, primary and account space IDs,
+and counts of applications, spaces, and granted and received delegations.
+`account billing` prints, or with `--open` opens, the billing page at
+`https://account.tinycloud.xyz/billing`, where plans and storage are managed.
+There is no CLI command for storage usage.
+
 ## List spaces
 
 ```bash

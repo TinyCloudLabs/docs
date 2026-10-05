@@ -35,6 +35,32 @@ OpenKey OAuth is separate from TinyCloud sign-in:
 - Use TinyCloud integration when you need OpenKey to sign TinyCloud's SIWE flow
 - Use OAuth when you need tokens for your own application
 
+## Keys and the primary key
+
+An OpenKey account can hold several keys. Each key is a separate TinyCloud
+owner with its own spaces and data. One key is **primary**: OpenKey preselects
+it on `/delegate` approvals (the CLI, agents, and MCP connect), and apps that
+request `tinycloud:manage-key` use it. Widget sign-in still asks the user to
+pick when the account has several keys. To change it, open a key from **Your
+Keys** on the dashboard with **Manage** and choose **Make primary**; only
+OpenKey-managed keys can be primary. Switching the primary key does not move any
+data between owners.
+
+## Approving CLI and agent requests
+
+The TinyCloud CLI and agents ask the owner for scoped access through two
+OpenKey pages:
+
+| Page | Started by | What the owner does |
+|---|---|---|
+| `openkey.so/delegate` | `tc auth login` (browser or `--paste`), MCP connect | Reviews each requested capability, may uncheck some, and approves |
+| `openkey.so/device` | `tc auth login --device`, `tc enable share` | Enters or confirms the code shown by the CLI, confirms they started the request, and approves |
+
+Device approvals are limited to KV access in one space and expire after 30
+days at most. Ordinary `/delegate` links only return to the local machine or a
+registered TinyCloud callback such as the hosted MCP service. See
+[CLI authentication](/cli/authentication) for the commands.
+
 ## Source note
 
 OpenKey page details come from the OpenKey SDK source and TinyCloud's OpenKey integration example.

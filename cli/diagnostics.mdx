@@ -42,6 +42,28 @@ tc completion zsh
 tc completion fish
 ```
 
+## Exit codes and error output
+
+When stdout is not a terminal, errors go to stderr as
+`{ "error": { "code", "message", "hint" } }`. CLI 1.1.0 beta also does this
+for `--json` at a terminal.
+Branch on `error.code`; the exit status groups related codes.
+
+| Exit | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Operation error |
+| `2` | Invalid input (`USAGE_ERROR`) |
+| `3` | Authentication required (`AUTH_REQUIRED`) |
+| `4` | Not found (`NOT_FOUND`, including a missing secret) |
+| `5` | Permission denied (`PERMISSION_DENIED`) |
+| `6` | Network error |
+| `7` | Node error |
+| `10` | Storage full (`STORAGE_QUOTA_EXCEEDED`, `STORAGE_LIMIT_REACHED`); CLI 1.1.0 beta |
+
+`tc share` has its own codes, including `8` and `9`; see
+[Share files](/cli/share#errors).
+
 ## When a check fails
 
 - No profile or no key: run `tc init`

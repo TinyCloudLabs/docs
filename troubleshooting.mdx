@@ -23,6 +23,21 @@ If you need a non-browser path, use local-key auth:
 tc auth login --method local
 ```
 
+## Session expired or sign-in required
+
+**Symptom:** `tc context --json` shows `"state": "expired"`, or a command fails
+with `AUTH_REQUIRED` (exit `3`; every command in CLI 1.1.0 beta, headless
+`tc secrets` commands in 1.0.0).
+
+**Fix:** sign in again the same way the profile was created: `tc auth login`
+for an OpenKey owner, `tc auth login --method local` for a local key, or the
+scoped `--paste --manifest` login for an agent profile. Device logins can be
+renewed with the same `--device --manifest` command.
+
+If a login fails with `SESSION_IN_USE`, the new request would narrow or
+shorten a session the profile already holds. Use a new profile for the new
+purpose, or pass `--replace-session` if you mean to replace it.
+
 ## Browser auth did not open
 
 **Symptom:** `tc auth login` cannot open a browser callback.
@@ -33,6 +48,10 @@ tc auth login --method local
 tc auth login --paste
 tc auth login --no-popup
 ```
+
+On a server or in an agent with no browser, use device login and approve on
+your phone: `tc auth login --device --manifest <file>`. See
+[CLI authentication](/cli/authentication#device-login-for-agents-and-servers).
 
 If you are pointing at a self-hosted OpenKey instance, verify `TC_OPENKEY_HOST` or the profile's `openkeyHost`.
 
@@ -85,6 +104,30 @@ Use `tc space info` or `tc space list` to confirm the resolved space URI.
 tc secrets network init
 tc secrets network show
 ```
+
+## Storage is full
+
+**Symptom:** a write fails with `STORAGE_QUOTA_EXCEEDED`, or with
+`STORAGE_LIMIT_REACHED` when one write is larger than the space left.
+
+**What still works:** reads. Nothing from the refused write was saved, so the
+space is unchanged.
+
+**Fix:** do not retry the write. Free up space or upgrade the plan at
+[account.tinycloud.xyz/billing](https://account.tinycloud.xyz/billing)
+(`tc account billing portal --open`).
+
+| Surface | What you see |
+|---|---|
+| CLI 1.0.0 | `tc kv put` exits `1`; `tc share publish` exits `4` |
+| CLI 1.1.0 beta | Every command exits `10`: `TinyCloud storage is full; nothing was written.` |
+| SDK | A failed `Result` with `error.code` `STORAGE_QUOTA_EXCEEDED` or `STORAGE_LIMIT_REACHED`; `meta.usedBytes` and `meta.limitBytes` when the node reports them |
+| MCP 0.4.0 beta | `STORAGE_QUOTA_EXCEEDED` with `retryable: false` |
+
+In apps, treat this as a read-only state rather than an outage: keep showing
+the user's data and disable writes. SDK 3.1.0 beta adds
+`isStorageFullError(error)` to test for both codes, and reports them from SQL
+and DuckDB writes too.
 
 ## A permission request is waiting
 

@@ -48,11 +48,30 @@ tc kv put config/app --space applications --file ./config.json
 - `put`, `get`, `list`, `delete`
 - `head` for metadata without fetching the body
 - `--prefix` for listing a subset of keys
-- `--json` for scripting-friendly output
+- the global `--json` flag for scripting-friendly output
+
+## Key rules
+
+Keys cannot contain spaces or control characters. `get`, `put`, `head`,
+`delete`, and `list --prefix` refuse them with `USAGE_ERROR` (exit `2`) before
+contacting the node. Use `-`, `_`, `.`, or `/` instead.
+
+## When storage is full
+
+Reads keep working when your storage is full; writes are refused and nothing
+is saved. In CLI 1.0.0, `tc kv put` exits `1` with `STORAGE_QUOTA_EXCEEDED`
+and the used and limit sizes when the node reports them.
+
+<Note>
+CLI 1.1.0 beta gives every command one storage-full result: exit `10`, code
+`STORAGE_QUOTA_EXCEEDED` (or `STORAGE_LIMIT_REACHED` when a single write is
+larger than the space left), and a link to manage storage. See
+[Storage is full](/troubleshooting#storage-is-full).
+</Note>
 
 ## Good defaults
 
-- Quote SQL and JSON-like shell values so the shell passes them as a single argument
+- Quote JSON-like shell values so the shell passes them as a single argument
 - Use `--raw` when you need the exact stored value in a pipe
 - Use `--output` when you want to save binary data to a file
 

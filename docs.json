@@ -49,6 +49,7 @@
             "pages": [
               "index",
               "guides/access-and-explore-my-tinycloud",
+              "guides/agent-skills",
               "start/browser-app",
               "start/backend-service",
               "start/protocol",
@@ -84,6 +85,7 @@
             "pages": [
               "guides/delegations",
               "guides/sharing",
+              "guides/share-viewer",
               "guides/data-vault",
               "guides/write-hooks",
               "guides/tinycloud-vfs",
@@ -144,6 +146,7 @@
               "cli/spaces",
               "cli/secrets",
               "cli/delegations",
+              "cli/share",
               "cli/auth-artifacts",
               "cli/profiles",
               "cli/status",

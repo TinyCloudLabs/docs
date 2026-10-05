@@ -1,11 +1,11 @@
 ---
-title: "Delegations & Sharing"
-description: "Grant scoped access and exchange share links"
+title: "Delegations"
+description: "Grant another DID scoped, revocable access to paths in your space"
 icon: "share-2"
 sidebarTitle: "Delegations"
 ---
 
-Use delegations when another DID needs access to a path in your space. Use share links when you want a simpler handoff that can be accepted later.
+Use delegations when another DID needs access to a path in your space. To send a file to a person, use [Share](/cli/share) instead.
 
 ## Create a delegation
 
@@ -31,28 +31,19 @@ tc delegation revoke bafy...
 
 ## Share links
 
-```bash
-tc share create --path documents/report.json --actions kv/get --expiry 24h
-tc share receive https://node.tinycloud.xyz/share/...
-```
-
-Share links are built on delegations. The CLI's `share receive` command still
-requires an authenticated TinyCloud profile. For accountless browser receipt,
-use the Web SDK's static `TinyCloudWeb.receiveShare()` helper.
-
-<Warning>
-In `@tinycloud/cli` 0.7.7, `tc share list` and `tc share revoke` appear
-in command help but are not backed by working SDK operations. Do not rely on
-them. Use a short expiry, or retain the underlying delegation CID and revoke it
-through the SDK as shown in [Sharing links](/guides/sharing).
-</Warning>
+To hand someone a file rather than a standing delegation, use
+[`tc share publish`](/cli/share). It publishes a bearer link or an addressed
+link (one email address or an email domain) that opens in the Share
+viewer, and keeps an encrypted sender history you can list and revoke.
 
 ## DID and expiry rules
 
 - Use a PKH DID for user-to-user delegations
 - `did:key` is for session-key style identities
-- Expiry can be relative (`1h`, `7d`) or an absolute ISO timestamp
+- Expiry can be relative (`1h`, `7d`) or an absolute ISO timestamp; `delegation create` defaults to `1h`
 
 <Note>
-The CLI source treats `delegation create` as the primitive, and `share` as a convenience flow on top of it.
+Bearer Share links are built on the same delegations: `tc share revoke` on a
+bearer link revokes its delegation. Addressed shares add a signed policy that
+your node enforces.
 </Note>
