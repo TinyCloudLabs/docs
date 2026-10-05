@@ -80,7 +80,9 @@ tc --profile my-app auth login --method openkey --paste --manifest ./manifest.js
 A profile that already recorded an owner is held to that owner on every later
 login. A live session is only replaced by a scope that keeps everything it
 holds and lasts at least as long; anything else fails with `SESSION_IN_USE`
-and saves nothing.
+and saves nothing. If another `tc` or MCP process holds the profile while a
+login commits, the CLI waits up to 45 seconds and then fails with
+`PROFILE_LOCK_TIMEOUT`; retry once the other process finishes.
 
 ## Device login for agents and servers
 
@@ -109,11 +111,12 @@ manifest for those.
 
 | Error | Meaning |
 |---|---|
-| `DEVICE_AUTH_DENIED` | The owner declined |
-| `DEVICE_AUTH_EXPIRED` | Nobody approved within the window; run it again |
-| `DEVICE_AUTH_RATE_LIMITED` | Five device requests from this network in 10 minutes; wait |
-| `SCOPE_REJECTED` | OpenKey does not grant that capability over device login |
-| `DEVICE_AUTH_UNSUPPORTED_SCOPE` | The manifest asks for secrets or encryption |
+| `DEVICE_AUTH_DENIED` (exit `5`) | The owner declined |
+| `DEVICE_AUTH_EXPIRED` (exit `3`) | Nobody approved within the window; run it again |
+| `DEVICE_AUTH_RATE_LIMITED` (exit `1`) | Five device requests from this network in 10 minutes; wait |
+| `SCOPE_REJECTED` (exit `5`) | OpenKey does not grant that capability over device login |
+| `DEVICE_AUTH_UNSUPPORTED_SCOPE` (exit `2`) | The manifest asks for secrets or encryption |
+| `OPENKEY_UNREACHABLE` (exit `6`) | The CLI cannot reach OpenKey |
 
 ## Which OpenKey key signed in
 
@@ -140,7 +143,7 @@ tc context --json
 tc auth logout
 ```
 
-`tc auth status` shows whether the profile is signed in, which DID is active, and whether the session is still valid. `tc context` reports the selected profile, owner and session DIDs, host, space, and local session state (`present`, `expired`, or `missing`) as JSON, without contacting the node.
+`tc auth status` shows which DID is active and whether the profile has a stored session; it does not check that the session is still valid. `tc context` reports the selected profile, owner and session DIDs, host, space, and local session state (`present`, `expired`, or `missing`) as JSON, without contacting the node.
 
 ## When a session expires
 
@@ -168,13 +171,13 @@ That lets you point a profile at a self-hosted OpenKey instance without changing
 
 ## Automation
 
-Use `TC_PRIVATE_KEY` or `--private-key` for commands that need a signer in headless environments.
+`tc auth login --method local` signs in with the profile's own stored key, or
+generates one, without a browser. `TC_PRIVATE_KEY` and `--private-key` are
+read by `tc vault`, `tc vars`, and `tc secrets`, not by `auth login`.
 
-```bash
-export TC_PRIVATE_KEY=0xabc123...
-tc auth login --method local
-```
+In a non-interactive run, an OpenKey `tc auth login` without `--paste`,
+`--no-popup`, or `--device` fails with `INTERACTIVE_LOGIN_REQUIRED` (exit `2`)
+instead of waiting for a browser.
 
-<Note>
-The CLI source accepts both interactive OpenKey flows and local-key flows. `tc init` and `tc auth login` share the same browser callback and paste-mode behavior.
-</Note>
+`tc auth rotate` replaces the profile's session key and signs in again; it
+accepts `--paste` and `--no-popup`.

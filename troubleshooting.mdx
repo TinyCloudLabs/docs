@@ -23,6 +23,20 @@ If you need a non-browser path, use local-key auth:
 tc auth login --method local
 ```
 
+## Session expired or sign-in required
+
+**Symptom:** a command fails with `AUTH_REQUIRED` (exit `3`), or
+`tc context --json` shows `"state": "expired"`.
+
+**Fix:** sign in again the same way the profile was created: `tc auth login`
+for an OpenKey owner, `tc auth login --method local` for a local key, or the
+scoped `--paste --manifest` login for an agent profile. Device logins can be
+renewed with the same `--device --manifest` command.
+
+If a login fails with `SESSION_IN_USE`, the new request would narrow or
+shorten a session the profile already holds. Use a new profile for the new
+purpose, or pass `--replace-session` if you mean to replace it.
+
 ## Browser auth did not open
 
 **Symptom:** `tc auth login` cannot open a browser callback.
@@ -33,6 +47,10 @@ tc auth login --method local
 tc auth login --paste
 tc auth login --no-popup
 ```
+
+On a server or in an agent with no browser, use device login and approve on
+your phone: `tc auth login --device --manifest <file>`. See
+[CLI authentication](/cli/authentication#device-login-for-agents-and-servers).
 
 If you are pointing at a self-hosted OpenKey instance, verify `TC_OPENKEY_HOST` or the profile's `openkeyHost`.
 
