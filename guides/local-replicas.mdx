@@ -1,0 +1,272 @@
+---
+title: "Local Replicas (Beta)"
+description: "Keep a read-only KV prefix on a device for offline reads."
+icon: "hard-drive-download"
+sidebarTitle: "Local Replicas (Beta)"
+---
+
+<Note>
+**Beta / release candidate.** Local replicas are in Replication RC1. Package APIs,
+limitations, and release versions may change; do not treat this as a stable contract.
+</Note>
+
+A local replica is a durable, read-only copy of the latest values under one KV
+prefix. Sync it while online, then read that prefix from the device while offline.
+It is not offline writes, and it is not a replica of SQL data.
+
+## Requirements
+
+- The TinyCloud node must advertise `kv-sync-v1` in its `/info` response. The
+  production node at `tee.node.tinycloud.xyz` advertises this feature.
+- Install the beta CLI:
+
+  ```sh
+  npm i -g @tinycloud/cli@beta
+  ```
+
+- For browser apps, install and pin an explicit replica package version for
+  now. For example, use `@tinycloud/replica@0.1.0-beta.1`; do not depend on the
+  moving `@beta` dist-tag.
+- A device needs a grant that covers the exact KV prefix and includes
+  `get`, `list`, `metadata`, and `sync`.
+
+## CLI: grant, sync, and read offline
+
+### 1. Grant the device access to one prefix
+
+Create or select a device profile and make it request access to the narrowest
+prefix it needs. For example, the `device` profile requests read and sync
+access to `notes/`:
+
+```sh
+tc profile create device --posture delegate-session
+tc --profile device auth request \
+  --cap "tinycloud.kv:<SPACE_ID>:notes/:get,list,metadata,sync" \
+  --expiry 30d --emit request.json
+```
+
+The space owner reviews and grants that request, then the device imports the
+grant. Run the owner command in the owner's profile; import the resulting
+artifact in the device profile:
+
+```sh
+tc --profile owner auth grant request.json --yes > grant.json
+tc --profile device auth import grant.json
+```
+
+`sync` is an explicit capability: a grant for ordinary KV reads alone is not
+enough. Keep the prefix scoped; the replica cannot widen it later.
+
+### 2. Sync the prefix
+
+Run the first sync with the desired prefix. The CLI creates a local replica
+named after that prefix unless you supply `--replica`:
+
+```sh
+tc --profile device replica sync --prefix notes/
+```
+
+Later, run `tc --profile device replica sync` again to poll for updates and
+deletes. The configured source host, space, and prefix are fixed for that
+replica. Use a different `--replica` name if you need a different scope.
+
+### 3. Read while offline
+
+`get` and `list` read only from local replica storage; they never fall back to
+a host KV request. Stop the network or disconnect, then run:
+
+```sh
+tc --profile device replica get notes/today.txt
+tc --profile device replica list notes/
+```
+
+Use `--raw` to write the value bytes to standard output, or `-o file` to save
+them to a file. Sync must have completed the initial prefix coverage before
+you can rely on reads of keys that have not yet been observed.
+
+### 4. Inspect or reset local data
+
+```sh
+tc --profile device replica status
+tc --profile device replica reset
+```
+
+`status` reports the replica's scope, sync state, authority, counts, and
+failures. `reset` clears entries, content, and the cursor but keeps the
+replica configuration and grant, so sync can populate it again. Add
+`--purge` to remove that replica entirely:
+
+```sh
+tc --profile device replica reset --purge
+```
+
+### Command options
+
+| Command | Options | Behavior |
+| --- | --- | --- |
+| `replica sync` | `--replica <name>` | Select a replica; without it, the CLI uses the profile's only replica or names a new one from the first-sync prefix. |
+| `replica sync` | `--space <id|name>`, `--prefix <prefix>` | Set the space and prefix on first sync. The prefix is required; later syncs keep the original scope. |
+| `replica sync` | `--limit <n>` | Set feed page size from 1 to 1000. |
+| `replica sync` | `--allow-secrets` | Explicitly allow a secrets-space or `vault/` replica; see the security warning below. |
+| `replica sync` | `--retention-grant <cid>` | Use an owner-issued `tinycloud.kv/retain` grant; see [Retaining reads after grant expiry](#retaining-reads-after-grant-expiry). |
+| `replica get <key>` | `--replica <name>` | Select the replica. |
+| `replica get <key>` | `--raw` or `-o, --output <file>` | Write raw bytes to stdout or atomically to a private output file. |
+| `replica get <key>` | `--no-verify` | Skip the stored-content hash check; leave verification enabled unless you have a specific reason not to. |
+| `replica list [prefix]` | `--replica <name>`, `--after <key>`, `--limit <n>` | Select the replica and paginate local keys after a key, optionally limiting the result count. |
+| `replica status` | `--replica <name>` | Show one replica; omit it to show all replicas in the profile. |
+| `replica reset` | `--replica <name>`, `--purge` | Select a replica; `--purge` removes it instead of clearing its entries and cursor. |
+
+Pass the global `--host <url>` when creating a replica if the profile has no
+default host; the chosen source is pinned to that replica.
+
+For example, after confirming that storing encrypted secret material locally
+is acceptable:
+
+```sh
+tc --profile device replica sync --prefix vault/ --allow-secrets
+```
+
+This flag only opts in to copying ciphertext. It does not grant decrypt access.
+
+### Retaining reads after grant expiry
+
+By default, local reads are allowed only while the device's sync grant is
+valid. An owner may separately issue a `tinycloud.kv/retain` grant to authorize
+a bounded retention window for already-synced local reads after that sync grant
+expires. Supply the retention grant's CID during a sync:
+
+```sh
+tc --profile device replica sync --retention-grant <RETENTION_GRANT_CID>
+```
+
+The node attests the permitted retention window. This does not extend the
+sync grant or allow new syncs after it expires. A learned revocation still
+blocks reads. Omit the option to use the default policy.
+
+### Error codes and next steps
+
+The CLI prints a machine-readable error code alongside the message. Common
+replica errors:
+
+| Code | Meaning | What to do |
+| --- | --- | --- |
+| `NOT_COVERED` | The key is outside this replica's prefix. | Read from an authorized source or sync the intended prefix with a separately scoped replica. |
+| `KEY_DELETED` | The source recorded a delete for this key. | Sync to catch up; the deleted key remains a tombstone, not a readable value. |
+| `KEY_ABSENT` | The key is not in a replica with complete prefix coverage. | Check the key or source data; syncing will not help if it was never present. |
+| `COVERAGE_INCOMPLETE` | The first sync has not finished covering the prefix. | Run `tc replica sync` until coverage completes. |
+| `CONTENT_MISSING` | The key is known, but its content is not stored locally. | Run `tc replica sync` to fetch it. |
+| `GRANT_MISSING` | No usable device grant is installed. | Request and import a grant with the required prefix and capabilities. |
+| `GRANT_EXPIRED` | The device grant's authority window ended. | Renew the grant and sync again, or configure an owner-authorized retention grant for local reads. |
+| `GRANT_REVOKED` | The node reported that the grant was revoked. | Ask the owner for a new grant; revoked authority cannot be restored by retrying the old grant. |
+| `SECRETS_OPT_IN_REQUIRED` | The requested scope includes the secrets space or a vault namespace. | Reconsider whether encrypted secret material should be stored on this device; only then use `--allow-secrets`. |
+| `NETWORK_ERROR` | Sync could not reach the pinned host. | Reconnect to the host and retry sync; local reads remain separate from sync. |
+| `STORAGE_FULL` | Local storage could not accept the data. | Free device storage and retry. |
+
+Other errors identify configuration, grant, storage, or node failures:
+
+| Code | Meaning | What to do |
+| --- | --- | --- |
+| `REPLICA_CONFIG_MISMATCH` | An existing replica name is already pinned to a different space, prefix, or host. | Use another `--replica` name, or reset it with `--purge` before recreating it. |
+| `GRANT_INVALID`, `GRANT_FORMAT_UNSUPPORTED` | The installed grant is malformed, has an invalid signature, or is not a UCAN. | Import a valid UCAN delegation issued for the device. |
+| `GRANT_AUDIENCE_MISMATCH` | The grant is addressed to another device. | Ask the owner to issue a grant for this profile's device. |
+| `GRANT_NOT_COVERING` | The grant lacks the required `get` or `sync` ability on the prefix. | Request a grant with the exact prefix and required actions. |
+| `GRANT_NOT_YET_VALID` | The grant's validity window has not started. | Wait until it becomes valid, then sync again. |
+| `GRANT_UNAUTHORIZED` | The node refused the grant for a reason other than revocation. | Check the grant scope and node authorization; ask the owner to issue the intended access. |
+| `RETENTION_GRANT_REFUSED` | The node refused the retention grant. | Check that its CID names a valid `tinycloud.kv/retain` grant for this replica. |
+| `REPLICA_BUSY` | Another process is syncing or modifying this replica. | Wait for it to finish, then retry. |
+| `RUNTIME_UNSUPPORTED` | The runtime cannot provide the replica's durable local storage. | Use a supported runtime. |
+| `STORAGE_ERROR` | Local storage failed, for example because of I/O or corruption. | Resolve the device storage problem before retrying. |
+| `NODE_ERROR`, `PROTOCOL_ERROR` | The node returned an error or an unexpected sync response. | Check node health and version support, then retry; report persistent failures. |
+| `RESET_REQUIRED` | The node requires the replica to bootstrap again. | Run sync again; if it remains blocked, reset the replica and sync afresh. |
+| `SOURCE_CHANGED` | The replica's pinned source node differs from the responding node. | Sync against the original host or create a separate replica for the new source. |
+| `SCOPE_VIOLATION` | The feed included a key outside the configured prefix. | Stop using this replica and report the node/protocol failure. |
+| `CONTENT_MISMATCH`, `INTEGRITY_ERROR` | Downloaded or stored content failed its integrity check. | Do not use the value; retry sync and report a persistent mismatch. |
+| `REPLICA_NOT_FOUND` | The selected replica name does not exist. | Sync with its `--prefix` to create it, or choose an existing replica. |
+
+Exit codes: `0` success; `1` busy/runtime/storage error; `2` usage or
+`NOT_COVERED` / `SECRETS_OPT_IN_REQUIRED`; `3` missing or invalid grant;
+`4` absent, deleted, missing-content, or incomplete-coverage key; `5` expired,
+revoked, or not-yet-valid grant; `6` network; `7` node, protocol, or integrity
+error; `10` local storage full.
+
+## Browser: open, grant, sync, and read locally
+
+The browser API is exported by `@tinycloud/replica/browser`; `@tinycloud/web-sdk`
+does not wrap or re-export replica operations. It does expose owner delegation
+methods used here: `requestPermissions()` obtains the explicit KV authority and
+`delegateTo()` issues it to the replica's device DID. The `owner` below is an
+authenticated `TinyCloudWeb` instance configured with the app manifest needed
+for permission requests.
+
+```ts
+import { openReplica } from "@tinycloud/replica/browser";
+
+const replica = await openReplica({
+  host: "https://tee.node.tinycloud.xyz",
+  space: spaceId,
+  prefix: "notes/",
+  principal: signedInUserDid,
+});
+
+// The authenticated owner explicitly authorizes this prefix for the device.
+const permission = [{
+  service: "tinycloud.kv",
+  space: spaceId,
+  path: "notes/",
+  actions: ["get", "list", "metadata", "sync"],
+}] satisfies Parameters<typeof owner.delegateTo>[1];
+const approval = await owner.requestPermissions(permission);
+if (!approval.approved) throw new Error("The owner did not approve the replica grant.");
+const issued = await owner.delegateTo(replica.deviceDid, permission, { expiry: "30d" });
+await replica.installGrant(issued.delegation.delegationHeader.Authorization);
+await replica.sync();
+
+// Local read APIs never use the network; they still enforce grant expiry.
+const read = await replica.get("notes/today.txt");
+if (read.status === "present") {
+  const text = new TextDecoder().decode(read.value);
+  console.log(text);
+}
+
+const keys = await replica.list({ prefix: "notes/" });
+console.log(keys.entries.map(({ key }) => key));
+
+await replica.close();
+```
+
+`principal` is the signed-in user's identity DID and partitions data for users
+sharing a browser origin; it is not an authorization check. The grant and the
+node authorize sync. Browser data is stored in IndexedDB through a dedicated
+worker. Browser `get` and `list` are explicitly local; call `sync()` to poll
+for updates. If a browser does not support IndexedDB, opening the replica
+fails instead of silently switching to non-durable in-memory storage.
+
+## Security model
+
+- A replica contains only the granted KV prefix. Out-of-scope names and bytes
+  are not fetched into replica storage.
+- Local reads stop when the node-attested grant window expires. Offline devices
+  cannot discover an online revocation until they reconnect; once learned,
+  revocation blocks reads and purges replica content.
+- CLI replica files use mode `0600` under directories with mode `0700`.
+  Protect the device account and backups as well; file permissions do not
+  protect against the same operating-system user.
+- Sync grants do not grant decryption. Replicating the secrets space or a
+  `vault/` prefix requires the explicit `--allow-secrets` opt-in. It copies
+  encrypted secret material to the device. If you separately grant decrypt,
+  note that decrypt authority is network-wide today, not limited to one
+  secret name. Do not use it unless that scope is acceptable.
+- **RC1: logout removes local replicas (CLI 1.1.0-beta.21 or later).**
+  `tc auth logout` deletes replicas for that CLI profile by default; do not use
+  `--keep-replicas` if you want them retained. Logout does not revoke the
+  profile's grants on the node. To revoke node-side authority, use
+  `tc delegation revoke` while authorized to do so.
+
+## Known limitations
+
+- A quiet prefix in a very busy space can cost more per poll: the node may
+  examine changes outside that prefix while looking for newer matching data.
+- Heavy blob uploads can reduce write throughput for other writes in the same
+  space.
+- Polling is the refresh model. There is no push or watch API for replicas.
+- Replicas are read-only. Offline writes are not supported.

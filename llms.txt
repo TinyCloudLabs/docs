@@ -144,6 +144,7 @@ Complete readable pages:
 - `/guides/spaces`
 - `/guides/spaces/provisioning`
 - `/guides/kv-storage`
+- `/guides/local-replicas` - Beta guide to scoped, read-only KV replicas for offline reads
 - `/guides/kv/basic-operations`
 - `/guides/delegations`
 - `/guides/sharing` - SDK `tc1:` bearer tokens
