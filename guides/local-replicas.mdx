@@ -109,7 +109,7 @@ tc --profile device replica reset --purge
 | Command | Options | Behavior |
 | --- | --- | --- |
 | `replica sync` | `--replica <name>` | Select a replica; without it, the CLI uses the profile's only replica or names a new one from the first-sync prefix. |
-| `replica sync` | `--space <id|name>`, `--prefix <prefix>` | Set the space and prefix on first sync. The prefix is required; later syncs keep the original scope. |
+| `replica sync` | `--space <id\|name>`, `--prefix <prefix>` | Set the space and prefix on first sync. The prefix is required; later syncs keep the original scope. |
 | `replica sync` | `--limit <n>` | Set feed page size from 1 to 1000. |
 | `replica sync` | `--allow-secrets` | Explicitly allow a secrets-space or `vault/` replica; see the security warning below. |
 | `replica sync` | `--retention-grant <cid>` | Use an owner-issued `tinycloud.kv/retain` grant; see [Retaining reads after grant expiry](#retaining-reads-after-grant-expiry). |
