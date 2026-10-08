@@ -76,6 +76,7 @@
               "guides/spaces",
               "guides/spaces/provisioning",
               "guides/kv-storage",
+              "guides/local-replicas",
               "guides/kv/basic-operations",
               "guides/sql-schema-and-migrations"
             ]
