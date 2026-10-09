@@ -6,8 +6,8 @@ sidebarTitle: "Local Replicas (Beta)"
 ---
 
 <Note>
-**Beta / release candidate.** Local replicas are in Replication RC1. Package APIs,
-limitations, and release versions may change; do not treat this as a stable contract.
+**Beta feature in the stable packages.** Local replica behavior and the on-disk
+format may change in a minor release.
 </Note>
 
 A local replica is a durable, read-only copy of the latest values under one KV
@@ -18,18 +18,16 @@ It is not offline writes, and it is not a replica of SQL data.
 
 - The TinyCloud node must advertise `kv-sync-v1` in its `/info` response. The
   production node at `tee.node.tinycloud.xyz` advertises this feature.
-- Install the beta CLI:
+- Install the stable CLI (version 1.1.0 or later):
 
   ```sh
-  npm i -g @tinycloud/cli@beta
+  npm i -g @tinycloud/cli
   ```
 
 - CLI replicas need Node.js 22.13 or newer, or Bun. SQLite rejects older Node
   versions; Bun supplies its own SQLite runtime.
-- For browser apps, install and pin an explicit replica package version. For
-  example, use `@tinycloud/replica@0.1.0-beta.2`. The
-  `@tinycloud/replica@beta` dist-tag currently points to an older build, so do
-  not depend on it.
+- For browser apps, install and pin an exact replica package version. For
+  example, use `@tinycloud/replica@0.1.0`.
 - A device needs a grant that covers its configured KV prefix and includes
   `get` and `sync`. `list` and `metadata` are optional.
 
@@ -270,7 +268,7 @@ instead of silently switching to non-durable in-memory storage.
   secret material to the device. If you separately grant decrypt, note that
   decrypt authority is network-wide today, not limited to one secret name. Do
   not use it unless that scope is acceptable.
-- **Since CLI 1.1.0-beta.22:** `tc auth logout` deletes local replicas for that
+- **Since CLI 1.1.0:** `tc auth logout` deletes local replicas for that
   CLI profile by default; pass `--keep-replicas` to keep them. Logout does not
   revoke the profile's grants on the node. To revoke node-side authority, use
   `tc delegation revoke <cid>`. Logout refuses to remove replicas if a sync is
