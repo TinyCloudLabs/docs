@@ -74,6 +74,17 @@ replica. Use a different `--replica` name if you need a different scope.
 
 ### 3. Read while offline
 
+First log in with the device profile and its grant:
+
+```sh
+tc --profile device auth login
+```
+
+The grant must authorize the configured prefix. For a secrets-space or `vault/`
+prefix, login also requires `--replication-allow-secrets`; otherwise it fails
+with `SECRETS_OPT_IN_REQUIRED` (exit 2). Runtime grants can also provide
+authority when the node-sdk is used.
+
 `get` and `list` read only from local replica storage; they never fall back to
 a host KV request. Stop the network or disconnect, then run:
 
@@ -89,14 +100,14 @@ you can rely on reads of keys that have not yet been observed.
 ### 4. Inspect or reset local data
 
 ```sh
-tc --profile device replica status
+tc --profile device --replication replica report
 tc --profile device replica reset
 ```
 
-`status` reports the replica's scope, sync state, authority, counts, and
-failures. `reset` clears entries, content, and the cursor but keeps the
-replica configuration and grant, so sync can populate it again. Add
-`--purge` to remove that replica entirely:
+`tc --profile device --replication replica report` reports live replica status,
+including scope, sync state, authority, counts, and failures. `reset` clears
+entries, content, and the cursor but keeps the replica configuration and grant,
+so sync can populate it again. Add `--purge` to remove that replica entirely:
 
 ```sh
 tc --profile device replica reset --purge
@@ -171,7 +182,7 @@ Other errors identify configuration, grant, storage, or node failures:
 | `REPLICA_CONFIG_MISMATCH` | An existing replica name is already pinned to a different space, prefix, or host. | Use another `--replica` name, or reset it with `--purge` before recreating it. |
 | `GRANT_INVALID`, `GRANT_FORMAT_UNSUPPORTED` | The installed grant is malformed, has an invalid signature, or is not a UCAN. | Import a valid UCAN delegation issued for the device. |
 | `GRANT_AUDIENCE_MISMATCH` | The grant is addressed to another device. | Ask the owner to issue a grant for this profile's device. |
-| `GRANT_NOT_COVERING` | The grant lacks the required `get` or `sync` ability on the prefix. | Request a grant with the exact prefix and required actions. |
+| `GRANT_NOT_COVERING` | The grant lacks the required `get` or `sync` ability on the prefix. | Request `get` and `sync` authority covering the entire selected namespace. A bare `notes` replica needs both `notes` and `notes/` covered (or broader authority); a `notes/` replica needs `notes/` covered (or broader authority). |
 | `GRANT_NOT_YET_VALID` | The grant's validity window has not started. | Wait until it becomes valid, then sync again. |
 | `GRANT_UNAUTHORIZED` | The node refused the grant for a reason other than revocation. | Check the grant scope and node authorization; ask the owner to issue the intended access. |
 | `RETENTION_GRANT_REFUSED` | The node refused the retention grant. | Check that its CID names a valid `tinycloud.kv/retain` grant for this replica. |
@@ -190,6 +201,129 @@ Exit codes: `0` success; `1` busy/runtime/storage error; `2` usage or
 `4` absent, deleted, missing-content, or incomplete-coverage key; `5` expired,
 revoked, or not-yet-valid grant; `6` network; `7` node, protocol, or integrity
 error; `10` local storage full.
+
+## Read-through flag (beta): CLI and node-sdk
+
+This Phase 1 read-through beta is separate from the explicit `tc replica` commands above. It routes eligible `node.kv.get()` and `node.kv.list()` calls through a local replica, falling back to the unchanged network request when the replica cannot safely answer. It is opt-in and applies only to primary-space KV. Browser `web-sdk` read-through is a later phase.
+
+### Enable read-through
+
+The CLI flag enables read-through for one invocation; it does not select prefixes. Save one or more prefixes during login so later invocations can use them:
+
+```sh
+tc auth login --replication-prefix notes/
+tc --replication kv get notes/today.txt
+```
+
+`--replication` or `TC_REPLICATION=1` enables read-through; the environment
+variable sets the default to on. `--no-replication` disables it even when
+`TC_REPLICATION=1` is set. The feature is off by default.
+`tc auth login --replication-prefix <prefix>` is repeatable; an explicit list
+replaces the saved prefixes, while omitted options reuse saved prefixes on
+later logins and key rotation. Without a saved prefix, the CLI has nothing to
+replicate.
+
+For a node-sdk client, enable the option and provide storage explicitly:
+
+```ts
+import { TinyCloudNode, sqliteReplicaStorage } from "@tinycloud/node-sdk";
+
+const node = new TinyCloudNode({
+  replication: {
+    enabled: true,
+    prefixes: ["notes/"],
+    storage: sqliteReplicaStorage({ dir: "./.tinycloud-replicas" }),
+  },
+});
+```
+
+`enabled` requires a non-empty `prefixes` array and `storage`; overlapping prefixes are rejected. The Node SQLite adapter requires Node.js 22.13 or newer (or Bun). `sqliteReplicaStorage({ dir, guard })` accepts an optional `guard` for serialized storage mutations. `node.replication` exposes `status()`, `sync()`, `purge()` and `clearPending()`.
+
+There are **no default prefixes**. Configure only the narrowest paths you need. Selectors are segment-aware: a bare `notes` replica includes the key `notes` and descendants such as `notes/today.txt`, but not `notesX`; `notes/` includes descendants only, not the bare key. The empty selector `""` is the root. A `notes/` replica serves `node.kv.list({ prefix: "notes/" })` locally. `node.kv.withPrefix("notes").list()` uses list path `notes`, so it requires a bare `notes` replica and authority covering both `notes` and `notes/`; a `notes/` replica falls back to the network. `withPrefix("notes/")` also normalizes its list path to `notes`.
+
+Replication requires unrestricted `get` authority covering the entire selected namespace. A `notes/` selector needs a `notes/` grant or broader authority. A bare `notes` selector needs coverage of both `notes` and `notes/`: for example, a root or parent-prefix grant, or separate exact `notes` and `notes/` grants. An exact-key grant alone never authorizes descendants and does not authorize a bare `notes` replica. Caveated-only coverage is refused. CLI login reports `REPLICATION_PREFIX_CAVEATED` or `REPLICATION_PREFIX_OUTSIDE_SCOPE` (exit 2); login augmentation in the CLI and node-sdk sign-in adds `sync` only alongside eligible existing unrestricted `get` authority. For a bare selector it requests both `notes` and `notes/`; it never broadens `get` authority.
+
+### Where reads go
+
+An eligible local answer requires the replica selection and current unrestricted authority to cover the whole key or list range, complete coverage, no pending-write pin for the key or list range, and no failed stale-sync attempt that requires a network fallback. A list path `P` covers the key `P` and descendants under `P/`; a pending write in that range forces a network fallback (or, for an existing local cursor, a `cursor_restart`). A stale local value can still be used when the bounded sync fails offline. The table gives common outcomes; network fallback returns the network result, not the replica result.
+
+| Condition | Read source | Reason or result |
+| --- | --- | --- |
+| Covered, complete, authorized replica has the key | Local | `hit` |
+| Covered and complete replica knows the key is absent or deleted | Local | `absent` or `deleted` |
+| No configured prefix covers the key or complete list range | Network | `not_covered` |
+| Initial sync has not completed, or local content is missing | Network | `coverage_incomplete` or `content_missing` |
+| No usable, unrestricted runtime grant for this prefix at read time | Network | `grant_missing` |
+| A pending write pins the key or list range | Network | `pending_write` |
+| The replica has not synced through a committed write's epoch | Network | `REPLICA_BEHIND_OWN_WRITES` |
+| A required stale sync is busy or fails with a non-network error | Network | `stale` |
+| Replica runtime cannot provide supported storage | Network | `runtime_unsupported` |
+| Other replica-open failure, including invalid or mismatched storage | Network | `replica_unavailable` |
+| Stale sync fails with `NETWORK_ERROR` or reaches its timeout, the drained sync has settled, status refresh succeeds, and local coverage, authority and pending-write checks still pass | Local | `hit`, `absent` or `deleted`, with `syncError` |
+
+Other network fallback reasons include `replica_error` (local read or storage failure), `unsupported_option` (for example, an oversized `get` under `maxResponseBytes` or raw `list`), and `network_cursor` (a node-issued list cursor). Events are available through the SDK's `onEvent` callback; the CLI can print per-read and sync diagnostics with `--replication-debug`. A local `tcr1.` continuation that cannot be served safely returns a typed `cursor_restart` error instead of making a network request; see [List ordering and cursors](#list-ordering-and-cursors).
+
+### Freshness and offline reads
+
+On a stale read, the SDK tries a sync before using the local answer. The node-sdk defaults are a 120-second maximum staleness and a 5-second stale-sync timeout. CLI foreground mode has no background timer; defaults are 60 seconds and 10 seconds. Override the CLI values per process:
+
+```sh
+TC_REPLICATION_MAX_STALENESS_MS=30000 \
+TC_REPLICATION_SYNC_TIMEOUT_MS=3000 \
+tc --replication kv get notes/today.txt
+```
+
+When offline, an eligible stale value (or authoritative absent/deleted result) can be served locally after the sync reports a network error or times out; its read event includes `syncError: "NETWORK_ERROR"` or `"TIMEOUT"`. An unresolved pending write, incomplete coverage, or unusable authority still prevents a local answer. Without a local answer the SDK uses the network path and that request can fail. **Known limitation (TC-897):** offline CLI network errors currently exit 1, not 6.
+
+### Read-your-writes and pinned keys
+
+Read-your-writes protection applies only to writes made while read-through is enabled. A write made while the flag is off creates no pending record; it is treated like a write from another device and may appear after a later sync.
+
+With the flag on, a committed write stays protected until a sync that started after its commit catches up. A write with an unknown outcome (`ambiguous`), or an unfinished `in_flight` write, pins its key to the network. Matching content, absence, or a later write does not resolve an ambiguous outcome; it remains pinned until explicitly cleared or purged. A pin means the read does not get a stale local result, even when offline. `tc --replication replica report` shows pinned keys, state, operation, `since`, error code and whether an in-flight record is likely orphaned.
+
+### Inspect, clear, and purge
+
+```sh
+tc --replication --replication-debug kv get notes/today.txt
+tc --replication replica report
+tc --replication replica report --json
+tc --replication replica report --clear-pending
+tc --replication replica report --purge
+```
+
+The report summarizes reads by source and reason, hit ratio, latency and staleness percentiles, syncs, writes, divergences, live replica status, pinned keys, and other local identity partitions. `--since <duration>` selects the event window (default `24h`); `--json` emits structured output, including the `since` window value.
+
+`--clear-pending` clears unresolved ambiguous and likely-orphaned in-flight records for the current identity. It prints a warning first: clearing stops pinning keys whose write outcome was unknown; if that write committed or commits later, an older local value can be served until a sync after the commit. Young in-flight and committed records are not cleared by this option.
+
+`--purge` removes the configured replicas and their pending-write records for the **current identity**; they can be rebuilt on a later covered read. It prints the same pending-write warning. It does not purge other identities or revoke node-side grants. `--host <url>` selects the host and therefore the identity partition for a CLI invocation; use the relevant `--host` to inspect or purge data for another host partition. Purge covers the configured prefixes, not every saved prefix or every identity in the profile. Physical cleanup can retain a contentless SQLite generation/tombstone marker so previously opened handles fail closed.
+
+The local identity partition is the canonical host, full space and principal (the signing identity). Different hosts, spaces or principals have separate replicas and pending-write state. In particular, changing `--host` does not reuse another host's local cache or read-your-writes state.
+
+### List ordering and cursors
+
+Local list keys are ordered by UTF-8 bytes. A node may order them differently: SQLite uses byte order, while production Postgres uses its database collation. Do not assume identical order across local and network list results.
+
+Local pagination uses a `tcr1.` cursor bound to its space and list path. Node-issued cursors are served by the network. If a local `tcr1.` continuation cannot be served safely (for example, a pending write affects the range, coverage is incomplete, or its space/path differs), the call returns a typed `cursor_restart` input error without making a network request. Restart the list without a cursor; do not mix pages from the local and network sources.
+
+### Network-only reads
+
+Use the KV read option `source: "network"` for checks whose answer must reflect the node, such as an existence check. It bypasses replica open, sync and local reads:
+
+```ts
+const result = await node.kv.get("notes/today.txt", { source: "network" });
+```
+
+`list()` accepts the same option. The CLI's secret and vault existence checks already use network-authoritative reads. This option is for reads; writes remain network writes.
+
+### Revocation and security
+
+Revocation is discovered at the next sync, not while the device is offline. Once a sync reports revocation, the local replica is blocked and purged; `tc replica report` shows the replica as `revoked`. Do not retry with the revoked device grant; obtain a new device.
+
+Local delegation checks verify the signature, CID, audience and expiry, but **not the proof chain**. The node verifies the chain on every sync. Local checks are not a substitute for node verification.
+
+`tc auth logout` removes legacy replicas and the flag-owned `replication/` directory for every identity partition by default, including its device keys, identity and pending-write files, and event log. Pass `--keep-replicas` to retain both local roots. Logout clears the local session; it does **not** revoke delegations or grants at the node, which remain valid until expiry unless separately revoked. Cleanup refuses unsafe symlinks or active sync leases; a cleanup failure can leave local files behind.
+
+**Code-derived defaults and scope:** the CLI overrides the SDK defaults above (60 seconds / 10 seconds); the code defaults for node-sdk are 120 seconds / 5 seconds. CLI `--purge` addresses only the currently bound identity and configured prefixes, while logout removes all profile partitions. These specifics follow the Phase 1 implementation rather than the broader planning notes.
 
 ## Browser: open, grant, sync, and read locally
 
