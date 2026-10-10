@@ -239,9 +239,9 @@ const node = new TinyCloudNode({
 
 `enabled` requires a non-empty `prefixes` array and `storage`; overlapping prefixes are rejected. The Node SQLite adapter requires Node.js 22.13 or newer (or Bun). `sqliteReplicaStorage({ dir, guard })` accepts an optional `guard` for serialized storage mutations. `node.replication` exposes `status()`, `sync()`, `purge()` and `clearPending()`.
 
-There are **no default prefixes**. Configure only the narrowest paths you need. Prefix coverage for reads is segment-aware. For list operations, prefer `notes` rather than `notes/` when the caller lists `notes` (including a `withPrefix("notes")` view): the list path is `notes`, and a `notes/` replica does not cover that path.
+There are **no default prefixes**. Configure only the narrowest paths you need. A `notes/` replica covers descendants, not the bare key `notes`; use `node.kv.list({ prefix: "notes/" })` to list those descendants locally. `node.kv.withPrefix("notes").list()` uses the list path `notes` and falls back to the network with a `notes/` replica. `withPrefix("notes/")` also normalizes its path to `notes`. Do not configure an exact `notes` replica as a workaround: its local list can return only the key `notes`, not its descendants.
 
-Only an unrestricted `get` on a trailing-slash prefix that covers the configured prefix (or broader unrestricted `get` authority) makes it eligible. An exact-key grant such as `notes` covers only the key `notes`; it never makes `notes/` eligible. A caveated-only `get`, or no covering `get`, is rejected at login with `REPLICATION_PREFIX_CAVEATED` or `REPLICATION_PREFIX_OUTSIDE_SCOPE` respectively (exit 2). Replication adds `sync` only alongside eligible existing read authority; it never broadens authority.
+Replication requires unrestricted `get` authority covering the configured scope. An exact-key grant for `notes` can authorize an exact-key `notes` replica, but cannot authorize `notes/`. A trailing-slash `notes/` grant, or broader unrestricted `get` authority, can authorize a `notes/` replica. Caveated-only or missing covering `get` authority is rejected at CLI login with `REPLICATION_PREFIX_CAVEATED` or `REPLICATION_PREFIX_OUTSIDE_SCOPE`, respectively (exit 2). Replication adds `sync` only alongside eligible existing read authority; it never broadens authority.
 
 ### Where reads go
 
