@@ -182,7 +182,7 @@ Other errors identify configuration, grant, storage, or node failures:
 | `REPLICA_CONFIG_MISMATCH` | An existing replica name is already pinned to a different space, prefix, or host. | Use another `--replica` name, or reset it with `--purge` before recreating it. |
 | `GRANT_INVALID`, `GRANT_FORMAT_UNSUPPORTED` | The installed grant is malformed, has an invalid signature, or is not a UCAN. | Import a valid UCAN delegation issued for the device. |
 | `GRANT_AUDIENCE_MISMATCH` | The grant is addressed to another device. | Ask the owner to issue a grant for this profile's device. |
-| `GRANT_NOT_COVERING` | The grant lacks the required `get` or `sync` ability on the prefix. | Request a grant with the exact prefix and required actions. |
+| `GRANT_NOT_COVERING` | The grant lacks the required `get` or `sync` ability on the prefix. | Request `get` and `sync` authority covering the entire selected namespace. A bare `notes` replica needs both `notes` and `notes/` covered (or broader authority); a `notes/` replica needs `notes/` covered (or broader authority). |
 | `GRANT_NOT_YET_VALID` | The grant's validity window has not started. | Wait until it becomes valid, then sync again. |
 | `GRANT_UNAUTHORIZED` | The node refused the grant for a reason other than revocation. | Check the grant scope and node authorization; ask the owner to issue the intended access. |
 | `RETENTION_GRANT_REFUSED` | The node refused the retention grant. | Check that its CID names a valid `tinycloud.kv/retain` grant for this replica. |
