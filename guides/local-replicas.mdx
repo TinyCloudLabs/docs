@@ -182,7 +182,7 @@ Other errors identify configuration, grant, storage, or node failures:
 | `REPLICA_CONFIG_MISMATCH` | An existing replica name is already pinned to a different space, prefix, or host. | Use another `--replica` name, or reset it with `--purge` before recreating it. |
 | `GRANT_INVALID`, `GRANT_FORMAT_UNSUPPORTED` | The installed grant is malformed, has an invalid signature, or is not a UCAN. | Import a valid UCAN delegation issued for the device. |
 | `GRANT_AUDIENCE_MISMATCH` | The grant is addressed to another device. | Ask the owner to issue a grant for this profile's device. |
-| `GRANT_NOT_COVERING` | The grant lacks the required `get` or `sync` ability on the prefix. | Request `get` and `sync` authority covering the entire selected namespace. A bare `notes` replica needs both `notes` and `notes/` covered (or broader authority); a `notes/` replica needs `notes/` covered (or broader authority). |
+| `GRANT_NOT_COVERING` | The grant lacks the required `get` or `sync` ability on the prefix. | Request unrestricted `tinycloud.kv/get` coverage of the folder prefix (or broader) and explicit `tinycloud.kv/sync` on that prefix (or broader); wildcard grants do not include `sync`. Exact-key grants never cover a folder prefix. |
 | `GRANT_NOT_YET_VALID` | The grant's validity window has not started. | Wait until it becomes valid, then sync again. |
 | `GRANT_UNAUTHORIZED` | The node refused the grant for a reason other than revocation. | Check the grant scope and node authorization; ask the owner to issue the intended access. |
 | `RETENTION_GRANT_REFUSED` | The node refused the retention grant. | Check that its CID names a valid `tinycloud.kv/retain` grant for this replica. |
@@ -196,11 +196,11 @@ Other errors identify configuration, grant, storage, or node failures:
 | `CONTENT_MISMATCH`, `INTEGRITY_ERROR` | Downloaded or stored content failed its integrity check. | Do not use the value; retry sync and report a persistent mismatch. |
 | `REPLICA_NOT_FOUND` | The selected replica name does not exist. | Sync with its `--prefix` to create it, or choose an existing replica. |
 
-Exit codes: `0` success; `1` busy/runtime/storage error; `2` usage or
-`NOT_COVERED` / `SECRETS_OPT_IN_REQUIRED`; `3` missing or invalid grant;
-`4` absent, deleted, missing-content, or incomplete-coverage key; `5` expired,
-revoked, or not-yet-valid grant; `6` network; `7` node, protocol, or integrity
-error; `10` local storage full.
+Exit codes: `0` success; `1` busy/runtime/storage error; `2` usage, invalid
+replication prefix, outside-scope or caveated prefix, or `SECRETS_OPT_IN_REQUIRED`;
+`3` missing or invalid grant; `4` absent, deleted, missing-content, or
+incomplete-coverage key; `5` expired, revoked, or not-yet-valid grant; `6`
+network; `7` node, protocol, or integrity error; `10` local storage full.
 
 ## Read-through flag (beta): CLI and node-sdk
 
@@ -239,9 +239,41 @@ const node = new TinyCloudNode({
 
 `enabled` requires a non-empty `prefixes` array and `storage`; overlapping prefixes are rejected. The Node SQLite adapter requires Node.js 22.13 or newer (or Bun). `sqliteReplicaStorage({ dir, guard })` accepts an optional `guard` for serialized storage mutations. `node.replication` exposes `status()`, `sync()`, `purge()` and `clearPending()`.
 
-There are **no default prefixes**. Configure only the narrowest paths you need. Selectors are segment-aware: a bare `notes` replica includes the key `notes` and descendants such as `notes/today.txt`, but not `notesX`; `notes/` includes descendants only, not the bare key. The empty selector `""` is the root. A `notes/` replica serves `node.kv.list({ prefix: "notes/" })` locally. `node.kv.withPrefix("notes").list()` uses list path `notes`, so it requires a bare `notes` replica and authority covering both `notes` and `notes/`; a `notes/` replica falls back to the network. `withPrefix("notes/")` also normalizes its list path to `notes`.
+There are **no default prefixes**. A replication prefix is a folder: non-empty,
+slash-terminated, with no leading slash or empty path segments (for example
+`notes/` or `notes/private/`), or `/` for the whole space. `""`, bare paths
+such as `notes`, `/notes/`, and paths containing `//` are invalid. CLI login
+rejects these with `INVALID_REPLICATION_PREFIX` and exit 2; the node-sdk
+rejects invalid configuration with a `TypeError`, and replica APIs report
+`REPLICA_INVALID_ARGUMENT`. Bare selectors persisted by replicas created with 3.1.0
+are no longer accepted: purge or reset those replicas, then recreate them
+with a folder prefix such as `notes/`.
 
-Replication requires unrestricted `get` authority covering the entire selected namespace. A `notes/` selector needs a `notes/` grant or broader authority. A bare `notes` selector needs coverage of both `notes` and `notes/`: for example, a root or parent-prefix grant, or separate exact `notes` and `notes/` grants. An exact-key grant alone never authorizes descendants and does not authorize a bare `notes` replica. Caveated-only coverage is refused. CLI login reports `REPLICATION_PREFIX_CAVEATED` or `REPLICATION_PREFIX_OUTSIDE_SCOPE` (exit 2); login augmentation in the CLI and node-sdk sign-in adds `sync` only alongside eligible existing unrestricted `get` authority. For a bare selector it requests both `notes` and `notes/`; it never broadens `get` authority.
+Replication requires unrestricted `tinycloud.kv/get` authority covering the
+entire folder prefix (or broader) and explicit `tinycloud.kv/sync` on that
+prefix (or broader); wildcards never grant `sync`. An exact-key grant never
+qualifies. Owner logins using a local key or OpenKey that already have
+unrestricted whole-space `get` add `sync` once to the whole-space KV entry,
+regardless of the number of configured prefixes. Delegated and device sessions
+need `sync` authority on the prefix (or broader) in their grant. Login refuses
+prefixes without covering unrestricted `get` using `REPLICATION_PREFIX_OUTSIDE_SCOPE`
+or `REPLICATION_PREFIX_CAVEATED` (exit 2). Including the `vault/` namespace
+requires `--replication-allow-secrets`; otherwise login or replication reports
+`SECRETS_OPT_IN_REQUIRED` (exit 2).
+
+`/` selects the whole space and includes `vault/`, so it also requires
+`--replication-allow-secrets`. Whole-space sync requires a node advertising
+`kv-sync-root` in `/info` (tinycloud-node 1.20.1 or later). On older nodes,
+root replication fails with `REPLICATION_ROOT_UNSUPPORTED`, and replica
+status reports that same code as unavailable.
+
+LIST coverage follows the actual list path. A `notes/` replica serves
+`node.kv.list({ prefix: "notes/" })` and nested lists locally. In contrast,
+`node.kv.withPrefix("notes").list()` uses path `notes`, which is not covered
+by a `notes/` replica and falls back to the network. A `/` replica serves any
+list locally. A pending write inside a list range forces a network fallback;
+for a local continuation cursor it instead returns `cursor_restart`, requiring
+the caller to restart the list without that cursor.
 
 ### Where reads go
 
