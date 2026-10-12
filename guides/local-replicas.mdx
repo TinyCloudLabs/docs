@@ -245,9 +245,7 @@ slash-terminated, with no leading slash or empty path segments (for example
 such as `notes`, `/notes/`, and paths containing `//` are invalid. CLI login
 rejects these with `INVALID_REPLICATION_PREFIX` and exit 2; the node-sdk
 rejects invalid configuration with a `TypeError`, and replica APIs report
-`REPLICA_INVALID_ARGUMENT`. Bare selectors persisted by replicas created with 3.1.0
-are no longer accepted: purge or reset those replicas, then recreate them
-with a folder prefix such as `notes/`.
+`REPLICA_INVALID_ARGUMENT`. Bare prefixes persisted by 3.1.0 replicas are no longer accepted. Purge an explicit CLI replica with `tc replica reset --replica <name> --purge`, then recreate it with `--prefix notes/`. Replace a saved CLI read-through prefix at login with `tc auth login --replication-prefix notes/`.
 
 Replication requires unrestricted `tinycloud.kv/get` authority covering the
 entire folder prefix (or broader) and explicit `tinycloud.kv/sync` on that
@@ -255,29 +253,24 @@ prefix (or broader); wildcards never grant `sync`. An exact-key grant never
 qualifies. Owner logins using a local key or OpenKey that already have
 unrestricted whole-space `get` add `sync` once to the whole-space KV entry,
 regardless of the number of configured prefixes. Delegated and device sessions
-need `sync` authority on the prefix (or broader) in their grant. Login refuses
-prefixes without covering unrestricted `get` using `REPLICATION_PREFIX_OUTSIDE_SCOPE`
-or `REPLICATION_PREFIX_CAVEATED` (exit 2). Including the `vault/` namespace
-requires `--replication-allow-secrets`; otherwise login or replication reports
-`SECRETS_OPT_IN_REQUIRED` (exit 2).
-
+need `sync` authority on the prefix (or broader) in their grant. CLI login refuses a prefix without unrestricted covering `get` with `REPLICATION_PREFIX_OUTSIDE_SCOPE` or `REPLICATION_PREFIX_CAVEATED` (exit 2). The node-sdk instead skips sync augmentation for that prefix; it needs sufficient authority before the replica can serve local reads. For CLI read-through, `vault/` and `/` require `--replication-allow-secrets` at login, otherwise login fails with `SECRETS_OPT_IN_REQUIRED` (exit 2). For node-sdk, set `replication.allowSecrets: true` for either prefix; otherwise construction throws a `TypeError`.
 `/` selects the whole space and includes `vault/`, so it also requires
 `--replication-allow-secrets`. Whole-space sync requires a node advertising
 `kv-sync-root` in `/info` (tinycloud-node 1.20.1 or later). On older nodes,
 root replication fails with `REPLICATION_ROOT_UNSUPPORTED`, and replica
 status reports that same code as unavailable.
 
+
+
 LIST coverage follows the actual list path. A `notes/` replica serves
 `node.kv.list({ prefix: "notes/" })` and nested lists locally. In contrast,
 `node.kv.withPrefix("notes").list()` uses path `notes`, which is not covered
 by a `notes/` replica and falls back to the network. A `/` replica serves any
-list locally. A pending write inside a list range forces a network fallback;
-for a local continuation cursor it instead returns `cursor_restart`, requiring
-the caller to restart the list without that cursor.
+list locally. A pending write in the unread portion of a list range forces network fallback; with a local continuation cursor, it instead returns `INVALID_INPUT` with `meta.replication: "cursor_restart"`. Restart the list without that cursor.
 
 ### Where reads go
 
-An eligible local answer requires the replica selection and current unrestricted authority to cover the whole key or list range, complete coverage, no pending-write pin for the key or list range, and no failed stale-sync attempt that requires a network fallback. A list path `P` covers the key `P` and descendants under `P/`; a pending write in that range forces a network fallback (or, for an existing local cursor, a `cursor_restart`). A stale local value can still be used when the bounded sync fails offline. The table gives common outcomes; network fallback returns the network result, not the replica result.
+An eligible local answer requires the replica selection and current unrestricted authority to cover the whole key or list range, complete coverage, no pending-write pin for the key or list range, and no failed stale-sync attempt that requires a network fallback. A list path `P` covers the key `P` and descendants under `P/`; a pending write in the unread portion of that range forces network fallback or, with a local continuation cursor, returns `INVALID_INPUT` with `meta.replication: "cursor_restart"`. A stale local value can still be used when the bounded sync fails offline. The table gives common outcomes; network fallback returns the network result, not the replica result.
 
 | Condition | Read source | Reason or result |
 | --- | --- | --- |
@@ -293,7 +286,7 @@ An eligible local answer requires the replica selection and current unrestricted
 | Other replica-open failure, including invalid or mismatched storage | Network | `replica_unavailable` |
 | Stale sync fails with `NETWORK_ERROR` or reaches its timeout, the drained sync has settled, status refresh succeeds, and local coverage, authority and pending-write checks still pass | Local | `hit`, `absent` or `deleted`, with `syncError` |
 
-Other network fallback reasons include `replica_error` (local read or storage failure), `unsupported_option` (for example, an oversized `get` under `maxResponseBytes` or raw `list`), and `network_cursor` (a node-issued list cursor). Events are available through the SDK's `onEvent` callback; the CLI can print per-read and sync diagnostics with `--replication-debug`. A local `tcr1.` continuation that cannot be served safely returns a typed `cursor_restart` error instead of making a network request; see [List ordering and cursors](#list-ordering-and-cursors).
+Other network fallback reasons include `replica_error` (local read or storage failure), `unsupported_option` (for example, an oversized `get` under `maxResponseBytes` or raw `list`), and `network_cursor` (a node-issued list cursor). Events are available through the SDK's `onEvent` callback; the CLI can print per-read and sync diagnostics with `--replication-debug`. A local `tcr1.` continuation that cannot be served safely returns `INVALID_INPUT` with `meta.replication: "cursor_restart"` instead of making a network request; see [List ordering and cursors](#list-ordering-and-cursors).
 
 ### Freshness and offline reads
 
@@ -335,7 +328,7 @@ The local identity partition is the canonical host, full space and principal (th
 
 Local list keys are ordered by UTF-8 bytes. A node may order them differently: SQLite uses byte order, while production Postgres uses its database collation. Do not assume identical order across local and network list results.
 
-Local pagination uses a `tcr1.` cursor bound to its space and list path. Node-issued cursors are served by the network. If a local `tcr1.` continuation cannot be served safely (for example, a pending write affects the range, coverage is incomplete, or its space/path differs), the call returns a typed `cursor_restart` input error without making a network request. Restart the list without a cursor; do not mix pages from the local and network sources.
+Local pagination uses a `tcr1.` cursor bound to its space and list path. Node-issued cursors are served by the network. A pending write in the unread portion of a list range forces network fallback; with a local continuation cursor, it instead returns `INVALID_INPUT` with `meta.replication: "cursor_restart"`. Restart the list without that cursor. Other unsafe local continuations (for example, incomplete coverage or a space/path mismatch) also return this typed input error without making a network request. Do not mix pages from the local and network sources.
 
 ### Network-only reads
 
@@ -427,9 +420,7 @@ instead of silently switching to non-durable in-memory storage.
 - CLI replica files use mode `0600` under directories with mode `0700`.
   Protect the device account and backups as well; file permissions do not
   protect against the same operating-system user.
-- Sync grants do not grant decryption. Replicating the secrets space or a
-  prefix overlapping the `vault` namespace (including bare `vault`) requires
-  explicit opt-in: `tc replica sync --allow-secrets` on the CLI, or
+- Sync grants do not grant decryption. Replicating the secrets space, a `vault/` folder, or `/` (the whole space) requires explicit opt-in: `tc replica sync --allow-secrets` on the CLI, or
   `openReplica({ allowSecrets: true })` in the browser. It copies encrypted
   secret material to the device. If you separately grant decrypt, note that
   decrypt authority is network-wide today, not limited to one secret name. Do
