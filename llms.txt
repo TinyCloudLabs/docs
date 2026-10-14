@@ -205,7 +205,7 @@ Complete readable pages:
 ## Operate
 
 - `/cli/overview`
-- `https://docs.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 17 tools and local stdio MCP with 16 tools
+- `https://docs.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 20 tools and local stdio MCP with 17 tools
 - `/cli/account` - Read-only live account space and application discovery commands
 - `/cli/authentication`
 - `/cli/storage`
