@@ -5,12 +5,12 @@ icon: "bot"
 sidebarTitle: "MCP Server"
 ---
 
-The TinyCloud MCP server exposes 16 canonical TinyCloud operations to Model
-Context Protocol clients. Use the hosted Streamable HTTP endpoint from web and
-mobile clients, or run the local stdio transport when data and delegate keys
-must remain on your machine. Both paths use scoped, revocable authority.
+The TinyCloud MCP server exposes 20 hosted tools or 17 local stdio tools to
+Model Context Protocol clients. Use the hosted Streamable HTTP endpoint from
+web and mobile clients, or run local stdio when data and delegate keys must
+remain on your machine. Both paths use scoped, revocable authority.
 
-## Connect Claude web or mobile
+## Connect Claude web, iOS or Android
 
 Add a custom connector in Claude and use this URL:
 
@@ -30,10 +30,58 @@ and asks you to sign in. After the connector is enabled:
    want. When a tool returns `authority_required`, open its `approval.url` and
    retry the same tool unchanged.
 
-Hosted mode adds `tinycloud_connect` to the 16 canonical tools. The service
-stores a distinct delegated session key for each OpenKey OAuth subject and
-accepts only delegations from an owner DID carried by that subject's
-resource-bound access token. It never receives an owner private key.
+Hosted mode adds `tinycloud_connect` and four personal-record tools to the local
+surface, and omits the local-only `tinycloud_auth_import` and
+`tinycloud_secrets_status`. The service stores a distinct delegated session key
+for each OpenKey OAuth subject and accepts only delegations from an owner DID
+carried by that subject's resource-bound access token. It never receives an
+owner private key.
+
+### Keep personal records naturally
+
+Ask “Log my weight: 80.5 kg today”, “Mark my passport todo done”, or “How much
+did I run last month?” Claude can keep and read the same records as coding
+agents using `tc-apps`, without a local CLI or skill installation.
+
+At first use, approve connect and then personal-record access in OpenKey.
+Records use one grant for get, list, put and delete under
+`xyz.tinycloud.agent-data/` in your `default` space, not a separate approval
+for every key. Claude asks for your city once to store an IANA timezone; it
+must not infer your local date from the hosted server's clock.
+In **Settings → Connectors → TinyCloud**, you can set `tinycloud_apps_write`
+to **Always allow** to avoid per-call tool confirmations. This does not bypass
+OpenKey permission approval.
+
+| Hosted-only tool | Purpose |
+|---|---|
+| `tinycloud_apps_context` | Read the rules, catalog, local time, timezone and fast-copy state; optionally set the timezone |
+| `tinycloud_apps_read` | List prefixes and read up to 100 records with their ETags |
+| `tinycloud_apps_write` | Run 1–10 ordered create, conditional edit, move or delete operations |
+| `tinycloud_apps_query` | Refresh the optional fast copy and answer a bounded question over selected kinds |
+
+For edits, read fresh and pass the returned ETag. A put without an ETag creates
+only; a stale ETag returns `CHANGED`, not an overwrite. A move requires the
+source ETag; a delete can also be guarded by one. Inspect each operation's
+outcome and a move's completed `steps` (`written`, `deleted`): an `ok` envelope
+does not mean every operation succeeded. Report partial outcomes rather than
+blindly replaying the batch. `TIMEZONE_REQUIRED` means the owner's timezone
+must be set before the write.
+
+For questions over many records, Claude can first answer from the records and
+offer **a fast, searchable copy of your records**. This is optional and needs
+its own approval. KV records remain the source of truth. Developer reference:
+the copy is the exact SQL database `xyz.tinycloud.agent-data.index`, with
+read, write and schema authority; query refreshes derived data, not KV records.
+`COPY_PARTIAL` is a successful result with the kinds still to rebuild; the
+next query resumes them. A nonretryable `NODE_ERROR` with
+`error.details.reason: "copy_unavailable"` needs the node team's resolution.
+Answer from KV instead; retrying the copy or changing its name is not a fix.
+
+Production requests 30-day grants and uses 15-minute approval links. A missing
+or expired session returns a fresh connect link in `error.details`; a missing
+or expired grant returns an `authority_required` approval link. Open the new
+link and retry after approval. If the owner declines, stop rather than asking
+again in that conversation.
 
 <Warning>
 The hosted service can observe plaintext operation inputs and results while it
@@ -45,9 +93,9 @@ service operator must not be in that trust boundary.
 
 - Node.js 20 or newer
 - The TinyCloud CLI and a delegated profile for local stdio
-- `@tinycloud/mcp` 0.3.3 or newer for hosted mode; 0.2.0 or newer for local stdio
+- A hosted deployment with the apps tools for personal records; local stdio does not expose them
 - A TinyCloud node running 1.6.0 or newer
-- An MCP client that supports structured tool results
+- Local stdio requires structured tool results; hosted clients can also read canonical JSON in text results
 
 ## Configure local stdio
 
@@ -86,7 +134,7 @@ process or a later one.
 | `tinycloud_auth_status` | Inspect authentication state |
 | `tinycloud_auth_capabilities` | Inspect validated active capabilities |
 | `tinycloud_auth_request` | Create or recover an exact permission request |
-| `tinycloud_auth_import` | Validate and import a request-bound delegation |
+| `tinycloud_auth_import` | Validate and import a request-bound delegation (local only) |
 | `tinycloud_account_spaces_list` | List the canonical account space registry |
 | `tinycloud_account_applications_list` | List registered apps and manifests |
 | `tinycloud_kv_list` | List keys in one selected space or prefix |
@@ -98,13 +146,15 @@ process or a later one.
 | `tinycloud_sql_query` | Run one bounded read-only query against one SQLite database |
 | `tinycloud_sql_execute` | Run one positional-parameterized `INSERT`, `UPDATE`, or `DELETE` |
 | `tinycloud_secrets_get` | Read and decrypt one delegated secret |
+| `tinycloud_secrets_status` | Inspect delegated secret readiness without reading values (local only) |
 
 These tools use the same versioned operation contracts as the CLI projections.
 Results use one of four statuses: `ok`, `authority_required`, `setup_required`,
 or `error`.
 
-Every data operation plans authority for the exact space and key, prefix, or
-database in its input. When authority is missing, the tool returns
+Generic data operations plan authority for the exact space and key, prefix, or
+database in their input. The hosted apps tools use the single records-prefix
+grant described above instead. When authority is missing, the tool returns
 `authority_required` with a `tinycloud.auth.request`; it does not widen the
 request or silently fall back to owner authority. Generic KV tools reject the
 TinyCloud `account` and `secrets` spaces. Use the dedicated account and secret
@@ -116,6 +166,14 @@ owner agent that grants exact read requests, see
 Account registry discovery is capped at 1,000 records, 1 MiB per record, and 4
 MiB total serialized output. It fails closed instead of returning a partial
 registry.
+
+Hosted text results include readable canonical JSON as well as
+`structuredContent`, except that successful secret values remain structured-only.
+Read-only results over 100,000 characters return a nonretryable size error with
+narrowing guidance. This cap never truncates write results or conceals completed
+writes. Tool-call logs contain only tool name, outcome code, duration and the
+number of successfully replayed grants—not keys, values, catalog text, SQL or
+parameters.
 
 ## KV data safety
 
@@ -206,7 +264,8 @@ is safe.
 2. If the result is `authority_required`, use its structured request and
    approval action to obtain the exact capabilities. The server never silently
    falls back to owner authority.
-3. Import the approved delegation with `tinycloud_auth_import`.
+3. In local stdio, import the approved delegation with `tinycloud_auth_import`.
+   Hosted mode imports it through the OpenKey approval callback instead.
 4. Retry `tinycloud_secrets_get`. Requests are persisted so approval and retry
    can happen in separate client sessions.
 5. If the result is `setup_required`, follow its Secret Manager action to add

@@ -31,16 +31,34 @@ service refuses unexpected hosts and requires HTTPS for non-local public URLs.
 | `TC_MCP_STATE_SECRET` | Yes | At least 32 bytes used to derive tenant IDs and sign one-time approval state |
 | `TC_MCP_OAUTH_METADATA_URL` | No | OpenKey authorization-server metadata URL |
 | `TC_OPENKEY_HOST` | No | OpenKey browser approval origin; defaults to `https://openkey.so` |
-| `TC_HOST` | No | TinyCloud node; defaults to `https://node.tinycloud.xyz` |
+| `TC_HOST` | No | TinyCloud node; defaults to `https://tee.node.tinycloud.xyz` |
 | `TC_MCP_ALLOWED_ORIGINS` | No | Comma-separated origins for direct browser requests |
-| `TC_MCP_APPROVAL_TTL_SECONDS` | No | One-time approval link lifetime; defaults to 300 seconds |
-| `TC_MCP_DELEGATION_EXPIRY` | No | Delegation duration sent to OpenKey; defaults to `1h` |
+| `TC_MCP_APPROVAL_TTL_SECONDS` | No | One-time approval link lifetime; standalone default is 300 seconds; production compose sets 900 |
+| `TC_MCP_DELEGATION_EXPIRY` | No | Delegation duration sent to OpenKey; standalone default is `1h`; production compose sets `30d` |
 | `PORT` | No | HTTP listen port; defaults to 3000 |
 
 Keep the state secret stable. Rotating it intentionally disconnects existing
 OAuth subjects from their stored delegates. Back up the state volume and
 encrypt it at rest; it contains delegate private keys and signed capabilities,
 but no owner keys or OAuth access tokens.
+
+The production `docker-compose.phala.yml` explicitly sets
+`TC_MCP_DELEGATION_EXPIRY=30d` and `TC_MCP_APPROVAL_TTL_SECONDS=900`; the
+standalone container command above does not inherit those compose overrides.
+Expired or missing sessions return a fresh connect approval link in
+`error.details`; expired or missing grants return an `authority_required`
+approval link. The owner must approve again.
+
+Hosted mode exposes 20 tools, including `tinycloud_connect` and four
+`tinycloud_apps_*` tools. Local stdio has 17 tools; `tinycloud_auth_import` and
+`tinycloud_secrets_status` are local-only. Personal-record operations use one
+get/list/put/delete prefix grant for `xyz.tinycloud.agent-data/` in `default`.
+This is an apps-specific exception, not broader authority for generic KV tools.
+The optional fast copy has a separate exact-database approval. KV remains the
+source of truth; `COPY_PARTIAL` resumes on the next query, while nonretryable
+`NODE_ERROR` with `error.details.reason: "copy_unavailable"` requires the node
+team, not a retry loop. See [TinyCloud MCP](/cli/mcp) for the owner workflow,
+ETag edits and partial write outcomes.
 
 ## Scaling boundary
 
@@ -66,8 +84,21 @@ delegation is persisted. The approval page names the account that asked, and
 the callback refuses a delegation signed by any other account with
 `403 approval_owner_mismatch` (`@tinycloud/mcp` 0.3.3 and later).
 
+## Results and privacy
+
+Hosted text blocks include the canonical JSON result so clients that ignore
+`structuredContent` can still read records and approval links. Successful
+secret values remain structured-only. Read-only results over 100,000 characters
+return a nonretryable size error with narrowing guidance; write results are
+never truncated by this cap. Writes do not use an operation deadline that
+could abandon reporting while a mutation continues.
+
+Each tool call emits one stderr line containing only the tool name, outcome
+code, duration and successful replayed-grant count. Never log keys (which can
+contain personal slugs), values, catalog text, SQL or parameters.
+
 <Warning>
-The service processes plaintext values and SQL results for capabilities a user
-approves. Treat its runtime and observability pipeline as part of the data trust
-boundary. Do not log request bodies or structured tool results.
+The service processes plaintext inputs and results, including delegated secrets.
+Treat its runtime and observability pipeline as part of the data trust boundary.
+Do not log request bodies, text result blocks or structured tool results.
 </Warning>

@@ -10,13 +10,12 @@ lag a documentation deployment.
 
 ## Agent access quickstart
 
-TinyCloud MCP supports two transports. Remote clients such as Claude web,
-Claude mobile, and Claude Desktop connect to the hosted Streamable HTTP
-resource at `https://mcp.tinycloud.xyz/mcp`. It uses OpenKey OAuth and exposes
-`tinycloud_connect` plus the 16 canonical TinyCloud tools. Local clients can
-instead install the separate `@tinycloud/mcp` package alongside
-`@tinycloud/cli` and run its stdio server. The MCP server is not a subcommand
-embedded in `tc`.
+TinyCloud MCP supports two transports. Claude web, iOS, Android and other
+remote clients connect to `https://mcp.tinycloud.xyz/mcp` using OpenKey OAuth.
+Hosted mode exposes 20 tools: it adds `tinycloud_connect` and four apps tools
+to the 17-tool local surface, omitting local-only `tinycloud_auth_import` and
+`tinycloud_secrets_status`. Local clients install `@tinycloud/mcp` alongside
+`@tinycloud/cli` and run its stdio server; MCP is not a `tc` subcommand.
 
 For hosted access, add `https://mcp.tinycloud.xyz/mcp` as a custom connector,
 complete the OpenKey sign-in, and call `tinycloud_connect`. If it returns an
@@ -25,9 +24,44 @@ call `tinycloud_connect` again. Continue only after it returns
 `connected: true`. Later `authority_required` results carry an exact approval
 URL; approve the request and retry the original tool unchanged.
 
-Hosted mode requires `@tinycloud/mcp` 0.3.3 or newer on the service. Local
-stdio requires Node.js 20 or newer, `@tinycloud/mcp` 0.2.0 or newer, and a
-deployed TinyCloud node running 1.6.0 or newer.
+Local stdio requires Node.js 20 or newer and a deployed TinyCloud node running
+1.6.0 or newer. Hosted apps do not require local CLI or skill installation.
+
+For personal records, ask naturally: “Log my weight: 80.5 kg today.”
+Approve connect and records access in OpenKey. `tinycloud_apps_context`
+returns rules, catalog, local time, timezone and fast-copy state;
+`tinycloud_apps_read` lists prefixes and reads records with ETags;
+`tinycloud_apps_write` runs 1–10 ordered create, conditional edit, move or
+delete operations; `tinycloud_apps_query` refreshes the optional fast copy and
+queries selected kinds. All four are hosted-only.
+Records use one get/list/put/delete prefix grant under
+`xyz.tinycloud.agent-data/` in `default`; generic KV exact scopes are unchanged.
+Ask for the owner's city once and store the IANA timezone. Fresh ETags protect
+edits; `CHANGED` means re-read, not overwrite. Inspect every write outcome and
+completed move step, and report partial success rather than replaying a batch.
+In Claude Settings → Connectors → TinyCloud, `tinycloud_apps_write` can be set
+to Always allow; this does not replace OpenKey approval.
+
+Offer “a fast, searchable copy of your records” for larger questions, after
+answering from KV when no copy is approved. It is optional and separately
+approved; KV remains the source of truth. Developer detail: the exact SQL
+database is `xyz.tinycloud.agent-data.index`, with read/write/schema authority.
+`COPY_PARTIAL` is an ok result listing remaining kinds; the next query resumes.
+A nonretryable `NODE_ERROR` with `error.details.reason: "copy_unavailable"`
+requires the node team; answer from KV rather than retrying the copy.
+
+Production compose sets `TC_MCP_DELEGATION_EXPIRY=30d` and
+`TC_MCP_APPROVAL_TTL_SECONDS=900`. Standalone defaults remain `1h` and 300
+seconds. `TC_HOST` defaults to `https://tee.node.tinycloud.xyz`.
+Missing/expired sessions return a fresh connect link in `error.details`;
+missing/expired grants return an `authority_required` link. Renew through
+owner approval; stop if declined.
+
+Hosted text carries readable canonical JSON alongside structuredContent,
+except successful secret values remain structured-only. Read-only results over
+100,000 characters fail with narrowing guidance; write results are never
+truncated by this cap. Logs contain only tool, outcome code, duration and
+successful replayed-grant count, never keys, values, catalog text, SQL or params.
 
 The MCP data surface can discover account spaces and applications; list, read,
 inspect, create, replace, upsert, and delete selected KV values; inspect one
@@ -36,8 +70,7 @@ SQLite `INSERT`, `UPDATE`, or `DELETE`; and read a delegated secret. Generic KV
 access blocks the protected `account` and `secrets` spaces. Treat file-like
 values according to the owning app's manifest and schema.
 
-For local stdio, install the stable packages and create a delegated agent
-profile:
+For local stdio, install the packages and create a delegated agent profile:
 
 ```sh
 npm install --global @tinycloud/cli @tinycloud/mcp
@@ -110,10 +143,11 @@ the narrower tool. This authority is not table- or row-scoped.
 Execution failures are not automatically retryable; inspect database state
 before considering another non-idempotent write.
 
-When a tool returns `authority_required`, preserve its returned
+In local stdio, when a tool returns `authority_required`, preserve its returned
 `tinycloud.auth.request` exactly. The owner grants that artifact without
 widening it, the delegate imports the full delegation with
-`tinycloud_auth_import`, and the agent retries the original tool.
+`tinycloud_auth_import`, and the agent retries the original tool. Hosted mode
+uses the approval URL and callback instead; it does not expose the import tool.
 
 Complete readable pages:
 
