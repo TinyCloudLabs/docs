@@ -19,16 +19,37 @@ a channel appropriate for account access.
 
 ## MCP path
 
-For Claude web/mobile and other remote clients, add
-`https://mcp.tinycloud.xyz/mcp` as a custom connector. Call
-`tinycloud_connect`, approve its one-time OpenKey link, and call it again before
-continuing with account discovery below. Hosted mode creates and maintains the
-delegate profile for you and requires `@tinycloud/mcp` 0.3.3 or newer on the
-hosted service.
+For Claude web, iOS and Android, add `https://mcp.tinycloud.xyz/mcp` as a custom
+connector. Call `tinycloud_connect`, approve its one-time OpenKey link, and call
+it again before continuing with account discovery below. Hosted mode creates
+and maintains the delegate profile for you and exposes 20 tools.
+
+For personal records, just ask “Log my weight: 80.5 kg today.” Approve connect
+and the separate records request once, then Claude uses `tinycloud_apps_context`,
+`tinycloud_apps_read`, `tinycloud_apps_write` and `tinycloud_apps_query`.
+These hosted-only tools share the coding-agent records under
+`xyz.tinycloud.agent-data/` in `default`, using one prefix grant for get, list,
+put and delete. Generic KV tools still request their exact input scope.
+Claude asks for your city once to store your timezone.
+
+Fresh reads return ETags for conditional edits; stale edits return `CHANGED`.
+Ordered write batches can partially succeed: inspect each outcome and move
+steps before retrying, and report only what was saved. For larger questions,
+Claude can offer an optional **fast, searchable copy of your records**, with
+its own approval. KV remains the truth. `COPY_PARTIAL` resumes on the next
+query; nonretryable `copy_unavailable` needs the node team, so answer from KV.
+See [TinyCloud MCP](/cli/mcp) for the complete contract and approval settings.
+
+Production grants last 30 days and approval links last 15 minutes. An expired
+session returns a fresh link in `error.details`; an expired grant returns an
+`authority_required` approval link. Approve the new link before retrying.
+Hosted results include readable canonical JSON in text except successful secret
+values. Read-only results have a 100,000-character cap; write results are never
+truncated by it.
 
 For a local MCP client, continue with the CLI bootstrap in this section.
 
-This 16-tool workflow requires `@tinycloud/mcp` 0.2.0 or newer and a
+The local stdio surface has 17 tools and requires Node.js 20 or newer and a
 TinyCloud node running 1.6.0 or newer.
 
 Install the CLI and MCP packages with Node.js 20 or newer, then create a
@@ -79,7 +100,7 @@ request. Configure MCP with the same explicit profile as described in
 | `tinycloud_sql_query` | Run one bounded `SELECT` against one selected SQLite database |
 | `tinycloud_sql_execute` | Run one positional-parameterized `INSERT`, `UPDATE`, or `DELETE` |
 
-The remaining six tools manage the selected session and protected secret flow:
+The remaining seven local tools manage the selected session and protected secret flow:
 
 | Tool | Purpose |
 |---|---|
@@ -87,8 +108,9 @@ The remaining six tools manage the selected session and protected secret flow:
 | `tinycloud_auth_status` | Inspect authentication state |
 | `tinycloud_auth_capabilities` | Inspect validated active capabilities |
 | `tinycloud_auth_request` | Create or recover an exact permission request |
-| `tinycloud_auth_import` | Validate and import a request-bound delegation |
+| `tinycloud_auth_import` | Validate and import a request-bound delegation (local only) |
 | `tinycloud_secrets_get` | Read one specifically delegated secret |
+| `tinycloud_secrets_status` | Inspect secret readiness without reading values (local only) |
 
 Call `tinycloud_account_spaces_list` first. Compare its space IDs with
 `tinycloud_account_applications_list`, then choose a space and call
