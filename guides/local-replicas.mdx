@@ -450,12 +450,12 @@ A restored session that does not cover replication asks for a fresh sign-in when
 ### Sign-out and account switch
 
 - `signOut()` ends the in-memory web-sdk session (TC-1208) and disables replication in this tab. This tab serves no replica reads after it resolves.
-- Sign-out, lifecycle deny and account switch delete the replica's encryption and HMAC keys before purging data. `signOut()` does not wait for the background erase. Other tabs are refused from their next database transaction and drop their open handles.
+- Sign-out and account switch deny replica access, then delete the durable account AES-GCM, account HMAC and gate-HMAC keys before purging data. `signOut()` does not wait for the background erase. Other tabs are refused from their next database transaction and drop their open handles.
 - On an account switch, the next account's replica stays inactive until every erase for the previous account completes. Its reads go to the network until then.
 - A failed erase is retried at the next sign-in and on every page load. Until it completes, status reports `purgePending` as `true`, and the affected partitions cannot be read.
 - If the database cannot be written during sign-out, the SDK deletes the replica database. If that also fails, it writes a `localStorage` marker that stops activation and delivery in every tab. If neither works, cross-tab denial is not guaranteed; see Known limitations.
 
-Unlike node-sdk, which keeps data on disk until `purge()` is called, a browser replica lives in a shared origin profile. Sign-out denies access and starts erasure; deleting its keys first leaves any unpurged ciphertext unreadable.
+Unlike node-sdk, which keeps data on disk until `purge()` is called, a browser replica lives in a shared origin profile. After durable keys are deleted, a fresh page or worker in the same browser context and origin cannot decrypt leftover ciphertext. WebCrypto cannot revoke a `CryptoKey` already held in memory by arbitrary same-origin script. Live stale tabs rely on stamp/marker fencing and drop key references best effort, subject to the fallback failure above.
 
 ### Grant lifetime
 
@@ -465,7 +465,7 @@ A replica grant's effective expiry is the earliest of:
 - the install time plus `grantTtlMs`;
 - the consent deadline: 7 days after the consent anchor. The anchor is the SIWE `issuedAt` of the sign-in that granted replication. Compact delegated sessions fall back to the delegation's `iat`, then `nbf`. If none is available, the anchor is the time this replica was first installed. Sign-out clears a first-install anchor, so the next sign-in on the device starts a new one.
 
-Reads stop at the effective expiry. A grant expiring alone blocks reads but does not erase local data; the 7-day consent deadline deletes replica keys before purging content. When less than a quarter of the effective lifetime remains, the SDK renews the grant silently with the session key, without a wallet prompt. Compact delegated sessions and session-only grants do not renew silently. If renewal fails because the device is offline or the node refuses it, reads continue until the effective expiry. No renewal happens after the consent deadline; sign in again to refresh consent.
+Reads stop at the effective expiry. A grant expiring alone blocks reads but does not erase local data; the 7-day consent deadline deletes the durable account AES-GCM, account HMAC and gate-HMAC keys before purging content. The deadline check runs at each load and open before a read, and on a timer while open; if the browser was closed at expiry, deletion runs on its next load. When less than a quarter of the effective lifetime remains, the SDK renews the grant silently with the session key, without a wallet prompt. Compact delegated sessions and session-only grants do not renew silently. If renewal fails because the device is offline or the node refuses it, reads continue until the effective expiry. No renewal happens after the consent deadline; sign in again to refresh consent.
 
 Reads at or after the effective expiry go to the network with reason `grant_expired`, and the authority reports `expired`. Renewal and consent-deadline outcomes arrive as `replication.grant` events. Once the consent deadline passes, no grant can be minted, and that event carries `CONSENT_EXPIRED`.
 
@@ -496,7 +496,7 @@ The browser quota is shared with the app's other storage, so set `maxBytes` belo
 
 ### Stored contents
 
-Phase 2 browser read-through excludes `vault/`, `/` (which includes `vault/`), and the secrets space. The package must enforce `allowSecrets: false`; app configuration alone is not a safeguard. Replica-owned IndexedDB data uses non-extractable, account-scoped AES-GCM and gate-HMAC keys stored in IndexedDB. Replica-owned IndexedDB stores and localStorage markers or tombstones contain no literal KV content, paths, prefixes or account identifiers in plaintext.
+Phase 2 browser read-through excludes `vault/`, `/` (which includes `vault/`), and the secrets space. The package must enforce `allowSecrets: false`; app configuration alone is not a safeguard. Non-extractable account-scoped AES-GCM and account-HMAC keys and a gate-HMAC key are stored in IndexedDB. No literal KV content, paths, prefixes or account identifiers are stored as plaintext in replica-owned IndexedDB stores or localStorage markers/tombstones.
 
 This protects the replica only to the level of the signed-in browser session. The pre-existing `BrowserSessionStorage` record in localStorage still contains the persisted address and session-key JWK; it is outside the replica-owned scan. Someone who can read the browser profile while that session is valid may use it to read data from the network. Use OS disk encryption. A stronger opt-in "locked offline copy" backed by a hardware- or user-bound key is post-GA P3 work, not part of this beta.
 
