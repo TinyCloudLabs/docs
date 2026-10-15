@@ -438,7 +438,7 @@ const tcw = new TinyCloudWeb({
 | `enabled` | Turns read-through on. Off by default. |
 | `prefixes` | Folders to replicate. Required when enabled. |
 | `storage` | Use `indexedDbReplicaStorage()`. Required when enabled. |
-| `allowSecrets` | Opt-in for `vault/`, `/`, and the secrets space. |
+| `allowSecrets` | Fixed to `false` for Phase 2 browser read-through. The package must reject `vault/`, `/`, and secrets-space scopes; there is no opt-in for this beta. |
 | `grantTtlMs` | Lifetime cap for the replica grant. 24 hours by default. Must be greater than 0 and at most 7 days; otherwise construction throws a `TypeError`. |
 | `maxBytes` | Origin-wide byte budget for replica data. See Storage budget below. |
 | `minFreeBytes` | Browser free-space floor. 64 MiB by default. Ignored on node and CLI. |
@@ -450,12 +450,12 @@ A restored session that does not cover replication asks for a fresh sign-in when
 ### Sign-out and account switch
 
 - `signOut()` ends the in-memory web-sdk session (TC-1208) and disables replication in this tab. This tab serves no replica reads after it resolves.
-- Erasing the account's replica data runs in the background. `signOut()` does not wait for the erase. Other tabs are refused from their next database transaction and drop their open handles.
+- Sign-out, lifecycle deny and account switch delete the replica's encryption and HMAC keys before purging data. `signOut()` does not wait for the background erase. Other tabs are refused from their next database transaction and drop their open handles.
 - On an account switch, the next account's replica stays inactive until every erase for the previous account completes. Its reads go to the network until then.
 - A failed erase is retried at the next sign-in and on every page load. Until it completes, status reports `purgePending` as `true`, and the affected partitions cannot be read.
 - If the database cannot be written during sign-out, the SDK deletes the replica database. If that also fails, it writes a `localStorage` marker that stops activation and delivery in every tab. If neither works, cross-tab denial is not guaranteed; see Known limitations.
 
-Unlike node-sdk, which keeps data on disk until `purge()` is called, a browser replica lives in a shared origin profile, so sign-out erases it.
+Unlike node-sdk, which keeps data on disk until `purge()` is called, a browser replica lives in a shared origin profile. Sign-out denies access and starts erasure; deleting its keys first leaves any unpurged ciphertext unreadable.
 
 ### Grant lifetime
 
@@ -465,7 +465,7 @@ A replica grant's effective expiry is the earliest of:
 - the install time plus `grantTtlMs`;
 - the consent deadline: 7 days after the consent anchor. The anchor is the SIWE `issuedAt` of the sign-in that granted replication. Compact delegated sessions fall back to the delegation's `iat`, then `nbf`. If none is available, the anchor is the time this replica was first installed. Sign-out clears a first-install anchor, so the next sign-in on the device starts a new one.
 
-Reads stop at the effective expiry. Expiry blocks reads but does not erase local data. When less than a quarter of the effective lifetime remains, the SDK renews the grant silently with the session key, without a wallet prompt. Compact delegated sessions and session-only grants do not renew silently. If renewal fails because the device is offline or the node refuses it, reads continue until the effective expiry. No renewal happens after the consent deadline; sign in again to refresh consent.
+Reads stop at the effective expiry. A grant expiring alone blocks reads but does not erase local data; the 7-day consent deadline deletes replica keys before purging content. When less than a quarter of the effective lifetime remains, the SDK renews the grant silently with the session key, without a wallet prompt. Compact delegated sessions and session-only grants do not renew silently. If renewal fails because the device is offline or the node refuses it, reads continue until the effective expiry. No renewal happens after the consent deadline; sign in again to refresh consent.
 
 Reads at or after the effective expiry go to the network with reason `grant_expired`, and the authority reports `expired`. Renewal and consent-deadline outcomes arrive as `replication.grant` events. Once the consent deadline passes, no grant can be minted, and that event carries `CONSENT_EXPIRED`.
 
@@ -496,7 +496,9 @@ The browser quota is shared with the app's other storage, so set `maxBytes` belo
 
 ### Stored contents
 
-Replicating `vault/`, `/`, or the secrets space requires `allowSecrets: true`, as in the node-sdk section. The replica stores values as written. Values outside `vault/` may be plaintext in IndexedDB on the device, so treat a shared browser profile accordingly. Sign-out erases them.
+Phase 2 browser read-through excludes `vault/`, `/` (which includes `vault/`), and the secrets space. The package must enforce `allowSecrets: false`; app configuration alone is not a safeguard. Replica-owned IndexedDB data uses non-extractable, account-scoped AES-GCM and gate-HMAC keys stored in IndexedDB. Replica-owned IndexedDB stores and localStorage markers or tombstones contain no literal KV content, paths, prefixes or account identifiers in plaintext.
+
+This protects the replica only to the level of the signed-in browser session. The pre-existing `BrowserSessionStorage` record in localStorage still contains the persisted address and session-key JWK; it is outside the replica-owned scan. Someone who can read the browser profile while that session is valid may use it to read data from the network. Use OS disk encryption. A stronger opt-in "locked offline copy" backed by a hardware- or user-bound key is post-GA P3 work, not part of this beta.
 
 ### Browser support and revocation
 
@@ -518,12 +520,7 @@ Replicating `vault/`, `/`, or the secrets space requires `allowSecrets: true`, a
 - CLI replica files use mode `0600` under directories with mode `0700`.
   Protect the device account and backups as well; file permissions do not
   protect against the same operating-system user.
-- Sync grants do not grant decryption. Replicating the secrets space, a `vault/` folder, or `/` (the whole space) requires explicit opt-in: `tc replica sync --allow-secrets` on the CLI, or
-  `openReplica({ allowSecrets: true })` in the explicit browser API, or
-  `replication.allowSecrets: true` for web read-through. It copies encrypted
-  secret material to the device. If you separately grant decrypt, note that
-  decrypt authority is network-wide today, not limited to one secret name. Do
-  not use it unless that scope is acceptable.
+- Sync grants do not grant decryption. CLI replication of the secrets space, `vault/`, or `/` requires `tc replica sync --allow-secrets` and copies encrypted secret material to the device. Phase 2 browser read-through has no secrets opt-in: its package must reject those scopes. Separately granted decrypt authority is network-wide today, not limited to one secret name.
 - **Since CLI 1.1.0:** `tc auth logout` deletes local replicas for that
   CLI profile by default; pass `--keep-replicas` to keep them. Logout does not
   revoke the profile's grants on the node. To revoke node-side authority, use
@@ -542,7 +539,7 @@ Replicating `vault/`, `/`, or the secrets space requires `allowSecrets: true`, a
   API. In the browser, `onCommitted` reports only local commits from other
   tabs.
 - Replicas are read-only. Offline writes are not supported.
-- **Web read-through (beta):** a device that stays offline keeps its replica data until the grant's effective expiry or the account signs out. It cannot learn about revocation before then.
+- **Web read-through (beta):** an offline device cannot learn about revocation before it reconnects. Local reads stop at the effective expiry; at the 7-day consent deadline, replica keys are deleted before content purge.
 - **Web read-through (beta):** revocation through the SDK or CLI can fail for some grant shapes (TC-721, TC-821). Until those are fixed, use short `grantTtlMs` values.
 - **Web read-through (beta):** if both the replica database deletion and the sign-out marker fail, another open tab is not guaranteed to stop serving the previous account's replica.
 - **Web read-through (beta):** WebKit runs are attempted but not qualified for this beta. Only Chromium is qualified.
