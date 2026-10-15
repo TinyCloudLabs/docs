@@ -452,7 +452,7 @@ A restored session that does not cover replication asks for a fresh sign-in when
 - `signOut()` ends the in-memory web-sdk session (TC-1208) and disables replication in this tab. This tab serves no replica reads after it resolves.
 - Erasing the account's replica data runs in the background. `signOut()` does not wait for the erase. Other tabs are refused from their next database transaction and drop their open handles.
 - On an account switch, the next account's replica stays inactive until every erase for the previous account completes. Its reads go to the network until then.
-- A failed erase is retried at the next sign-in and on every page load. Until it completes, status reports `purge_pending`, and the affected partitions cannot be read.
+- A failed erase is retried at the next sign-in and on every page load. Until it completes, status reports `purgePending` as `true`, and the affected partitions cannot be read.
 - If the database cannot be written during sign-out, the SDK deletes the replica database. If that also fails, it writes a `localStorage` marker that stops activation and delivery in every tab. If neither works, cross-tab denial is not guaranteed; see Known limitations.
 
 Unlike node-sdk, which keeps data on disk until `purge()` is called, a browser replica lives in a shared origin profile, so sign-out erases it.
@@ -463,7 +463,7 @@ A replica grant's effective expiry is the earliest of:
 
 - the grant's own expiry;
 - the install time plus `grantTtlMs`;
-- the consent deadline: 7 days after the consent anchor. The anchor is the SIWE `issuedAt` of the sign-in that granted replication. Compact delegated sessions fall back to the delegation's `iat`, then `nbf`. If none is available, the anchor is the time this replica was first installed.
+- the consent deadline: 7 days after the consent anchor. The anchor is the SIWE `issuedAt` of the sign-in that granted replication. Compact delegated sessions fall back to the delegation's `iat`, then `nbf`. If none is available, the anchor is the time this replica was first installed. Sign-out clears a first-install anchor, so the next sign-in on the device starts a new one.
 
 Reads stop at the effective expiry. Expiry blocks reads but does not erase local data. When less than a quarter of the effective lifetime remains, the SDK renews the grant silently with the session key, without a wallet prompt. Compact delegated sessions and session-only grants do not renew silently. If renewal fails because the device is offline or the node refuses it, reads continue until the effective expiry. No renewal happens after the consent deadline; sign in again to refresh consent.
 
