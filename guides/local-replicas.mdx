@@ -463,11 +463,11 @@ A replica grant's effective expiry is the earliest of:
 
 - the grant's own expiry;
 - the install time plus `grantTtlMs`;
-- the consent deadline: the SIWE `issuedAt` of the sign-in that granted replication, plus 7 days.
+- the consent deadline: 7 days after the consent anchor. The anchor is the SIWE `issuedAt` of the sign-in that granted replication. Compact delegated sessions fall back to the delegation's `iat`, then `nbf`. If none is available, the anchor is the time this replica was first installed.
 
-Reads stop at the effective expiry. Expiry blocks reads but does not erase local data. When less than a quarter of the lifetime remains, the SDK renews the grant silently with the session key, without a wallet prompt. If renewal fails because the device is offline or the node refuses it, reads continue until the effective expiry. No renewal happens after the consent deadline; sign in again to refresh consent.
+Reads stop at the effective expiry. Expiry blocks reads but does not erase local data. When less than a quarter of the effective lifetime remains, the SDK renews the grant silently with the session key, without a wallet prompt. Compact delegated sessions and session-only grants do not renew silently. If renewal fails because the device is offline or the node refuses it, reads continue until the effective expiry. No renewal happens after the consent deadline; sign in again to refresh consent.
 
-Reads at or after the effective expiry refuse with `GRANT_EXPIRED`, and the authority reports `expired`. Renewal and consent-deadline outcomes arrive as `replication.grant` events.
+Reads at or after the effective expiry go to the network with reason `grant_expired`, and the authority reports `expired`. Renewal and consent-deadline outcomes arrive as `replication.grant` events. Once the consent deadline passes, no grant can be minted, and that event carries `CONSENT_EXPIRED`.
 
 ### Freshness and offline reads
 
@@ -481,8 +481,8 @@ const fresh = await tcw.kv.get("notes/today.txt", { source: "network" });
 
 `onEvent` receives `replication.read`, `replication.write`, `replication.grant`, and `replication.lifecycle` events. `replication.grant` reports minting, renewal, refused or deferred renewal, expiry, and the consent deadline. `replication.lifecycle` reports sign-out and account-switch steps and never carries a principal. `tcw.replication` provides `status()`, `sync()`, `purge()`, and `clearPending()`. Status adds two fields:
 
-- `persisted` is the result of `navigator.storage.persist()`. `false` means the browser did not grant persistent storage for this origin.
-- `purge_pending` reports an erase that has not finished, including one left over from an earlier account.
+- `persisted` is the result of `navigator.storage.persist()`: `true` or `false`, or `null` when the browser has not been asked or the API is unavailable. `false` means the browser did not grant persistent storage for this origin.
+- `purgePending` is `true` while an erase has not finished, including one left over from an earlier account.
 
 The lifecycle gate can refuse this session. Then `state` is `gated`, with a `gate` reason of `not_established`, `stamp_stale`, `principal_mismatch`, `purge_pending`, `logout_pending`, or `gate_unavailable`. Reads go to the network with reason `replica_gated`, and nothing is erased.
 
@@ -490,7 +490,7 @@ The lifecycle gate can refuse this session. Then `state` is `gated`, with a `gat
 
 `maxBytes` caps replica data for the whole origin, across all prefixes and accounts stored on it. A sync that would exceed the cap stops with `STORAGE_BUDGET`. A browser `QuotaExceededError` stops it with `STORAGE_FULL`. In both cases, committed content still serves covered keys while they are fresh, and stale or uncovered reads go to the network. Nothing is evicted.
 
-Browsers also keep a free-space floor, `minFreeBytes`, 64 MiB by default. A sync that would leave less free space than the floor stops with `STORAGE_BUDGET`. Node and CLI ignore the option.
+Browsers also keep a free-space floor, `minFreeBytes`, 64 MiB by default. The free space is read just before each page commit, so the floor is best effort. A sync that would leave less free space than the floor stops with `STORAGE_BUDGET`. Node and CLI ignore the option.
 
 The browser quota is shared with the app's other storage, so set `maxBytes` below the space the app needs for its own data. Private browsing and browsers without IndexedDB report `runtime_unsupported`, and every read goes to the network.
 
