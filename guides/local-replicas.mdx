@@ -448,7 +448,7 @@ A restored session that does not cover replication asks for a fresh sign-in when
 
 ### Sign-out and account switch
 
-- `signOut()` disables replication in this tab, and this tab serves no replica reads after it resolves. It does not end the in-memory web-sdk session (TC-1208), so do not treat it as full session teardown.
+- `signOut()` ends the in-memory web-sdk session (TC-1208) and disables replication in this tab. This tab serves no replica reads after it resolves.
 - Erasing the account's replica data runs in the background. `signOut()` does not wait for the erase. Other tabs are refused from their next database transaction and drop their open handles.
 - On an account switch, the next account's replica stays inactive until every erase for the previous account completes. Its reads go to the network until then.
 - A failed erase is retried at the next sign-in and on every page load. Until it completes, status reports `purge_pending`, and the affected partitions cannot be read.
