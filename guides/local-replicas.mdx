@@ -439,10 +439,11 @@ const tcw = new TinyCloudWeb({
 | `prefixes` | Folders to replicate. Required when enabled. |
 | `storage` | Use `indexedDbReplicaStorage()`. Required when enabled. |
 | `allowSecrets` | Opt-in for `vault/`, `/`, and the secrets space. |
-| `grantTtlMs` | Lifetime cap for the replica grant. 24 hours by default; values above 7 days are rejected. |
+| `grantTtlMs` | Lifetime cap for the replica grant. 24 hours by default. Must be greater than 0 and at most 7 days; otherwise construction throws a `TypeError`. |
 | `maxBytes` | Origin-wide byte budget for replica data. See Storage budget below. |
+| `minFreeBytes` | Browser free-space floor. 64 MiB by default. Ignored on node and CLI. |
 | `syncIntervalMs`, `maxStalenessMs`, `staleSyncTimeoutMs` | Background sync (60 seconds), staleness limit (120 seconds), and stale-sync timeout (5 seconds). |
-| `onEvent` | Receives replication read and write events. |
+| `onEvent` | Receives replication read, write, grant, and lifecycle events. See Events and status. |
 
 A restored session that does not cover replication asks for a fresh sign-in when the browser is online.
 
@@ -466,6 +467,8 @@ A replica grant's effective expiry is the earliest of:
 
 Reads stop at the effective expiry. Expiry blocks reads but does not erase local data. When less than a quarter of the lifetime remains, the SDK renews the grant silently with the session key, without a wallet prompt. If renewal fails because the device is offline or the node refuses it, reads continue until the effective expiry. No renewal happens after the consent deadline; sign in again to refresh consent.
 
+Reads at or after the effective expiry refuse with `GRANT_EXPIRED`, and the authority reports `expired`. Renewal and consent-deadline outcomes arrive as `replication.grant` events.
+
 ### Freshness and offline reads
 
 The defaults are a 120-second maximum staleness, a 5-second stale-sync timeout, and a background sync every 60 seconds. Offline, a stale value is served with `syncError: "NETWORK_ERROR"`. To bypass the replica for one read:
@@ -476,14 +479,18 @@ const fresh = await tcw.kv.get("notes/today.txt", { source: "network" });
 
 ### Events and status
 
-`onEvent` receives `replication.read` and `replication.write` events. `tcw.replication` provides `status()`, `sync()`, `purge()`, and `clearPending()`. Status adds two fields:
+`onEvent` receives `replication.read`, `replication.write`, `replication.grant`, and `replication.lifecycle` events. `replication.grant` reports minting, renewal, refused or deferred renewal, expiry, and the consent deadline. `replication.lifecycle` reports sign-out and account-switch steps and never carries a principal. `tcw.replication` provides `status()`, `sync()`, `purge()`, and `clearPending()`. Status adds two fields:
 
 - `persisted` is the result of `navigator.storage.persist()`. `false` means the browser did not grant persistent storage for this origin.
 - `purge_pending` reports an erase that has not finished, including one left over from an earlier account.
 
+The lifecycle gate can refuse this session. Then `state` is `gated`, with a `gate` reason of `not_established`, `stamp_stale`, `principal_mismatch`, `purge_pending`, `logout_pending`, or `gate_unavailable`. Reads go to the network with reason `replica_gated`, and nothing is erased.
+
 ### Storage budget
 
 `maxBytes` caps replica data for the whole origin, across all prefixes and accounts stored on it. A sync that would exceed the cap stops with `STORAGE_BUDGET`. A browser `QuotaExceededError` stops it with `STORAGE_FULL`. In both cases, committed content still serves covered keys while they are fresh, and stale or uncovered reads go to the network. Nothing is evicted.
+
+Browsers also keep a free-space floor, `minFreeBytes`, 64 MiB by default. A sync that would leave less free space than the floor stops with `STORAGE_BUDGET`. Node and CLI ignore the option.
 
 The browser quota is shared with the app's other storage, so set `maxBytes` below the space the app needs for its own data. Private browsing and browsers without IndexedDB report `runtime_unsupported`, and every read goes to the network.
 
