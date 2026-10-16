@@ -89,6 +89,59 @@ executes them, including delegated secrets. Use local stdio instead when the
 service operator must not be in that trust boundary.
 </Warning>
 
+## Private diagnostic history
+
+Diagnostics are **off by default**, independent of connector permissions and the
+existing no-content stderr service log. They add no public MCP tool, history
+endpoint, result receipt, or response header. An OAuth token or record grant
+does not authorize diagnostic access.
+
+For hosted capture, an operator needs a separate private diagnostic volume,
+an existing protected mapping from the service-verified tenant identity, the
+owner's request, and explicit offline enablement. The service captures its own
+bounded metadata without depending on an owner's laptop or phone remaining
+online. It does not capture the conversation or final assistant answer.
+See [protected hosted controls and transfer](/hosting/mcp#private-diagnostic-spool);
+owners review an explicitly transferred bundle locally rather than query a
+public diagnostic endpoint.
+
+For local stdio, capture requires both separate local enablement and an
+explicitly scoped, dedicated tc-apps process. Run/task attribution alone is not
+scope. Do not scope a general long-lived shared MCP server just to gather
+history. Stdout remains strictly MCP; diagnostics do not consume or copy its
+input/output streams. Use the [CLI scope and review workflow](/cli/diagnostics#private-tc-apps-history)
+for selected activity and manual linkage.
+
+A dedicated stdio connection discovers policy at startup, then refreshes it in
+the background without delaying inbound messages or cancellation. Live
+enable/resume/delete changes therefore apply to later requests without a
+restart, but requests racing discovery may lack evidence. In-flight work keeps
+its original generation and is not recaptured under a new one. Never repeat a
+mutation just to obtain diagnostic history.
+
+Automatic metadata includes fixed operation phases/outcomes, measured counts,
+timings, and available provenance, not keys, values, SQL, tokens, raw errors,
+prompts, or tool-response content. HTTP/MCP delivery, business completeness,
+mutation certainty, verification, and copy state are independent. A successful
+send/response finish is not proof of client receipt, a correct final answer,
+owner acceptance, or phone display. Missing task/turn/client/model evidence
+stays unknown.
+
+Selected intent, visible actions/final claims, feedback, and relevant excerpts
+are a separate explicit **local** detail tier, with a seven-day maximum,
+encrypted-storage/backup-policy acknowledgment, and per-case selection. That
+acknowledgment does not cryptographically verify encryption; the filesystem
+spool does not encrypt itself. Metadata retention is 30 days. Both tiers are
+best effort, bounded, and subject to quota and evidence loss.
+
+Claude Code automatic hooks, Codex automatic hooks, and OpenCode v2 linkage are
+unsupported; baseline capture plus explicit selected-block launch/manual
+selection remains the fallback. The optional OpenCode v1 attribution contract
+targets 1.18.31; source/loopback fixtures do not establish installed-client
+acceptance. No adapter grants scope or enables capture. Publication, deployment,
+real-client/mobile acceptance, installation, and real capture enablement remain
+separate, unperformed steps of this diagnostic implementation.
+
 ## Requirements
 
 - Node.js 20 or newer

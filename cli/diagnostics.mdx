@@ -1,11 +1,369 @@
 ---
 title: "Diagnostics"
-description: "Run health checks and inspect node reachability"
+description: "Inspect health and manage private, default-off tc-apps diagnostic history"
 icon: "stethoscope"
 sidebarTitle: "Diagnostics"
 ---
 
 Use diagnostics when a command fails and you need to separate local profile problems from node problems.
+
+## Private tc-apps history
+
+`tc diagnostics` (also `tinycloud diagnostics`) is a separate, local control and
+review interface. It does not initialize a profile, authenticate, or load the
+business SDK. Capture is **off by default**. It is not `tc doctor`, replication,
+ordinary service logging, an audit trail, or a personal-record app.
+
+This page describes the implementation, not a published release or a deployed
+service. Publication, deployment, adapter installation, real-client/mobile
+acceptance, and enabling real capture are separate steps; none is established
+by these instructions.
+
+### Metadata and selected detail are separate
+
+Automatic capture stores bounded, code-owned operation metadata: opaque IDs,
+phase/outcome classes, timing, measured counts, transport attempts, and available
+build/adapter provenance. It does not store prompts, terminal streams, client
+answers, record keys/values, catalog text, SQL/parameters, credential material,
+raw errors, or arbitrary client metadata.
+
+Selected detail is an independent, explicit intake for exact passages the owner
+chooses: intent, visible actions/final claims, record/catalog excerpts, and
+feedback. It is never automatic transcript collection. Credentials are forbidden
+in both tiers. Credential-pattern rejection is a guard, not a guarantee that
+arbitrary text has been sanitized; review selections yourself.
+
+```bash
+tc diagnostics status --json
+tc diagnostics enable --scope tc-apps
+tc diagnostics pause
+tc diagnostics resume
+tc diagnostics disable
+```
+
+All control/review commands print diagnostic JSON; `status --json` and
+`review --json` are explicit forms. `status` reports the root, scope, policy,
+usage including controlled copies, health, and available source provenance.
+It does not inspect client installations or print selected passages, and an
+absent root remains absent. `enable` arms metadata capture and clears pause;
+`pause` retains history; `resume` requires capture still to be enabled.
+`disable` disarms capture without deleting history, records, profiles, grants,
+or approvals. These controls do not authorize unrelated activity.
+
+### Scope a selected block, not a whole client
+
+Validated KV targets under `xyz.tinycloud.agent-data/` and the exact SQL copy
+database `xyz.tinycloud.agent-data.index` can establish scope after parsing.
+Ordinary business commands need no launcher. To include bootstrap/parser errors,
+auth, context, or initialization for a selected tc-apps block, launch that block:
+
+```bash
+tc diagnostics run --scope tc-apps -- sh ./selected-app-block.sh
+```
+
+Optional `--role` hints are `catalog`, `record`, `verification`, `copy`,
+`approval`, `context`, or `unknown`, and require `--scope tc-apps`. Hints do not
+grant authority or establish correctness.
+
+By contrast, a whole-client launch is **attribution only**:
+
+```bash
+tc diagnostics run -- claude
+```
+
+This generates run linkage and removes inherited activity scope. It does not
+enable capture or make every client command eligible. Never add `--scope tc-apps`
+to a whole coding client or a general long-lived shared MCP server. Scope only
+the selected block and its descendants, including the actual child side of a
+pipeline or `xargs`; do not export scope into the parent session. A nested scoped
+launch preserves valid enclosing linkage. Neither mode changes its parent's
+environment, retains argv/cwd/stdin/output, or injects receipts into business
+streams; child streams are inherited and exit/signal outcomes are preserved.
+
+### Storage, retention, and loss
+
+Local root precedence is `TC_DIAGNOSTICS_HOME`, then
+`$XDG_STATE_HOME/tinycloud/diagnostics`, otherwise
+`$HOME/.local/state/tinycloud/diagnostics`. Overrides must resolve to an absolute
+path. The root must be separate from the credential tree
+(`$TC_HOME/.tinycloud`, or `$HOME/.tinycloud`) and any configured `TC_APPS_STATE`,
+with neither tree containing the other. This is not a profile setting.
+
+Private directories/files use owner-only permissions (normally `0700`/`0600`).
+Inputs and destinations reject unsafe ownership/permissions, symlinks,
+hard-linked files, and unsafe ancestors. Keep selection/manifests in a private
+directory, with private regular files; do not use a shared transcript folder.
+Input paths cannot contain `..` components.
+
+| Limit | Policy |
+|---|---|
+| Metadata | 30 days from original event time |
+| Selected detail | At most 7 days, also bounded by linked evidence expiry |
+| Partition storage | 100 MiB total, including at most 10 MiB detail and managed copies |
+| Entire diagnostic root | 1 GiB across partitions and controlled storage |
+| Selected detail object | 1 MiB; at most 64 passages per selected case |
+| Writer queue | 128 events / 256 KiB; batches of at most 8 |
+| Encoded event / segment | 4 KiB / 5 MiB |
+| Policy discovery / writer lock | 1,000 ms / 200 ms budgets |
+| Terminal drain / helper cleanup | 300 ms / 2,000 ms budgets |
+
+These are bounded best-effort budgets, not end-to-end latency guarantees;
+scheduling and teardown add overhead. The business process performs no diagnostic
+filesystem I/O. Scoped disabled calls may start a bounded read-only
+policy-discovery helper; unrelated calls remain helper-free. Queue pressure,
+quota, permission errors, lock contention, process termination, or a failed
+writer can lose events rather than change business results or retries.
+Recoverable loss reporting is bounded (at most 64 attribution buckets per
+producer/helper); overflow or terminal sink failure can leave even loss health
+unknown. A missing finish is not proof of failure or success.
+Native signal termination keeps its original behavior and may leave no finish;
+diagnostics does not replace the process's signal handlers.
+
+Expired evidence is excluded from reads. Cleanup is opportunistic while the
+runtime/controls operate, not a promise of physical deletion while a machine or
+service is offline. Quota can limit history earlier. Filesystem durability is
+not a power-loss guarantee.
+
+At-rest encryption and backup exclusion are **deployment/OS policy**; this
+filesystem spool does not encrypt its own files. Before selected intake, verify
+those protections and explicitly acknowledge them:
+
+```bash
+tc diagnostics enable --scope tc-apps --detail-policy encrypted-excluded-backups
+```
+
+The flag is an acknowledgment, not cryptographic verification. It also enables
+metadata capture; it is not a detail-only switch. It permits selected intake,
+not automatic content capture. Disabling capture does not erase existing detail
+or revoke the stored detail-policy acknowledgment.
+
+### Select and review history
+
+Local history is read with `review`; there is no local `tc diagnostics history`
+command. The hosted offline administrator has a separate
+[`history` action](/hosting/mcp#protected-offline-administration).
+
+Save a private JSON selection. For example, replace the sample UUID with an
+invocation ID observed in your diagnostic history:
+
+```json
+{
+  "invocation_ids": ["11111111-1111-4111-8111-111111111111"]
+}
+```
+
+Allowed selection fields are `source_ids`, `event_ids`, `invocation_ids`,
+`case_ids`, `from`, `until`, `include_detail`, and `all`. ID lists are nonempty
+arrays of at most 4,096 canonical lowercase UUIDs. `from`/`until` are inclusive
+UTC bounds in `YYYY-MM-DDTHH:mm:ss.sssZ` form; either bound is allowed, and
+`from` cannot exceed `until`. Supplied event/source/invocation/time filters
+intersect, rather than union. `{}` or `{"include_detail":true}` alone is invalid.
+`{"all":true}` explicitly selects current metadata in the authorized partition;
+it does not remove other supplied filters or include all detail.
+
+```bash
+tc diagnostics review --selection selection.json --json
+```
+
+For discovery, explicitly review `{"all":true}` or a bounded time range, then
+narrow to generated IDs. Review includes a partial-order timeline, provenance,
+coverage gaps, and separate business, mutation, verification, copy, protocol,
+and delivery evidence. Concurrent producers are not made causal just by sorting
+wall-clock timestamps. A successful output-validation phase does not prove a
+mutation committed; a later successful retry does not erase an earlier unknown
+commit. A completed send/HTTP response does not prove client or owner receipt.
+
+### Export and import
+
+```text
+tc diagnostics export --selection selection.json --out <absolute-root>/exports/<fresh-uuid> --expires-at <UTC>
+tc diagnostics import <private-received-bundle-directory>
+```
+
+Use the root reported by `status` and a new UUID destination. Managed `--out`
+must be exactly `<root>/exports/<uuid>` or
+`<root>/exports/<partition-id>/<uuid>`. The result's `path` is the portable bundle
+directory: transfer **that directory**, not its management-metadata parent.
+The export includes selected events and necessary descriptors. Selected cases
+require explicit `case_ids` and `include_detail: true`; selecting metadata does
+not silently attach passages.
+
+`--expires-at` must be in the future and no later than the earliest selected
+event's 30-day expiry, selected case expiry, or applicable imported-bundle
+expiry. An overlong export expiry is rejected, not silently extended.
+Import validates bounded files/schema/checksums, deduplicates evidence, and
+retains conflicts as uncertainty. It does not execute bundled code, enable
+capture, or restart retention. Imported evidence is an `imported_assertion`;
+SHA-256 transfer checksums do not authenticate the producer. Importing detail
+also requires the local detail-policy acknowledgment.
+
+Import rejects duplicate JSON property names, including escaped-equivalent
+names, before storing the original transfer bytes. Conflicts identify the pair
+`source_id/event_id`: conflicting duplicates are excluded, while an independent
+source's event with the same event UUID is retained. A conflict-only imported
+selection still carries its original bundle expiry; re-export cannot renew it.
+
+For an intentional transfer outside the **entire** diagnostic root, add
+`--external` to `export` or `bundle`. The destination must be disjoint from the
+root, with an existing private parent; it cannot contain the root or be inside
+it. No silent fallback to an external location occurs. External copies are not
+charged to the managed quota, automatically expired, or recalled by deletion.
+Their declared expiry remains a recipient obligation. Backups and manually
+copied directories likewise require separate handling.
+
+### Select exact owner-reviewed passages
+
+```bash
+tc diagnostics select --manifest selected-case.json
+```
+
+The manifest is bounded JSON, not a transcript path or directory. A minimal
+shape is below; use real selected event IDs, fresh passage UUIDs, a future UTC
+expiry, and only the exact approved excerpt:
+
+```json
+{
+  "schema_version": 1,
+  "expires_at": "<UTC>",
+  "purpose": "task_review",
+  "owner_selected": true,
+  "no_secrets_or_unrelated_content": true,
+  "detail_policy": "encrypted-excluded-backups",
+  "event_ids": ["11111111-1111-4111-8111-111111111111"],
+  "passages": [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "kind": "intent",
+      "origin": "owner",
+      "text": "Owner-selected excerpt",
+      "event_ids": ["11111111-1111-4111-8111-111111111111"]
+    }
+  ]
+}
+```
+
+`purpose` is `task_review`, `comparison`, or `synthetic_reproduction`.
+Passage kinds are `intent`, `action`, `final_claim`, `record_excerpt`,
+`catalog_excerpt`, and `feedback`; origins are `owner`, `visible_client`,
+`selected_record`, and `selected_catalog`. Every passage must link to at least
+one event in the manifest's nonempty `event_ids`, and every requested event
+must still be available. The tool generates case/source identity and
+`created_at`; do not supply those fields or `trust`. Intake clamps expiry to
+the requested time, seven days, and linked evidence/import expiry, whichever
+comes first. It returns a `case_id`, expiry, and `owner_reported` trust.
+
+Optional `feedback` contains `classification` (`wrong_units`, `wrong_kind`,
+`unverified_claim`, `excess_work`, or `accepted`) and nonempty `passage_ids`
+referencing selected passages. These are owner assertions, not automatic
+product verdicts. To read the detail, explicitly select it:
+
+```json
+{
+  "case_ids": ["33333333-3333-4333-8333-333333333333"],
+  "include_detail": true
+}
+```
+
+`review` expands those cases to their linked events; additional selection
+filters still constrain events. Missing, expired, or conflicting cases fail
+rather than substitute nearby history.
+
+### Compare equivalent tasks and build synthetic evidence
+
+```bash
+tc diagnostics compare --left left-selection.json --right right-selection.json
+```
+
+Each side must select exactly one case with explicit detail. The optional
+manifest `equivalence` object supplies `fixture_id` (UUID), `fixture_revision`
+(64 lowercase hex characters), `task_class` (`record_write_readback`,
+`record_read`, `record_move`, or `copy_check`), and `cache_state`
+(`cold`, `warm`, or `unknown`). Comparability requires matching fixture/revision
+and task class, matching known cache states, complete invocation start/finish
+coverage, required provenance/revisions, and no disqualifying evidence gaps.
+Otherwise the result is explicitly incomparable. Even comparable results expose
+independent measurements, not an overall winner.
+
+```text
+tc diagnostics bundle --case <case-id> --fixture synthetic-fixture.json --out <absolute-root>/exports/<fresh-uuid> --expires-at <UTC>
+```
+
+The implemented reproduction fixture is deliberately narrow: a reviewed
+synthetic `wrong_units` case. Its JSON fields are `schema_version: 1`,
+`kind: "wrong_units"`, `fixture_id`, `reviewed: true`, `synthetic: true`,
+`expected: {"value": 1, "unit": "U1"}`, and
+`observed: {"value": 1, "unit": "U2"}`. Values must be finite with absolute
+value at most 1,000,000. It is not an arbitrary script or production replay.
+
+The selected case must have purpose `synthetic_reproduction`,
+`feedback.classification: "wrong_units"`, and matching fixture identity/revision.
+The revision is SHA-256 of the normalized validated fixture JSON, not an
+arbitrary file's whitespace. Linked feedback passages must include an intent
+marked `U1` and a record excerpt or final claim marked `U2`. Each marker is
+`unit: {"value": "U1", "start": 0, "end": 2}` (or `U2`), with zero-based,
+end-exclusive JavaScript string offsets selecting that exact token in the
+passage. Both passages must link to available evidence.
+
+When the compatible operations package is available to Node, compute the
+revision with the same exported validator rather than hashing raw file bytes:
+
+```bash
+node --input-type=module -e '
+import { diagnosticFixtureRevision, readDiagnosticJsonFile, validateDiagnosticFixture } from "@tinycloud/operations/diagnostics";
+const fixture = validateDiagnosticFixture(await readDiagnosticJsonFile("synthetic-fixture.json", 4096));
+console.log(diagnosticFixtureRevision(fixture));
+'
+```
+
+`bundle` assembles an expiring directory; it does not execute it or upload it.
+Read `instructions.txt` and review the generated fixture/script. Explicit
+execution uses `node reproduce.mjs --reviewed-synthetic` inside the bundle,
+requires Node.js 20+ and a compatible installed `@tinycloud/operations` exposing
+`diagnostics-reproduction` in package-resolution ancestry, and installs nothing.
+The isolated synthetic run demonstrates the reviewed fixture, not that an
+unobserved client would independently make the same mistake.
+
+### Delete and roll back without restoring capture
+
+```bash
+tc diagnostics delete --selection selection.json
+tc diagnostics delete --selection selection.json --confirm --pause-after
+```
+
+Without `--confirm`, deletion only previews. Confirmation authorizes that exact
+selection. If it contains `"all": true`, choose exactly one of `--pause-after`
+or `--keep-enabled`; both together are invalid. For a narrower selection these
+flags are optional. `--keep-enabled` preserves the existing enablement state;
+it does not enable a disabled store. Deletion removes/re-writes managed imports,
+cases, and exports referencing the selected evidence, retaining unrelated
+evidence where possible. It does not recall external transfers or erase backups.
+Treat an incomplete-deletion error as incomplete: inspect status, resolve the
+protected-storage failure, and repeat only the authorized selection.
+
+For rollback, pause or disable first, inspect status, and remove only the
+authorized history with an explicit post-deletion decision. Stop using optional
+attribution adapters/launchers separately. Do not use `enable` or `resume` as a
+cleanup step, restore old control files, re-import deleted exports, or restore a
+diagnostic backup that resurrects deleted history. Disabling and deletion do
+not alter TinyCloud business records or grants.
+
+### Coverage and client fallback
+
+The baseline is ordinary commands plus explicit selected-block scope and manual
+owner linkage. Claude Code automatic hooks, Codex automatic hooks, and OpenCode
+v2 linkage are unsupported; no no-op hooks claim capture. The optional OpenCode
+v1 adapter targets the 1.18.31 contract only. Its source/loopback fixture contract
+is not installed-client acceptance. Missing supported IDs or a verified
+executing-server version falls back to baseline; adapter linkage never enables
+capture or supplies scope. No client configuration is installed by these controls.
+
+Metadata can describe operational completion, approval wait/verification/commit,
+grant replay, physical KV/SQL attempts, record/copy phases, and protocol/delivery
+boundaries. It cannot establish the intended date, units, values, final assistant
+answer, owner acceptance, or receipt on a phone. Run linkage is not a task
+boundary. Unknown client/model/task/turn provenance stays unknown unless explicit
+selected evidence supports it. Hosted capture and its operator transfer path are
+described in [Host the MCP server](/hosting/mcp#private-diagnostic-spool).
 
 ## `tc doctor`
 

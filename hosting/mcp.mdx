@@ -35,6 +35,8 @@ service refuses unexpected hosts and requires HTTPS for non-local public URLs.
 | `TC_MCP_ALLOWED_ORIGINS` | No | Comma-separated origins for direct browser requests |
 | `TC_MCP_APPROVAL_TTL_SECONDS` | No | One-time approval link lifetime; standalone default is 300 seconds; production compose sets 900 |
 | `TC_MCP_DELEGATION_EXPIRY` | No | Delegation duration sent to OpenKey; standalone default is `1h`; production compose sets `30d` |
+| `TC_MCP_DIAGNOSTICS_ROOT` | No | Absolute private diagnostic root, disjoint from credential state; setting it does not enable capture |
+| `TC_MCP_DIAGNOSTICS_SERVICE` | No | `1` permits separately enabled service-partition observations before tenant verification |
 | `PORT` | No | HTTP listen port; defaults to 3000 |
 
 Keep the state secret stable. Rotating it intentionally disconnects existing
@@ -102,3 +104,168 @@ The service processes plaintext inputs and results, including delegated secrets.
 Treat its runtime and observability pipeline as part of the data trust boundary.
 Do not log request bodies, text result blocks or structured tool results.
 </Warning>
+
+## Private diagnostic spool
+
+Diagnostic capture is **off by default** and separate from the four-field
+stderr service log. This implementation adds no public diagnostic MCP tool,
+HTTP history route, response header, or result receipt. Existing record grants
+and OAuth tokens do not authorize diagnostic access. This documentation is not
+proof that the published image or deployed endpoint contains the implementation.
+
+Hosted capture runs on the service, not on the owner's laptop. Once a deployment
+has an authorized, enabled tenant partition, service observations do not depend
+on a local CLI process, coding client, or an online phone. That does not imply
+capture of the client's conversation, final answer, task boundaries, or receipt
+of a response.
+
+### Isolate the volume
+
+An operator must provision an absolute `TC_MCP_DIAGNOSTICS_ROOT` on a dedicated
+private diagnostic volume. It has **no fallback** to `TC_MCP_STATE_DIR`,
+`TC_HOME`, or the local CLI diagnostic root. The diagnostic and credential trees
+must be disjoint: neither may contain the other, including through aliases.
+Keep the credential `mcp-state` volume and its backup policy unchanged.
+Do not place diagnostic files or selected exports into it.
+
+The current container/production compose configuration does not add a diagnostic
+volume or enable capture. An authorized deployment needs its own explicit mount,
+owner-only directories/files (normally `0700`/`0600`), appropriate service UID,
+capacity, and lifecycle policy. Missing/unsafe/inaccessible diagnostic
+configuration must not change business authorization, output, retry decisions,
+or mutation behavior.
+
+Use deployment-managed disk/volume encryption and exclude diagnostics from
+general credential-state backups. The spool itself writes private filesystem
+files; it does **not** implement at-rest encryption. A policy acknowledgment is
+not a cryptographic check of the host. Hosted controls enable metadata only:
+selected-content ingestion belongs in explicit local review, not the service.
+
+### Protected tenant mapping
+
+The service's existing verified tenant identifier is a 64-character lowercase
+hex HMAC derived by its credential-state layer after OAuth verification. It is
+not a raw subject, owner DID, OAuth token, client-provided label, or directory
+argument from an MCP request. A protected provisioning integration can call the
+exported `resolveDiagnosticTenant(root, verifiedTenantId, { create: true })`
+from `@tinycloud/operations/diagnostics` using that already verified identifier
+to create a **disabled**, random diagnostic partition mapping.
+
+Ordinary request producers and tenant administration only discover existing
+mappings; they never create one from request metadata. There is no public
+provisioning endpoint or tenant-creation CLI action. If the mapping is absent,
+the protected operator must provision it through the trusted service integration
+before tenant administration; do not guess a tenant label or copy an imported
+partition ID. Diagnostic events use opaque IDs, not the verified HMAC or
+credential material.
+
+### Protected offline administration
+
+Run the administrative entry point under the protected service/operator OS
+account with private volume access:
+
+```text
+tinycloud-mcp-http diagnostics status --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+tinycloud-mcp-http diagnostics enable --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+tinycloud-mcp-http diagnostics pause --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+tinycloud-mcp-http diagnostics resume --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+tinycloud-mcp-http diagnostics disable --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+```
+
+This path runs before loading the business server, OAuth discovery, or opening
+a listener. `--root` must be absolute; exactly one of `--tenant` or `--service`
+selects the partition. Every tenant action requires `--owner-request`, which
+records the operator's acknowledgment in the invocation, not an authentication
+mechanism or durable audit receipt. Authority comes from protected OS access,
+the existing verified mapping, and the owner's request.
+
+`enable` arms metadata and clears pause. `pause` retains history; `resume`
+requires existing enablement; `disable` disarms capture without deleting history.
+No control changes records, grants, profiles, or approval artifacts.
+
+```text
+tinycloud-mcp-http diagnostics history --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request --selection selection.json
+tinycloud-mcp-http diagnostics export --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request --selection selection.json --out <absolute-root>/exports/<fresh-uuid> --expires <UTC>
+tinycloud-mcp-http diagnostics delete --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request --selection selection.json --pause-after
+```
+
+`history` returns a selected snapshot; local `tc diagnostics review` supplies the
+analysis interface. All three actions require a private, explicit selection
+file using the [same ID/time selection rules](/cli/diagnostics#select-and-review-history).
+`{"all":true}` is explicit partition-wide metadata authority, not an implicit
+default. Hosted `export` uses **`--expires`**, whereas local export uses
+`--expires-at`. Hosted `delete` executes immediately (there is no `--confirm`
+preview flag) and always requires exactly one of `--pause-after` or
+`--keep-enabled`, even for a narrow selection. Inspect `history` first.
+`--keep-enabled` does not turn a disabled partition on.
+
+Pre-verification host/origin/auth failures have no tenant authority. They can
+be recorded only when both `TC_MCP_DIAGNOSTICS_SERVICE=1` and a separately
+controlled service partition are enabled. Use `--service` in place of
+`--tenant ... --owner-request` for that partition; only service `enable` may
+create the reserved service mapping. Enabling a tenant does not enable service
+capture. Never assign an unverified failure to the tenant claimed by its token
+or request.
+
+### Operator transfer to local review
+
+1. Obtain the owner's explicit selection/request and inspect the corresponding
+   verified partition with `history`.
+2. Export only the selected metadata with a future UTC expiry bounded by source
+   retention. Managed output must be exactly `<root>/exports/<uuid>` or
+   `<root>/exports/<partition-id>/<uuid>`.
+3. Transfer the portable directory in the result's `path` field, not its
+   management-metadata parent, through an independently authorized private
+   channel. There is no automatic upload or synchronization.
+4. On the review machine, run `tc diagnostics import <private-bundle-directory>`
+   and `tc diagnostics review --selection selection.json --json`. Import keeps
+   original timestamps/expiry and marks evidence as imported assertions.
+5. If semantic review needs content, the owner explicitly selects local passages
+   under the [separate detail policy](/cli/diagnostics#select-exact-owner-reviewed-passages).
+   Do not send transcripts or record excerpts to a hosted diagnostics endpoint.
+
+For intentional output outside the entire root, add `--external` to the
+administrative `export` command. Its destination must be disjoint from the root
+and have an existing private parent. Managed copies count against quota and are
+removed or rewritten by selected deletion/expiry. External transfers, recipient
+copies, and backups cannot be recalled or automatically expired by the source.
+Deleting a managed export after transfer does not delete the recipient's copy.
+SHA-256 checksums establish transfer integrity, not producer authenticity.
+
+### Limits, uncertainty, and rollback
+
+Metadata expires after 30 days; locally selected detail after at most 7 days.
+The 100 MiB partition limit includes managed copies and at most 10 MiB detail;
+the entire diagnostic root has a 1 GiB cap. Imports/exports never restart the
+source retention clock. Reads exclude expired evidence; physical cleanup is
+opportunistic and cannot run while the service is offline.
+
+One runtime is shared across per-request MCP servers. Diagnostic filesystem
+work stays outside the business process. Its bounded queue holds at most 128
+events / 256 KiB, writing batches of at most 8. Discovery, lock, terminal-drain,
+and helper-cleanup budgets are 1,000 ms, 200 ms, 300 ms, and 2,000 ms respectively;
+scheduling and teardown are additional. Quota, locks, sink failure, or shutdown
+can lose events; even health evidence can be lost. Bounded recovery bookkeeping
+does not make this an audit trail. See [local limits](/cli/diagnostics#storage-retention-and-loss).
+
+HTTP status, canonical business result, mutation certainty, verification,
+copy state, MCP conversion/send, and Node response finish/close/error remain
+separate observations. A send or response finish is not proof that the client
+received, displayed, or understood it. Missing final-answer, task, client/model,
+or phone evidence remains unknown; manually selected owner feedback is an
+assertion, not a transport fact.
+
+Before hosted enablement, separately verify the packaged writer in the actual
+image, private mount/UID permissions, selected export/import, retention/deletion,
+quota failure behavior, and persistence through restart, replacement, and
+redeployment in an authorized disposable environment. Source/loopback fixtures
+are not production deployment or real mobile/client acceptance. This guidance
+does not perform publication, deployment, installation, approval, or enablement.
+
+To roll back, disable each enabled tenant and service partition through the
+offline controls, verify status, then stop/remove optional diagnostic runtime
+configuration or the isolated mount as appropriate. Delete only authorized
+history, retaining the explicit post-deletion decision; handle recipient copies
+and backups separately. Do not resume/enable as part of cleanup, restore old
+control policies, re-import deleted exports, or resurrect history from a volume
+snapshot. Keep credential state and normal business service operation intact.
