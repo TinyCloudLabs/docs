@@ -5,49 +5,8 @@ icon: "container"
 sidebarTitle: "Docker"
 ---
 
-Use Docker when you want the fastest path to a local or self-hosted node.
+For an ordinary VPS, follow the [personal-node guide](https://github.com/TinyCloudLabs/tinycloud-node/blob/main/deploy/personal-node/README.md). Its Compose profile pins the published 1.20.6 ordinary-node image by digest, mounts a keyless configuration, persists SQLite and local blocks, terminates HTTPS at Caddy, and uses an installation-specific persistent key. The guide's CI rehearsal uses the same operator script to check signed KV/SQL, restart, fresh-volume restore, upgrade from 1.20.5 to 1.20.6, and restore-based rollback.
 
-## Minimal container
+Do not use an unversioned image or the dstack Compose profile as an ordinary-server recipe. TinyCloud currently runs 1.20.6 in production; 1.20.7 was rolled back. The guide names what its published-image job has verified and which key-default change needs the next approved release. Running an ordinary VPS does not provide TEE attestation or dstack key isolation.
 
-```bash
-docker run -d \
-  --name tinycloud \
-  -p 8000:8000 \
-  -p 8001:8001 \
-  -e TINYCLOUD_STORAGE__DATADIR=/data \
-  -e TINYCLOUD_STORAGE__DATABASE=sqlite:/data/caps.db \
-  -e TINYCLOUD_STORAGE__BLOCKS__TYPE=Local \
-  -e TINYCLOUD_STORAGE__BLOCKS__PATH=/data/blocks \
-  -e TINYCLOUD_KEYS__SECRET="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')" \
-  -v tinycloud-data:/data \
-  ghcr.io/tinycloudlabs/tinycloud-node
-```
-
-## What to mount
-
-| Path | Purpose |
-|---|---|
-| `/data` | Persistent node data |
-| `/data/blocks` | Local block storage when using `type = "Local"` |
-
-## Compose
-
-For a small deployment, keep the stack to one TinyCloud container plus the backing services you actually need. Use the database and block-storage pages for the backend-specific pieces.
-
-## Verify it started
-
-```bash
-curl http://localhost:8000/healthz
-```
-
-The minimal command publishes the HTTP API and metrics ports only. It does not
-publish `8081`; the current node server does not start a relay listener from
-the `relay.port` configuration value.
-
-## Upgrades
-
-Pull a new image, restart the container, and let the node apply migrations on startup.
-
-<Note>
-The container expects the same config keys as the bare node process. Use canonical `TINYCLOUD_` env vars so the same settings work across Docker and non-Docker deployments.
-</Note>
+For configuration details, see [Configuration](/hosting/configuration). Keep the node's plain HTTP API and unauthenticated metrics private; expose only the HTTPS reverse proxy. Retain the node root and an offline data backup independently.
