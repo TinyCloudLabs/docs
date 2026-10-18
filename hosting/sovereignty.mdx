@@ -1,0 +1,170 @@
+---
+title: "Run TinyCloud sovereignly"
+description: "Run your own TinyCloud node, hold your own Ethereum key, and keep control of where your data lives."
+icon: "shield-check"
+sidebarTitle: "Sovereignty guide"
+---
+
+## Why
+
+<Note>
+**This section is Sam's text, lightly cleaned up from dictation.**
+</Note>
+
+TinyCloud should be usable sovereignly. This means if TinyCloud, as an organization, goes away, you should still be able to use the technology. You should be able to use it without interference from anyone. And you should be fully in control of where your data lives and who has access to it.
+
+We use the same tools as crypto, which already lets people use money in a sovereign way. This is how we apply them to data.
+
+This is a little more involved and more technical, but sovereignty requires you to be more involved. We think TinyCloud should be available and accessible to everyone, which is why we built it as a service. This guide is for those who are called to sovereignty.
+
+## This path is more involved than the hosted service
+
+The hosted service needs an account and nothing else. Running your own node means you provision a server, own a domain, keep two secrets safe, take your own backups and run your own upgrades. Nobody does those for you. TinyCloud's hosted service and free tier stay available. If you want your data and your node under your control, keep reading.
+
+## The three parts
+
+Sovereignty in TinyCloud is three abilities:
+
+1. **Run your own node** on your own server.
+2. **Replicate your data** to that node.
+3. **Use your own Ethereum key** as your identity.
+
+This guide gives working steps for parts 1 and 3. Part 2 is covered by the offline backup and restore below; node-to-node replication is under [What's next](#whats-next).
+
+## Run a node
+
+The node is the same Rust binary and image that TinyCloud's hosted service runs. Its source and container image are public, and the source is licensed under EGPL-1.5. Everything in this section is the personal-node guide in the `tinycloud-node` repository, [`deploy/personal-node`](https://github.com/TinyCloudLabs/tinycloud-node/blob/main/deploy/personal-node/README.md). A GitHub Actions job runs the same `node.sh` operations on a clean runner on every change to that guide. That job is the evidence for every step here.
+
+### What you need
+
+- An ordinary Linux VPS with Docker Engine and Compose v2, `bash`, `curl`, `jq`, `openssl`, `tar`, `sudo`, Node.js 22 and npm.
+- A domain you own, with its A/AAAA record pointing at the VPS. Ports 80 and 443 are free and reachable, so Caddy can get a certificate and serve HTTPS.
+- A persistent local disk with room for your live data and a full backup.
+- A clone of the `tinycloud-node` repository at the revision that carries the guide. Run every command below from its root.
+
+Keep the node's plain HTTP port (8000), its unauthenticated metrics port (8001) and the Docker socket off the internet. Only Caddy's 80 and 443 are public.
+
+### What this node is, and is not
+
+- It runs one node with local SQLite and local blocks. Caddy terminates HTTPS.
+- It uses a digest-pinned published image (1.20.6) and a digest-pinned Caddy (2.10.2). Do not use `latest` or any other tag.
+- There is no hosted billing or quota service in this setup. CI checks that the node reports no quota URL.
+- It is **not** a TEE. You, the server operator, can read its filesystem and its key. The guide makes no attestation claim, and neither does this page. TLS proves your domain to clients; it does not prove the machine.
+- The node still depends on DNS and a certificate authority to be reachable over public HTTPS.
+
+### Provision and launch
+
+```bash
+npm ci --prefix test/probe
+export NODE_HOME="$HOME/personal-tinycloud"
+bash deploy/personal-node/node.sh init node.example.com
+bash deploy/personal-node/node.sh check-missing-key
+bash deploy/personal-node/node.sh start
+bash deploy/personal-node/node.sh check-version 1.20.6
+```
+
+Replace `node.example.com` with your domain.
+
+- `init` writes a unique random node key to a private `node.env` (mode `0600`) in `NODE_HOME`. It never prints it.
+- `check-missing-key` must run before `start`. It proves the node refuses to start with no key, rather than falling back to a shared default.
+- `check-version` confirms the node is running the pinned version, with no hosted quota URL and not inside a TEE.
+
+CI runs this same sequence with a local test certificate instead of a public one. Issuing a certificate for your own domain is the one part of launch CI does not run. The guide's [Caddy notes](https://github.com/TinyCloudLabs/tinycloud-node/blob/main/deploy/personal-node/README.md) tell you how to check issuance and renewal on a staging domain first.
+
+### Stop and restart
+
+```bash
+bash deploy/personal-node/node.sh restart
+bash deploy/personal-node/node.sh stop
+```
+
+CI restarts the node and checks that signed data is still there. `stop` ends the node's containers and keeps its data.
+
+## Your Ethereum key
+
+In TinyCloud your identity is an Ethereum address. This guide proves the plainest form of it: an externally owned account (EOA), a wallet key you hold, signing directly to your node.
+
+Put your wallet's 32-byte hexadecimal private key (no `0x`) in its own file, mode `0600`, outside `NODE_HOME`. Then:
+
+```bash
+bash deploy/personal-node/node.sh seed /secure/path/owner.key
+bash deploy/personal-node/node.sh restart
+bash deploy/personal-node/node.sh verify /secure/path/owner.key
+```
+
+`seed` signs in to your node with that key, creates a space the key owns, writes a key-value object and a SQL row. `verify` runs after the restart. It checks the exact KV and SQL values and checks that the node's public identity (its DID) is unchanged. Only the key file's path is passed on the command line, never the key.
+
+Two keys matter, and they are different:
+
+| Key | What it is | Where it lives | In the node backup? |
+| --- | --- | --- | --- |
+| **Your Ethereum key** | Your identity and the owner of your space. | Your wallet, or a private file you keep. | No. Keep it separately. |
+| **The node key** | The node's identity, used to sign for the node and seal its state. | `node.env` in `NODE_HOME`. | Yes, as a separately encrypted file. |
+
+What CI proves is signing with a private key read from a file. Signing through a browser wallet, a hardware wallet or a contract wallet is not in this guide's steps.
+
+## Back up, and what happens if you lose your node key
+
+Take an offline backup. `backup` stops the node, archives its whole data directory, encrypts `node.env` as a separate file, and restarts the node.
+
+```bash
+# Generate a strong private passphrase file outside the node and backup tree.
+export BACKUP_PASSPHRASE_FILE=/secure/path/node-backup-passphrase
+umask 077
+openssl rand -base64 48 > "$BACKUP_PASSPHRASE_FILE"
+bash deploy/personal-node/node.sh backup /secure/path/node-backup-2026-10-16 "$BACKUP_PASSPHRASE_FILE"
+```
+
+The data archive itself is **not** encrypted. Protect it as sensitive data. The passphrase is in neither artifact. Keep the backup and the passphrase in separate, secure places.
+
+To restore on a fresh host or directory, copy the backup, the passphrase and your owner wallet key over separate secure channels, then:
+
+```bash
+export NODE_HOME="$HOME/personal-tinycloud-restored"
+bash deploy/personal-node/node.sh restore /secure/path/node-backup-2026-10-16 "$BACKUP_PASSPHRASE_FILE"
+bash deploy/personal-node/node.sh start
+bash deploy/personal-node/node.sh check-version 1.20.6
+bash deploy/personal-node/node.sh verify /secure/path/owner.key
+```
+
+Stop the old node before you repoint DNS, and never run two live nodes with the same identity and domain. CI restores into a fresh directory and checks that the node's DID and signed KV and SQL data match.
+
+**If you lose the node key.** The node key is what makes your node that node. Restore with the original key and the node comes back with the same identity and data. Start from a different key and `verify` fails rather than quietly giving you a new identity. A changed key can leave encrypted or sealed state unreadable. In Sam's words, if the node key is lost, "the node basically is dead and … the data isn't accessible." So back up `node.env` independently of the data, every time you change anything.
+
+If you lose your Ethereum key, nothing in the node backup recovers it. It is not in the backup.
+
+## How deletion works
+
+In TinyCloud, deleting your data from a host means revoking that host. You tell the host you no longer give it permission to hold your data. The host deletes the data it holds for you, and the revocation spreads to your other hosts and through the SDK, so everyone learns that host has been revoked. That also covers a host that does not behave: the others still know.
+
+A protocol cannot reach into someone else's hardware. The person who owns the machine decides whether the bytes are really gone, just as the owner of a machine can evict you from it.
+
+Today, on a node you run, your data is in the `data` directory under your `NODE_HOME`, on your own disk. Revocation-triggered deletion and its spread are under [What's next](#whats-next).
+
+## Replicate to an always-on host
+
+Your laptop goes on and off. You want another host that is always online, so you do not depend on TinyCloud or on one machine.
+
+In TinyCloud, hosts are symmetric. No host is "home". Your laptop, your own VPS, a friend's node and TinyCloud's node all replicate host to host, then host to edge. A friend in Germany can hold a copy that is faster for you to reach than a copy in San Francisco.
+
+- A small host keeps the most recent data. The biggest host keeps everything and asks you to compact when it runs out of space.
+- Two writes at once resolve as CRDTs. If both come from your key, the latest write wins, and history lets you revert.
+- Hosting a friend needs both sides to agree: the operator allows you and sets limits, and you delegate hosting to the node's key. Either side can end it. The friend can always evict you, because they hold the hardware.
+
+None of this runs today. The offline backup above is the only copy mechanism in this guide, and it is a snapshot, not continuous replication.
+
+## What's next
+
+Each item below is a decision Sam made in the node spec. None has steps in this guide yet.
+
+- `tc node install`, `start`, `stop`, `status` and `register`, with the Rust node bundled into the JS CLI: D2.
+- A tray app in the shape of Tailscale's or Dropbox's menu-bar app, with update prompts you can defer: D3, D4.
+- Encryption at rest on by default, and a data directory kept out of Spotlight and indexing: D6.
+- Publishing your node to the registry with your Ethereum key, an on-chain entry that wins, and the SDK choosing your closest host without ever turning you into a new hosted user: D8, D9.
+- Plain Ethereum wallets signing every request end to end, including browser, hardware and contract wallets: D10.
+- Host-to-host replication, small hosts holding recent data, and a biggest host that asks you to compact: D14, D15, D16.
+- Hosting others, with an operator allowlist, per-person and machine limits, and eviction: D17.
+- Moving your hosted spaces to your node, switching off TinyCloud hosting and having it delete your data: D12.
+- Deletion by revoking a host, with the revocation spreading to your other hosts and through the SDK: D13.
+- Warnings before a node key is lost, and MPC key shares split across your hosts: D7.
+- Networking for a node whose address moves, compatible with Tailscale: D18.
