@@ -81,12 +81,11 @@ way.
 `disableSubDelegation`; passing `true` throws. To issue a grant the recipient
 cannot pass on, use `createDelegation()` with `disableSubDelegation: true` and
 address it to the recipient's session-key DID, not its `did:pkh` owner DID.
-Here `carolSession` is a client without a wallet signer; its `did` is a
-`did:key`:
+`did:key`. The audience DID must be the bare did:key without the `#fragment` suffix:
 
 ```typescript
 const terminal = await alice.createDelegation({
-  delegateDID: carolSession.did,
+  delegateDID: carolSession.credentialHolderDid,
   path: "shared/public/",
   actions: ["tinycloud.kv/get"],
   disableSubDelegation: true,
