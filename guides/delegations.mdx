@@ -66,7 +66,6 @@ const child = await bob.createSubDelegation(delegation, {
   path: "shared/public/",
   actions: ["tinycloud.kv/get"],
   expiryMs: 24 * 60 * 60 * 1000,
-  disableSubDelegation: true,
 });
 ```
 
@@ -75,6 +74,32 @@ outlive the parent, and cannot bypass a parent's sub-delegation restriction.
 Without `expiryMs`, `createSubDelegation` defaults to the longest lifetime the
 parent allows. Sessions activated from a received delegation default the same
 way.
+
+## Block further delegation
+
+`createSubDelegation()` signs with the wallet, so it cannot set
+`disableSubDelegation`; passing `true` throws. To issue a grant the recipient
+cannot pass on, use `createDelegation()` with `disableSubDelegation: true` and
+address it to the recipient's session-key DID, not its `did:pkh` owner DID.
+Here `carolSession` is a client without a wallet signer; its `did` is a
+`did:key`:
+
+```typescript
+const terminal = await alice.createDelegation({
+  delegateDID: carolSession.did,
+  path: "shared/public/",
+  actions: ["tinycloud.kv/get"],
+  disableSubDelegation: true,
+});
+
+const access = await carolSession.useDelegation(terminal);
+```
+
+The delegation carries the node's terminal marker, so the node refuses any
+delegation that cites it as a parent. A recipient in wallet mode chains a new
+session from the grant, which the node refuses for a terminal parent, so
+`createDelegation()` throws if `disableSubDelegation` is combined with a
+`did:pkh` recipient. Drop the flag for a wallet recipient.
 
 ## Revoke access
 
