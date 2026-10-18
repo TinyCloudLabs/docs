@@ -80,8 +80,11 @@ way.
 `createSubDelegation()` signs with the wallet, so it cannot set
 `disableSubDelegation`; passing `true` throws. To issue a grant the recipient
 cannot pass on, use `createDelegation()` with `disableSubDelegation: true` and
-address it to the recipient's session-key DID, not its `did:pkh` owner DID.
-`did:key`. The audience DID must be the bare did:key without the `#fragment` suffix:
+address it to the recipient's session-key `did:key`, not its `did:pkh` owner
+DID. Here `carolSession` is a client without a wallet signer. Its
+`credentialHolderDid` is the bare `did:key` session-key DID; use it rather than
+`carolSession.did`, which carries a `#fragment` that `createDelegation` rejects
+as an invalid audience DID:
 
 ```typescript
 const terminal = await alice.createDelegation({
