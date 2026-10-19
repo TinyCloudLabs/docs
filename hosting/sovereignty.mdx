@@ -129,42 +129,39 @@ bash deploy/personal-node/node.sh verify /secure/path/owner.key
 
 Stop the old node before you repoint DNS, and never run two live nodes with the same identity and domain. CI restores into a fresh directory and checks that the node's DID and signed KV and SQL data match.
 
-**If you lose the node key.** The node key is what makes your node that node. Restore with the original key and the node comes back with the same identity and data. Start from a different key and `verify` fails rather than quietly giving you a new identity. A changed key can leave encrypted or sealed state unreadable. In Sam's words, if the node key is lost, "the node basically is dead and … the data isn't accessible." So back up `node.env` independently of the data, every time you change anything.
+**If you lose the node key.** The node key is what makes your node that node. Restore with the original key and the node comes back with the same identity and data. Start from a different key and `verify` fails rather than quietly giving you a new identity. A changed key can leave encrypted or sealed state unreadable: if the node key is lost, treat the node and its data as gone. So back up `node.env` independently of the data, every time you change anything.
 
 If you lose your Ethereum key, nothing in the node backup recovers it. It is not in the backup.
 
-## How deletion works
+## Deleting your data
 
-In TinyCloud, deleting your data from a host means revoking that host. You tell the host you no longer give it permission to hold your data. The host deletes the data it holds for you, and the revocation spreads to your other hosts and through the SDK, so everyone learns that host has been revoked. That also covers a host that does not behave: the others still know.
+Today, on a node you run, your data is in the `data` directory under your `NODE_HOME`, on your own disk. You delete it the way you delete any files on your own machine.
 
-A protocol cannot reach into someone else's hardware. The person who owns the machine decides whether the bytes are really gone, just as the owner of a machine can evict you from it.
+The plan for deletion across hosts is that you revoke a host, the host deletes the data it holds for you, and the revocation spreads to your other hosts and through the SDK. This is not built yet; see [What's next](#whats-next). Even then, a protocol cannot reach into someone else's hardware: the owner of a machine decides whether the bytes are really gone.
 
-Today, on a node you run, your data is in the `data` directory under your `NODE_HOME`, on your own disk. Revocation-triggered deletion and its spread are under [What's next](#whats-next).
+## Replicate to an always-on host (planned)
 
-## Replicate to an always-on host
+None of this section runs today. The offline backup above is the only copy mechanism in this guide, and it is a snapshot, not continuous replication.
 
-Your laptop goes on and off. You want another host that is always online, so you do not depend on TinyCloud or on one machine.
+Your laptop goes on and off, so you will want another host that is always online and doesn't depend on TinyCloud or on one machine. The design:
 
-In TinyCloud, hosts are symmetric. No host is "home". Your laptop, your own VPS, a friend's node and TinyCloud's node all replicate host to host, then host to edge. A friend in Germany can hold a copy that is faster for you to reach than a copy in San Francisco.
-
-- A small host keeps the most recent data. The biggest host keeps everything and asks you to compact when it runs out of space.
-- Two writes at once resolve as CRDTs. If both come from your key, the latest write wins, and history lets you revert.
-- Hosting a friend needs both sides to agree: the operator allows you and sets limits, and you delegate hosting to the node's key. Either side can end it. The friend can always evict you, because they hold the hardware.
-
-None of this runs today. The offline backup above is the only copy mechanism in this guide, and it is a snapshot, not continuous replication.
+- Hosts will be symmetric, with no host as "home". Your laptop, your own VPS, a friend's node and TinyCloud's node will replicate host to host, then host to edge, so a nearby friend's copy can be faster to reach than a distant one.
+- A small host will keep the most recent data. The biggest host will keep everything and ask you to compact when it runs out of space.
+- Two writes at once will resolve as CRDTs. If both come from your key, the latest write wins, and history lets you revert.
+- Hosting a friend will need both sides to agree: the operator allows you and sets limits, and you delegate hosting to the node's key. Either side can end it, and the friend can always evict you, because they hold the hardware.
 
 ## What's next
 
-Each item below is a decision Sam made in the node spec. None has steps in this guide yet.
+These are planned. None has steps in this guide yet.
 
-- `tc node install`, `start`, `stop`, `status` and `register`, with the Rust node bundled into the JS CLI: D2.
-- A tray app in the shape of Tailscale's or Dropbox's menu-bar app, with update prompts you can defer: D3, D4.
-- Encryption at rest on by default, and a data directory kept out of Spotlight and indexing: D6.
-- Publishing your node to the registry with your Ethereum key, an on-chain entry that wins, and the SDK choosing your closest host without ever turning you into a new hosted user: D8, D9.
-- Plain Ethereum wallets signing every request end to end, including browser, hardware and contract wallets: D10.
-- Host-to-host replication, small hosts holding recent data, and a biggest host that asks you to compact: D14, D15, D16.
-- Hosting others, with an operator allowlist, per-person and machine limits, and eviction: D17.
-- Moving your hosted spaces to your node, switching off TinyCloud hosting and having it delete your data: D12.
-- Deletion by revoking a host, with the revocation spreading to your other hosts and through the SDK: D13.
-- Warnings before a node key is lost, and MPC key shares split across your hosts: D7.
-- Networking for a node whose address moves, compatible with Tailscale: D18.
+- `tc node install`, `start`, `stop`, `status` and `register`, with the Rust node bundled into the JS CLI.
+- A tray app in the shape of Tailscale's or Dropbox's menu-bar app, with update prompts you can defer.
+- Encryption at rest on by default, and a data directory kept out of Spotlight and indexing.
+- Publishing your node to the registry with your Ethereum key, an on-chain entry that wins, and the SDK choosing your closest host without ever turning you into a new hosted user.
+- Plain Ethereum wallets signing every request end to end, including browser, hardware and contract wallets.
+- Host-to-host replication, small hosts holding recent data, and a biggest host that asks you to compact.
+- Hosting others, with an operator allowlist, per-person and machine limits, and eviction.
+- Moving your hosted spaces to your node, switching off TinyCloud hosting and having it delete your data.
+- Deletion by revoking a host, with the revocation spreading to your other hosts and through the SDK.
+- Warnings before a node key is lost, and MPC key shares split across your hosts.
+- Networking for a node whose address moves, compatible with Tailscale.
