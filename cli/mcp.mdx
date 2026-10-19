@@ -139,12 +139,15 @@ history. Stdout remains strictly MCP; diagnostics do not consume or copy its
 input/output streams. Use the [CLI scope and review workflow](/cli/diagnostics#private-tc-apps-history)
 for selected activity and manual linkage.
 
-A dedicated stdio connection discovers policy at startup, then refreshes it in
-the background without delaying inbound messages or cancellation. Live
-enable/resume/delete changes therefore apply to later requests without a
-restart, but requests racing discovery may lack evidence. In-flight work keeps
-its original generation and is not recaptured under a new one. Never repeat a
-mutation just to obtain diagnostic history.
+A dedicated stdio connection discovers policy only when a recognized tc-apps
+request arrives: a KV target under `xyz.tinycloud.agent-data/` or the exact SQL
+database `xyz.tinycloud.agent-data.index`. Initialization, tool discovery and
+unrelated calls do not start a diagnostic helper. Background refresh never
+delays inbound messages or cancellation. Live enable/resume/delete changes
+therefore apply to later requests without a restart, but the first request and
+requests racing discovery may lack evidence. In-flight work keeps its original
+generation and is not recaptured under a new one. Never repeat a mutation just
+to obtain diagnostic history.
 
 Automatic metadata includes fixed operation phases/outcomes, measured counts,
 timings, and available provenance, not keys, values, SQL, tokens, raw errors,
