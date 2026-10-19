@@ -97,11 +97,13 @@ ghcr.io/tinycloudlabs/tc-apps-alpha@sha256:254e6be8028647a6edce0b55a54a8dc37e14d
 
 It consumed the same verified tarball and passed native worker write/readback,
 close/reopen, disable and deletion under **256 MiB / 1 CPU**. This is not a
-deployed HTTP/OAuth or browser/phone acceptance claim. No isolated preview host
-or deployment access has been assigned; production routing was not substituted.
+deployed HTTP/OAuth or browser/phone acceptance claim. No authorized isolated
+preview target or deployment access was available to this rollout; production
+routing was not substituted.
 
-Three interleaved synthetic rounds used fresh profiles and two real Node CLI
-processes per mode: one write and an independent read. All 12 rows produced the
+Three interleaved synthetic rounds used fresh profiles and two measured Node CLI
+processes per mode: one write and an independent read. Fixture setup and controls
+were excluded from timings. All 12 rows produced the
 same readback and exactly two backend requests. Enabled metadata excluded the
 record-content/key canaries; disable retained history and explicit deletion
 worked while capture was off. The failed sink was enabled, then made read-only.
