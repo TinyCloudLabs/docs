@@ -42,7 +42,7 @@ current public fields are:
 | `ownerAddress` | `string` | Address used to derive the owner space |
 | `chainId` | `number` | Owner chain identifier |
 | `host` | `string?` | Node where the delegation was created |
-| `disableSubDelegation` | `boolean?` | Prevents descendants when true |
+| `disableSubDelegation` | `boolean?` | Terminal grant: the node refuses descendants. Only a session-key (`did:key`) recipient can use it |
 | `publicDelegation` | `PortableDelegation?` | Optional companion public-space grant |
 | `resources` | `DelegatedResource[]?` | Full set for a multi-resource UCAN |
 
