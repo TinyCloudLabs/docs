@@ -113,6 +113,39 @@ HTTP history route, response header, or result receipt. Existing record grants
 and OAuth tokens do not authorize diagnostic access. This documentation is not
 proof that the published image or deployed endpoint contains the implementation.
 
+This is an **isolated, synthetic-only alpha** path, not an instruction to modify
+production. Hosted MCP consumes the same exact npm package
+`@tinycloud/telemetry-preview@0.1.0-alpha.0` as the CLI, targeting Node
+**22.23.2**, Linux x64 glibc. Follow the
+[private side-by-side install](/cli/diagnostics#select-an-immutable-preview)
+with `npm install --ignore-scripts --save-exact`, not a global install or PATH
+change. Use `tc-apps-alpha-mcp --http` for the isolated HTTP process and
+`tc-apps-alpha` for controls. Check `--alpha-identity` against the installed
+`node_modules/@tinycloud/telemetry-preview/identity.json` and exact bundled 0.1.6
+`SKILL.md`/`SQL.md` checkpoint. Preserve `TC_BIN`, `TC_HOME`, `TC_APPS_STATE`,
+`TC_DIAGNOSTICS_HOME`, XDG overrides, profiles, grants and normal routing.
+Do not change normal SDK tags or invoke the production image/deploy workflow.
+
+Separate image/host acceptance remains **unproven**, not a prerequisite for npm
+publication. No published package, accepted image digest, isolated endpoint or
+real phone/browser acceptance is claimed here. An eventual isolated image must
+pin the same package and reviewed identity; verify its mount/UID, tenant mapping,
+ordinary approvals, retention and independent fallback before use. Use isolated
+compute/storage, not a hostname sharing production processes or volumes; never
+copy production credentials or broaden grants. Keep real-record capture,
+selected-detail intake and optional plugins off. For a short authorized synthetic
+task, inspect status, explicitly enable only its synthetic tenant/activity,
+read a disposable synthetic record (write/readback only if requested), review,
+then disable; delete selected history only when authorized. Never replay an
+unknown-outcome write. Retain the normal service path as independent fallback.
+
+Retain the accepted image and known-good service/routing independently. Rehearse
+disable, restart/redeploy and image/routing rollback on this isolated endpoint,
+including control/sink failure. Preserve auth state, delegations and approvals;
+fallback must not require downloads, rebuilding or broader grants. CLI recovery
+is not hosted recovery. The operator must maintain expiry/deletion even while
+capture is disabled and account for backup/recipient copies.
+
 Hosted capture runs on the service, not on the owner's laptop. Once a deployment
 has an authorized, enabled tenant partition, service observations do not depend
 on a local CLI process, coding client, or an online phone. That does not imply
@@ -161,15 +194,18 @@ credential material.
 
 ### Protected offline administration
 
-Run the administrative entry point under the protected service/operator OS
-account with private volume access:
+Run the administrative entry point from the **digest-verified preview image**
+under the protected service/operator OS account with private preview volume
+access. Set `TC_PREVIEW_MCP_BIN` to that image's verified absolute administrative
+executable path, not a PATH lookup or a production binary. The examples are
+templates; resolve paths and the service-verified mapping before execution:
 
 ```text
-tinycloud-mcp-http diagnostics status --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
-tinycloud-mcp-http diagnostics enable --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
-tinycloud-mcp-http diagnostics pause --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
-tinycloud-mcp-http diagnostics resume --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
-tinycloud-mcp-http diagnostics disable --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+"$TC_PREVIEW_MCP_BIN" diagnostics status --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+"$TC_PREVIEW_MCP_BIN" diagnostics enable --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+"$TC_PREVIEW_MCP_BIN" diagnostics pause --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+"$TC_PREVIEW_MCP_BIN" diagnostics resume --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
+"$TC_PREVIEW_MCP_BIN" diagnostics disable --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request
 ```
 
 This path runs before loading the business server, OAuth discovery, or opening
@@ -184,9 +220,9 @@ requires existing enablement; `disable` disarms capture without deleting history
 No control changes records, grants, profiles, or approval artifacts.
 
 ```text
-tinycloud-mcp-http diagnostics history --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request --selection selection.json
-tinycloud-mcp-http diagnostics export --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request --selection selection.json --out <absolute-root>/exports/<fresh-uuid> --expires <UTC>
-tinycloud-mcp-http diagnostics delete --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request --selection selection.json --pause-after
+"$TC_PREVIEW_MCP_BIN" diagnostics history --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request --selection selection.json
+"$TC_PREVIEW_MCP_BIN" diagnostics export --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request --selection selection.json --out <absolute-root>/exports/<fresh-uuid> --expires <UTC>
+"$TC_PREVIEW_MCP_BIN" diagnostics delete --root <absolute-root> --tenant <existing-verified-64-hex-id> --owner-request --selection selection.json --pause-after
 ```
 
 `history` returns a selected snapshot; local `tc diagnostics review` supplies the
@@ -217,12 +253,12 @@ or request.
 3. Transfer the portable directory in the result's `path` field, not its
    management-metadata parent, through an independently authorized private
    channel. There is no automatic upload or synchronization.
-4. On the review machine, run `tc diagnostics import <private-bundle-directory>`
-   and `tc diagnostics review --selection selection.json --json`. Import keeps
-   original timestamps/expiry and marks evidence as imported assertions.
-5. If semantic review needs content, the owner explicitly selects local passages
-   under the [separate detail policy](/cli/diagnostics#select-exact-owner-reviewed-passages).
-   Do not send transcripts or record excerpts to a hosted diagnostics endpoint.
+4. On the review machine, use the [explicitly selected CLI preview](/cli/diagnostics#select-an-immutable-preview):
+   `"$TC_PREVIEW_BIN" diagnostics import <private-bundle-directory>` and
+   `"$TC_PREVIEW_BIN" diagnostics review --selection selection.json --json`.
+   Import keeps original timestamps/expiry and marks evidence as imported assertions.
+5. This preview is metadata-only. Do not select local passages, ingest transcripts
+   or send record excerpts to a hosted diagnostics endpoint.
 
 For intentional output outside the entire root, add `--external` to the
 administrative `export` command. Its destination must be disjoint from the root

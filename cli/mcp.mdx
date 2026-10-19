@@ -91,6 +91,33 @@ service operator must not be in that trust boundary.
 
 ## Private diagnostic history
 
+This section applies only to the **synthetic-only, metadata-only alpha**
+`@tinycloud/telemetry-preview@0.1.0-alpha.0`, targeting Node **22.23.2** on
+Linux x64 glibc. Normal npm installation, SDK tags and production connector
+instructions elsewhere on this page are unchanged. No publication, image digest
+or deployed alpha endpoint is claimed.
+
+Follow [private exact-version installation](/cli/diagnostics#select-an-immutable-preview):
+`npm install --ignore-scripts --save-exact` in a separate private prefix, never
+globally or with PATH changes. Use its distinct `tc-apps-alpha` CLI and
+`tc-apps-alpha-mcp` entrypoint only in a separately approved dedicated connection.
+The latter defaults to stdio; `--http` selects HTTP. Check `--alpha-identity`
+against the installed `node_modules/@tinycloud/telemetry-preview/identity.json`
+and the exact bundled 0.1.6 `SKILL.md`/`SQL.md` rules checkpoint.
+Preserve normal client defaults, `TC_BIN`, `TC_HOME`, `TC_APPS_STATE`,
+`TC_DIAGNOSTICS_HOME`, XDG overrides, profiles, grants and delegations.
+
+Keep real-record capture and optional plugins off. For a short authorized
+synthetic task, inspect status, explicitly enable and scope only the selected
+activity, review, then disable; delete selected history only when authorized.
+Retain the normal connection as independent fallback, including when alpha
+controls fail. Never replay unknown-outcome writes.
+
+Hosted MCP consumes the same exact npm package. Separate image/host acceptance
+remains unproven and is not a prerequisite for npm publication. Add no hosted
+connection until its isolated service identity, ordinary approvals, retention
+and fallback are verified; do not substitute the production connector URL.
+
 Diagnostics are **off by default**, independent of connector permissions and the
 existing no-content stderr service log. They add no public MCP tool, history
 endpoint, result receipt, or response header. An OAuth token or record grant
@@ -138,9 +165,10 @@ Claude Code automatic hooks, Codex automatic hooks, and OpenCode v2 linkage are
 unsupported; baseline capture plus explicit selected-block launch/manual
 selection remains the fallback. The optional OpenCode v1 attribution contract
 targets 1.18.31; source/loopback fixtures do not establish installed-client
-acceptance. No adapter grants scope or enables capture. Publication, deployment,
-real-client/mobile acceptance, installation, and real capture enablement remain
-separate, unperformed steps of this diagnostic implementation.
+acceptance. Optional plugins stay off in this preview. No adapter grants scope
+or enables capture. Artifact distribution, isolated deployment, real-client/mobile
+acceptance and real capture enablement remain separate gates, not claims made
+by these instructions. Selected-detail intake is outside this metadata-only rollout.
 
 ## Requirements
 

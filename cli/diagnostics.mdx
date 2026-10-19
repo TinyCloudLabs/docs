@@ -5,19 +5,64 @@ icon: "stethoscope"
 sidebarTitle: "Diagnostics"
 ---
 
-Use diagnostics when a command fails and you need to separate local profile problems from node problems.
+Use `tc doctor` for ordinary health troubleshooting. Private tc-apps history below is an isolated, metadata-only team preview, not a normal CLI release.
 
 ## Private tc-apps history
 
-`tc diagnostics` (also `tinycloud diagnostics`) is a separate, local control and
-review interface. It does not initialize a profile, authenticate, or load the
+`tc-apps-alpha diagnostics` is the separate, local alpha control and review
+interface. It does not initialize a profile, authenticate, or load the
 business SDK. Capture is **off by default**. It is not `tc doctor`, replication,
 ordinary service logging, an audit trail, or a personal-record app.
 
-This page describes the implementation, not a published release or a deployed
-service. Publication, deployment, adapter installation, real-client/mobile
-acceptance, and enabling real capture are separate steps; none is established
-by these instructions.
+The synthetic-only alpha is exactly `@tinycloud/telemetry-preview@0.1.0-alpha.0`,
+targeting Node **22.23.2** on Linux x64 glibc. This page does not claim publication
+or hosted deployment success. Normal SDK tags, setup and production MCP stay unchanged.
+
+### Select an immutable preview
+
+After explicit installation authorization, use a private side-by-side directory
+and the exact version below. If unavailable, stop; do not substitute a tag,
+custom archive or normal installer. No global install or PATH changes.
+Updates require a separately reviewed exact version. Real-record capture,
+selected-detail intake and optional plugins remain off.
+
+```bash
+umask 077
+TC_ALPHA_DIR="$HOME/.local/share/tc-apps-alpha/0.1.0-alpha.0"
+mkdir -p "$TC_ALPHA_DIR"
+npm install --prefix "$TC_ALPHA_DIR" --ignore-scripts --save-exact @tinycloud/telemetry-preview@0.1.0-alpha.0
+TC_PREVIEW_BIN="$TC_ALPHA_DIR/node_modules/.bin/tc-apps-alpha"
+TC_PREVIEW_MCP="$TC_ALPHA_DIR/node_modules/.bin/tc-apps-alpha-mcp"
+"$TC_PREVIEW_BIN" --alpha-identity
+cat "$TC_ALPHA_DIR/node_modules/@tinycloud/telemetry-preview/identity.json"
+"$TC_PREVIEW_BIN" diagnostics --help
+"$TC_PREVIEW_BIN" diagnostics run --help
+"$TC_PREVIEW_BIN" diagnostics status --json
+```
+
+Require `--scope` and `--role`, then match `--alpha-identity` and the installed
+`identity.json` to the reviewed source/build/guidance checkpoint. Help and
+version labels alone do not prove provenance. Use `TC_PREVIEW_BIN` only as a
+shell variable for explicit alpha calls, never a PATH or `TC_BIN` override.
+Keep `TC_BIN`, `TC_HOME`, `TC_APPS_STATE`, `TC_DIAGNOSTICS_HOME`, all XDG overrides,
+profiles, delegations, grants, normal wrappers and client defaults unchanged.
+The preview launcher does not redirect ordinary executables inside a child block.
+
+Use the package's `guidance/skills/tc-apps/` copy: exact tc-apps **0.1.6**
+`SKILL.md` and `SQL.md`, their hashes and regenerated embedded MCP rules must
+match its identity checkpoint, alongside the guide/helper hashes. Optional
+plugins remain off. Installed-client and hosted image/host acceptance remain
+separate and unproven; they are not prerequisites for npm publication.
+
+For a short authorized synthetic task, retain the known-good normal executable
+and an alpha control path with the same diagnostic-root environment. Inspect
+status, enable metadata, then explicitly wrap each selected block below. Read a
+disposable synthetic record, or write/read back one only if explicitly requested;
+do not touch real records or expand grants. Review the selected evidence, then
+disable. On failure, stop the alpha process and resume the retained normal route,
+even if controls fail. Never replay an unknown-outcome write. Disable is not
+deletion: explicitly delete selected history when authorized and maintain expiry
+even with stopped writers, accounting for backups and external exports.
 
 ### Metadata and selected detail are separate
 
@@ -33,12 +78,16 @@ feedback. It is never automatic transcript collection. Credentials are forbidden
 in both tiers. Credential-pattern rejection is a guard, not a guarantee that
 arbitrary text has been sanitized; review selections yourself.
 
+Selected detail, case comparison and content-linked reproductions documented
+below are **outside this metadata-only preview**. Do not enable detail policy,
+collect passages, import detail or install optional plugins for this rollout.
+
 ```bash
-tc diagnostics status --json
-tc diagnostics enable --scope tc-apps
-tc diagnostics pause
-tc diagnostics resume
-tc diagnostics disable
+"$TC_PREVIEW_BIN" diagnostics status --json
+"$TC_PREVIEW_BIN" diagnostics enable --scope tc-apps
+"$TC_PREVIEW_BIN" diagnostics pause
+"$TC_PREVIEW_BIN" diagnostics resume
+"$TC_PREVIEW_BIN" diagnostics disable
 ```
 
 All control/review commands print diagnostic JSON; `status --json` and
@@ -58,7 +107,7 @@ Ordinary business commands need no launcher. To include bootstrap/parser errors,
 auth, context, or initialization for a selected tc-apps block, launch that block:
 
 ```bash
-tc diagnostics run --scope tc-apps -- sh ./selected-app-block.sh
+"$TC_PREVIEW_BIN" diagnostics run --scope tc-apps -- /bin/sh /absolute/path/to/selected-app-block.sh
 ```
 
 Optional `--role` hints are `catalog`, `record`, `verification`, `copy`,
@@ -68,7 +117,7 @@ grant authority or establish correctness.
 By contrast, a whole-client launch is **attribution only**:
 
 ```bash
-tc diagnostics run -- claude
+"$TC_PREVIEW_BIN" diagnostics run -- /absolute/path/to/claude
 ```
 
 This generates run linkage and removes inherited activity scope. It does not
@@ -129,7 +178,7 @@ filesystem spool does not encrypt its own files. Before selected intake, verify
 those protections and explicitly acknowledge them:
 
 ```bash
-tc diagnostics enable --scope tc-apps --detail-policy encrypted-excluded-backups
+"$TC_PREVIEW_BIN" diagnostics enable --scope tc-apps --detail-policy encrypted-excluded-backups
 ```
 
 The flag is an acknowledgment, not cryptographic verification. It also enables
@@ -162,7 +211,7 @@ intersect, rather than union. `{}` or `{"include_detail":true}` alone is invalid
 it does not remove other supplied filters or include all detail.
 
 ```bash
-tc diagnostics review --selection selection.json --json
+"$TC_PREVIEW_BIN" diagnostics review --selection selection.json --json
 ```
 
 For discovery, explicitly review `{"all":true}` or a bounded time range, then
@@ -176,8 +225,8 @@ commit. A completed send/HTTP response does not prove client or owner receipt.
 ### Export and import
 
 ```text
-tc diagnostics export --selection selection.json --out <absolute-root>/exports/<fresh-uuid> --expires-at <UTC>
-tc diagnostics import <private-received-bundle-directory>
+"$TC_PREVIEW_BIN" diagnostics export --selection selection.json --out <absolute-root>/exports/<fresh-uuid> --expires-at <UTC>
+"$TC_PREVIEW_BIN" diagnostics import <private-received-bundle-directory>
 ```
 
 Use the root reported by `status` and a new UUID destination. Managed `--out`
@@ -214,7 +263,7 @@ copied directories likewise require separate handling.
 ### Select exact owner-reviewed passages
 
 ```bash
-tc diagnostics select --manifest selected-case.json
+"$TC_PREVIEW_BIN" diagnostics select --manifest selected-case.json
 ```
 
 The manifest is bounded JSON, not a transcript path or directory. A minimal
@@ -271,7 +320,7 @@ rather than substitute nearby history.
 ### Compare equivalent tasks and build synthetic evidence
 
 ```bash
-tc diagnostics compare --left left-selection.json --right right-selection.json
+"$TC_PREVIEW_BIN" diagnostics compare --left left-selection.json --right right-selection.json
 ```
 
 Each side must select exactly one case with explicit detail. The optional
@@ -285,7 +334,7 @@ Otherwise the result is explicitly incomparable. Even comparable results expose
 independent measurements, not an overall winner.
 
 ```text
-tc diagnostics bundle --case <case-id> --fixture synthetic-fixture.json --out <absolute-root>/exports/<fresh-uuid> --expires-at <UTC>
+"$TC_PREVIEW_BIN" diagnostics bundle --case <case-id> --fixture synthetic-fixture.json --out <absolute-root>/exports/<fresh-uuid> --expires-at <UTC>
 ```
 
 The implemented reproduction fixture is deliberately narrow: a reviewed
@@ -326,8 +375,8 @@ unobserved client would independently make the same mistake.
 ### Delete and roll back without restoring capture
 
 ```bash
-tc diagnostics delete --selection selection.json
-tc diagnostics delete --selection selection.json --confirm --pause-after
+"$TC_PREVIEW_BIN" diagnostics delete --selection selection.json
+"$TC_PREVIEW_BIN" diagnostics delete --selection selection.json --confirm --pause-after
 ```
 
 Without `--confirm`, deletion only previews. Confirmation authorizes that exact
