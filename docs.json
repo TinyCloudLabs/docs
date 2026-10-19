@@ -161,6 +161,7 @@
               "hosting/overview",
               "hosting/mcp",
               "hosting/configuration",
+              "hosting/sovereignty",
               "hosting/docker",
               "hosting/databases",
               "hosting/storage",
