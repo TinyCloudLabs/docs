@@ -204,7 +204,7 @@ network; `7` node, protocol, or integrity error; `10` local storage full.
 
 ## Read-through flag (beta): CLI and node-sdk
 
-This Phase 1 read-through beta is separate from the explicit `tc replica` commands above. It routes eligible `node.kv.get()` and `node.kv.list()` calls through a local replica, falling back to the unchanged network request when the replica cannot safely answer. It is opt-in and applies only to primary-space KV. Browser `web-sdk` read-through is a later phase.
+This Phase 1 read-through beta is separate from the explicit `tc replica` commands above. It routes eligible `node.kv.get()` and `node.kv.list()` calls through a local replica, falling back to the unchanged network request when the replica cannot safely answer. It is opt-in and applies only to primary-space KV. Browser `web-sdk` read-through is available only in the pre-release line; see [Browser read-through](#browser-read-through-pre-release) below.
 
 ### Enable read-through
 
@@ -349,6 +349,50 @@ Local delegation checks verify the signature, CID, audience and expiry, but **no
 `tc auth logout` removes legacy replicas and the flag-owned `replication/` directory for every identity partition by default, including its device keys, identity and pending-write files, and event log. Pass `--keep-replicas` to retain both local roots. Logout clears the local session; it does **not** revoke delegations or grants at the node, which remain valid until expiry unless separately revoked. Cleanup refuses unsafe symlinks or active sync leases; a cleanup failure can leave local files behind.
 
 **Code-derived defaults and scope:** the CLI overrides the SDK defaults above (60 seconds / 10 seconds); the code defaults for node-sdk are 120 seconds / 5 seconds. CLI `--purge` addresses only the currently bound identity and configured prefixes, while logout removes all profile partitions. These specifics follow the Phase 1 implementation rather than the broader planning notes.
+
+## Browser read-through (pre-release)
+
+<Warning>
+**Pre-release only.** Browser read-through ships in the `@tinycloud/web-sdk` **beta** line (3.3.0-beta), not in the stable 3.2.x packages. Install the beta packages as one set and pin exact versions: `@tinycloud/web-sdk`, `@tinycloud/replica`, `@tinycloud/node-sdk` and `@tinycloud/sdk-core` from the same beta line. Mixing a beta with stable packages is not supported. Use synthetic or disposable data while it is in beta. Chromium is the qualified browser; Safari, Firefox, Tauri and Capacitor are not.
+</Warning>
+
+With the `replication` option on, `kv.get()` and `kv.list()` under the configured prefixes read from an encrypted IndexedDB replica when it covers the key, and from the network otherwise. It is off by default. Register the plugin once, before you construct the client:
+
+```ts
+import { TinyCloudWeb, registerBrowserReplica } from "@tinycloud/web-sdk";
+import { browserReplicaPlugin } from "@tinycloud/web-sdk/replica";
+
+registerBrowserReplica(browserReplicaPlugin);
+
+const tcw = new TinyCloudWeb({
+  // ...your usual config
+  replication: {
+    enabled: true,
+    prefixes: ["notes/"], // folders ending in "/"
+    onEvent: (event) => console.debug(event),
+  },
+});
+```
+
+Constructing the client with `replication.enabled` and no registered plugin throws. The replica code lives in its own entry (`@tinycloud/web-sdk/replica`) and its storage and worker load lazily, so apps that do not import it do not pay for it.
+
+- **Prefixes.** Each entry is a folder ending in `/`. Browser read-through requires `allowSecrets` to stay `false` and excludes the whole space (`/`), `vault/` and the secrets space; a configuration that includes them is rejected.
+- **Reads.** A covered key is served from the replica. A stale replica syncs first (`maxStalenessMs`, default 120 seconds; the sync is bounded by `staleSyncTimeoutMs`, default 5 seconds) and falls back per the read rules above. Pass `{ source: "network" }` to `kv.get()` or `kv.list()` to bypass the replica for one read.
+- **Grant and consent.** The replica uses a device grant that lasts 24 hours by default (`grantTtlMs`, at most 7 days) and renews silently, without a wallet prompt, while your sign-in is still inside its 7-day consent window. After that, sign in again. A session that was restored from before replication was enabled may need a fresh sign-in so the sync permission can be consented.
+- **Size.** `maxBytes` caps replica data for the whole origin. When the budget is reached, syncing stops with `STORAGE_BUDGET` and nothing is evicted, so new data stops mirroring until you raise the cap or erase. The browser also keeps a free-space floor (`minFreeBytes`, default 64 MiB).
+- **Status and events.** `tcw.replication.status()` reports each prefix; `onEvent` receives `replication.sync`, `replication.grant` and `replication.lifecycle` events.
+- **Encrypted at rest.** Replica rows are sealed with non-extractable AES-GCM keys held in the browser, and no content, paths, prefixes or account identifiers are stored in readable form in replica storage. This protects the copy only as far as the signed-in browser session: someone who can use the open session can already read from the network. It is not protection against a compromised device.
+
+### Sign-out and account switch
+
+Signing out, or switching to another account, shreds the replica's keys before it erases the content, so the local copy stops being readable at once. The erase itself can finish the next time the page loads. Handle two cases in your app:
+
+- `tcw.signOut()` can throw `Replica gate was not denied (...)` if the key shredding could not be confirmed. The session is already cleared; treat this as "local erase pending" and tell the user, not as a failed sign-out.
+- **Signing out with another TinyCloud tab open may keep the local copy off until you reload.** If the other tab holds the replica database open, the browser cannot delete it. The replica then blocks all local serving (reads go to the network) and only a page reload completes the cleanup. Signing straight back in on the same page stays on the network until that reload. Nothing stale is ever shown.
+
+### Not covered
+
+Replicas are read-only mirrors of KV prefixes: there are no offline writes and SQL data is not replicated. If replication is switched off (`enabled: false`) while the app runs, nothing checks the 7-day consent expiry or finishes a pending erase, and sign-out does not shred the keys. To stop using local replicas, erase the copy; do not just turn the option off.
 
 ## Browser: open, grant, sync, and read locally
 
