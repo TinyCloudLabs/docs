@@ -353,7 +353,7 @@ Local delegation checks verify the signature, CID, audience and expiry, but **no
 ## Browser read-through (pre-release)
 
 <Warning>
-**Pre-release only.** Browser read-through ships in the `@tinycloud/web-sdk` **beta** line (3.3.0-beta), not in the stable 3.2.x packages. Install the beta packages as one set and pin exact versions: `@tinycloud/web-sdk`, `@tinycloud/replica`, `@tinycloud/node-sdk` and `@tinycloud/sdk-core` from the same beta line. Chromium is the supported browser.
+**Pre-release.** Browser read-through is available from the `beta` dist-tag of `@tinycloud/web-sdk`, not in the stable 3.2.x line. Install `@tinycloud/web-sdk`, `@tinycloud/replica`, `@tinycloud/node-sdk` and `@tinycloud/sdk-core` from their `beta` dist-tags together and pin the exact versions they resolve to. Each package has its own version number (for example `@tinycloud/replica` is 0.3.x while `@tinycloud/web-sdk` is 3.3.x). Browser read-through is exercised in Chromium.
 </Warning>
 
 With the `replication` option on, `kv.get()` and `kv.list()` under the configured prefixes read from an encrypted IndexedDB replica when it covers the key, and from the network otherwise. It is off by default. Register the plugin once, before you construct the client:
@@ -385,7 +385,7 @@ Constructing the client with `replication.enabled` and no registered plugin thro
 
 ### Sign-out and account switch
 
-Signing out, or switching to another account, removes the replica's keys first and then erases the content; the erase can finish the next time the page loads. If `tcw.signOut()` rejects with a replica error, the session is already cleared: treat it as a pending local erase. If another TinyCloud tab is open when you sign out, the local copy stays off until the page reloads, and reads continue from the network.
+Signing out, or switching to another account, removes the replica's keys first and then erases the content; the erase can finish the next time the page loads. `tcw.signOut()` rejects with a replica error when the local copy could not be confirmed removed: handle it like any failed sign-out, show the error and let the user retry. If another TinyCloud tab is open when you sign out, the local copy stays off until the page reloads, and reads continue from the network.
 
 ### Scope
 
