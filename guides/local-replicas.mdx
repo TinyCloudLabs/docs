@@ -385,7 +385,7 @@ Constructing the client with `replication.enabled` and no registered plugin thro
 
 ### Sign-out and account switch
 
-Signing out, or switching to another account, removes the replica's keys first and then erases the content; the erase can finish the next time the page loads. `tcw.signOut()` rejects with a replica error when the local copy could not be confirmed removed: handle it like any failed sign-out, show the error and let the user retry. If another TinyCloud tab is open when you sign out, the local copy stays off until the page reloads, and reads continue from the network.
+Signing out, or switching to another account, removes the replica's keys first and then erases the content; the erase can finish the next time the page loads. When the local copy could not be confirmed removed, `tcw.signOut()` rejects with an `Error` whose message begins `Replica gate was not denied`; the session is already cleared, so show the message to the user. If another TinyCloud tab is open when you sign out, the local copy stays off until the page reloads, and reads continue from the network.
 
 ### Scope
 
