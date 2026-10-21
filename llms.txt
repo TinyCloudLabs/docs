@@ -8,11 +8,37 @@ For release-sensitive MCP details, use the current Markdown pages linked below.
 The Mintlify-generated `/llms-full.txt` aggregate is cached separately and can
 lag a documentation deployment.
 
+## ChatGPT public plugin release candidate
+
+The ChatGPT personal-record plugin is a release candidate, not published.
+Its intended endpoint is `https://mcp.tinycloud.xyz/chatgpt/mcp`; deployment,
+directory availability and account/workspace eligibility are not established.
+The complete candidate tool surface is `tinycloud_connect`,
+`tinycloud_apps_context`, `tinycloud_apps_read`, `tinycloud_apps_write` and
+`tinycloud_apps_query`. No secrets, generic KV/SQL or arbitrary grant requests
+are exposed. Existing broad `/mcp` and coding-agent instructions below remain
+separate and unchanged.
+
+The intended flow uses OpenKey OAuth discovery/dynamic registration and browser
+approval, not a CLI, bundled skill, custom UI or credential transfer in chat.
+Personal-record access and the optional derived SQL copy require separate
+approvals. Declined permission stops the workflow. Ask for an IANA timezone,
+not a city or precise location. Context can persist that setting; query can
+refresh the stored derived copy. Neither is read-only. Writes may replace,
+move or delete records; preserve client confirmation safeguards.
+
+Hosted processing exposes plaintext inputs/results to the MCP runtime and
+returns requested results to ChatGPT. Do not send secrets or restricted data.
+Disconnect and record deletion do not establish physical erasure of history,
+copies, backups or logs. Plugin-specific privacy disclosures require publisher
+review before release. See https://docs.tinycloud.xyz/cli/mcp and
+https://docs.tinycloud.xyz/hosting/mcp for the candidate boundaries.
+
 ## Agent access quickstart
 
 TinyCloud MCP supports two transports. Claude web, iOS, Android and other
 remote clients connect to `https://mcp.tinycloud.xyz/mcp` using OpenKey OAuth.
-Hosted mode exposes 20 tools: it adds `tinycloud_connect` and four apps tools
+The broad hosted `/mcp` mode exposes 20 tools: it adds `tinycloud_connect` and four apps tools
 to the 17-tool local surface, omitting local-only `tinycloud_auth_import` and
 `tinycloud_secrets_status`. Local clients install `@tinycloud/mcp` alongside
 `@tinycloud/cli` and run its stdio server; MCP is not a `tc` subcommand.

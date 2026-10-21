@@ -5,10 +5,62 @@ icon: "bot"
 sidebarTitle: "MCP Server"
 ---
 
-The TinyCloud MCP server exposes 20 hosted tools or 17 local stdio tools to
-Model Context Protocol clients. Use the hosted Streamable HTTP endpoint from
-web and mobile clients, or run local stdio when data and delegate keys must
-remain on your machine. Both paths use scoped, revocable authority.
+The broad TinyCloud MCP server exposes 22 hosted tools at `/mcp` or 19 local
+stdio tools to Model Context Protocol clients. Use the hosted Streamable HTTP
+endpoint from web and mobile clients, or run local stdio when data and delegate
+keys must remain on your machine. Both paths use scoped, revocable authority.
+
+## ChatGPT personal records — release candidate
+
+The public ChatGPT plugin is a **release candidate, not published**. Its intended
+endpoint is `https://mcp.tinycloud.xyz/chatgpt/mcp`; deployment and ChatGPT
+acceptance are not established by this documentation. This is not a directory
+listing or a guarantee of account or workspace eligibility.
+
+The candidate is limited to todos, goals, workouts and other personal records,
+plus an optional derived SQL copy. Its complete tool surface is:
+
+| Tool | Purpose and side effects |
+|---|---|
+| `tinycloud_connect` | Connect the account through OpenKey approval and persist delegated session state |
+| `tinycloud_apps_context` | Read rules, catalog, local time, timezone and copy status; optionally persist the requested IANA timezone |
+| `tinycloud_apps_read` | List and read personal records with their ETags |
+| `tinycloud_apps_write` | Create, conditionally edit, move or delete personal records; edits and deletes can replace or remove saved data |
+| `tinycloud_apps_query` | Refresh the separately approved derived SQL copy and query selected record kinds; does not change canonical KV records |
+
+Context and query are **not read-only tools**: setting a timezone persists a
+setting, and querying can write or rebuild derived data. The public endpoint
+does not expose secrets, generic KV/SQL operations or arbitrary grant requests.
+The existing broad `/mcp` endpoint and local coding-agent setup below remain
+separate and unchanged.
+
+The intended plugin flow uses OpenKey OAuth discovery and dynamic client
+registration, followed by browser sign-in and explicit delegation approval.
+After `tinycloud_connect`, approve personal-record access only when needed:
+get/list/put/delete under `xyz.tinycloud.agent-data/` in `default`. The optional
+fast copy requires separate approval for `xyz.tinycloud.agent-data.index`.
+Declining permission stops that workflow; it must not trigger broader access
+requests. Ask for an IANA timezone such as `Europe/London`, not a city or
+precise location. Confirm destructive actions according to the client's
+safeguards; a standing grant is not consent to unrelated edits or deletes.
+
+No CLI, bundled skill, custom UI, manual delegation transfer or credential
+pasting is required for the intended plugin flow. Sign in only through OpenKey;
+never paste passwords, tokens, API keys, private keys or signed delegations into
+chat or record fields. Do not use the plugin to store protected health
+information, government identifiers or payment-card data.
+
+<Warning>
+The hosted MCP service processes plaintext record inputs and results, and
+returns requested results to ChatGPT. It stores delegated session state;
+approved records live in TinyCloud and the optional SQL copy is additional
+stored data. Disconnecting a client or deleting a record is not proof that
+historical blobs, backups, logs or the derived copy have been physically erased.
+The existing [privacy policy](https://tinycloud.xyz/privacy) needs
+plugin-specific review before release, including recipients, retention and
+deletion controls. [TinyCloud support](https://t.me/+-_2ufE0JgIcyMjYx) is the
+current documented support channel; do not send it credentials.
+</Warning>
 
 ## Connect Claude web, iOS or Android
 
@@ -46,8 +98,8 @@ agents using `tc-apps`, without a local CLI or skill installation.
 At first use, approve connect and then personal-record access in OpenKey.
 Records use one grant for get, list, put and delete under
 `xyz.tinycloud.agent-data/` in your `default` space, not a separate approval
-for every key. Claude asks for your city once to store an IANA timezone; it
-must not infer your local date from the hosted server's clock.
+for every key. Claude asks for your IANA timezone, not your city or precise
+location; it must not infer your local date from the hosted server's clock.
 In **Settings → Connectors → TinyCloud**, you can set `tinycloud_apps_write`
 to **Always allow** to avoid per-call tool confirmations. This does not bypass
 OpenKey permission approval.
@@ -84,9 +136,10 @@ link and retry after approval. If the owner declines, stop rather than asking
 again in that conversation.
 
 <Warning>
-The hosted service can observe plaintext operation inputs and results while it
-executes them, including delegated secrets. Use local stdio instead when the
-service operator must not be in that trust boundary.
+The broad hosted service can observe plaintext operation inputs and results
+while it executes them, including delegated secrets on `/mcp`. The ChatGPT
+candidate excludes secret tools but still processes plaintext personal records.
+Use local stdio instead when the service operator must not be in that trust boundary.
 </Warning>
 
 ## Requirements
@@ -169,9 +222,9 @@ registry.
 
 Hosted text results include readable canonical JSON as well as
 `structuredContent`, except that successful secret values remain structured-only.
-Read-only results over 100,000 characters return a nonretryable size error with
-narrowing guidance. This cap never truncates write results or conceals completed
-writes. Tool-call logs contain only tool name, outcome code, duration and the
+Read-only and personal-record query results over 100,000 characters return a
+nonretryable size error with narrowing guidance. This cap never truncates
+canonical write outcomes or conceals completed record writes. Tool-call logs contain only tool name, outcome code, duration and the
 number of successfully replayed grants—not keys, values, catalog text, SQL or
 parameters.
 

@@ -9,6 +9,24 @@ endpoint. It is an OAuth resource server, not an owner authority: every tenant
 gets a separate generated session key and can use only capabilities approved
 through OpenKey.
 
+## Public ChatGPT candidate and broad service
+
+The public ChatGPT plugin is a **release candidate, not published**. The intended
+public resource is `https://mcp.tinycloud.xyz/chatgpt/mcp`; this documentation
+does not establish its deployment, directory listing or ChatGPT acceptance.
+It is separate from the existing broad `https://mcp.tinycloud.xyz/mcp` service.
+Do not replace that service or its coding-agent workflows with the public scope.
+
+The candidate exposes exactly `tinycloud_connect`, `tinycloud_apps_context`,
+`tinycloud_apps_read`, `tinycloud_apps_write` and `tinycloud_apps_query`.
+Discovery and invocation must both enforce this boundary: no secret retrieval,
+generic KV/SQL tools or arbitrary grant requests. The optional query operates
+only on the derived personal-record copy. Context may persist timezone settings
+and query may refresh derived data, so neither tool is read-only.
+See [TinyCloud MCP](/cli/mcp)
+for approval, side effects and privacy boundaries. The intended plugin needs
+no local CLI, bundled skill or custom UI.
+
 ## Container
 
 ```bash
@@ -49,8 +67,9 @@ Expired or missing sessions return a fresh connect approval link in
 `error.details`; expired or missing grants return an `authority_required`
 approval link. The owner must approve again.
 
-Hosted mode exposes 20 tools, including `tinycloud_connect` and four
-`tinycloud_apps_*` tools. Local stdio has 17 tools; `tinycloud_auth_import` and
+The broad `/mcp` service exposes 20 tools, including `tinycloud_connect` and four
+`tinycloud_apps_*` tools; this is not the public candidate's five-tool surface.
+Local stdio has 17 tools; `tinycloud_auth_import` and
 `tinycloud_secrets_status` are local-only. Personal-record operations use one
 get/list/put/delete prefix grant for `xyz.tinycloud.agent-data/` in `default`.
 This is an apps-specific exception, not broader authority for generic KV tools.
@@ -84,13 +103,21 @@ delegation is persisted. The approval page names the account that asked, and
 the callback refuses a delegation signed by any other account with
 `403 approval_owner_mismatch` (`@tinycloud/mcp` 0.3.3 and later).
 
+The public candidate must use its own exact resource audience
+`https://mcp.tinycloud.xyz/chatgpt/mcp` with the existing OpenKey discovery and
+dynamic-registration flow. A token for the broad `/mcp` resource must not grant
+access to the public resource, or vice versa. OAuth sign-in does not replace
+approval of the personal-record prefix or the separate optional SQL-copy grant.
+Declined permissions stop the requested workflow; credentials and delegation
+artifacts are never transferred through chat.
+
 ## Results and privacy
 
 Hosted text blocks include the canonical JSON result so clients that ignore
 `structuredContent` can still read records and approval links. Successful
-secret values remain structured-only. Read-only results over 100,000 characters
-return a nonretryable size error with narrowing guidance; write results are
-never truncated by this cap. Writes do not use an operation deadline that
+secret values remain structured-only. Read-only and personal-record query
+results over 100,000 characters return a nonretryable size error with narrowing
+guidance; canonical write outcomes are never truncated by this cap. Writes do not use an operation deadline that
 could abandon reporting while a mutation continues.
 
 Each tool call emits one stderr line containing only the tool name, outcome
@@ -98,7 +125,20 @@ code, duration and successful replayed-grant count. Never log keys (which can
 contain personal slugs), values, catalog text, SQL or parameters.
 
 <Warning>
-The service processes plaintext inputs and results, including delegated secrets.
-Treat its runtime and observability pipeline as part of the data trust boundary.
-Do not log request bodies, text result blocks or structured tool results.
+The service processes plaintext inputs and results. The broad `/mcp` surface
+also processes delegated secrets; the public ChatGPT candidate excludes secret
+tools but still processes plaintext personal records and returns requested
+results to ChatGPT. Treat the runtime and observability pipeline as part of the
+data trust boundary. Do not log request bodies, text result blocks or structured
+tool results.
 </Warning>
+
+Before public release, the publisher must approve and publish accurate
+plugin-specific disclosures. The current [privacy policy](https://tinycloud.xyz/privacy)
+describes Muse and is not evidence of MCP-specific retention or deletion
+behavior. Disclosures must cover personal records, timezone/settings, derived
+SQL data, delegated session state and operational logs; purposes and actual
+recipient categories; retention timelines; and available deletion/revocation
+controls, including limits for historical blobs and backups. Deleting a record
+or disconnecting a client must not be represented as complete physical erasure.
+This documentation does not create a retention commitment or legal attestation.
