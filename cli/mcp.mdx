@@ -89,6 +89,90 @@ executes them, including delegated secrets. Use local stdio instead when the
 service operator must not be in that trust boundary.
 </Warning>
 
+## Private diagnostic history
+
+This section applies only to the **synthetic-only, metadata-only alpha**
+`@tinycloud/telemetry-preview@0.1.0-alpha.0`, targeting Node **22.23.2** on
+Linux x64 glibc. Normal npm installation, SDK tags and production connector
+instructions elsewhere on this page are unchanged. No publication, image digest
+or deployed alpha endpoint is claimed.
+
+Follow [private exact-version installation](/cli/diagnostics#select-an-immutable-preview):
+`npm install --ignore-scripts --save-exact` in a separate private prefix, never
+globally or with PATH changes. Use its distinct `tc-apps-alpha` CLI and
+`tc-apps-alpha-mcp` entrypoint only in a separately approved dedicated connection.
+The latter defaults to stdio; `--http` selects HTTP. Check `--alpha-identity`
+against the installed `node_modules/@tinycloud/telemetry-preview/identity.json`
+and the exact bundled 0.1.6 `SKILL.md`/`SQL.md` rules checkpoint.
+Preserve normal client defaults, `TC_BIN`, `TC_HOME`, `TC_APPS_STATE`,
+`TC_DIAGNOSTICS_HOME`, XDG overrides, profiles, grants and delegations.
+
+Keep real-record capture and optional plugins off. For a short authorized
+synthetic task, inspect status, explicitly enable and scope only the selected
+activity, review, then disable; delete selected history only when authorized.
+Retain the normal connection as independent fallback, including when alpha
+controls fail. Never replay unknown-outcome writes.
+
+Hosted MCP consumes the same exact npm package. Separate image/host acceptance
+remains unproven and is not a prerequisite for npm publication. Add no hosted
+connection until its isolated service identity, ordinary approvals, retention
+and fallback are verified; do not substitute the production connector URL.
+
+Diagnostics are **off by default**, independent of connector permissions and the
+existing no-content stderr service log. They add no public MCP tool, history
+endpoint, result receipt, or response header. An OAuth token or record grant
+does not authorize diagnostic access.
+
+For hosted capture, an operator needs a separate private diagnostic volume,
+an existing protected mapping from the service-verified tenant identity, the
+owner's request, and explicit offline enablement. The service captures its own
+bounded metadata without depending on an owner's laptop or phone remaining
+online. It does not capture the conversation or final assistant answer.
+See [protected hosted controls and transfer](/hosting/mcp#private-diagnostic-spool);
+owners review an explicitly transferred bundle locally rather than query a
+public diagnostic endpoint.
+
+For local stdio, capture requires both separate local enablement and an
+explicitly scoped, dedicated tc-apps process. Run/task attribution alone is not
+scope. Do not scope a general long-lived shared MCP server just to gather
+history. Stdout remains strictly MCP; diagnostics do not consume or copy its
+input/output streams. Use the [CLI scope and review workflow](/cli/diagnostics#private-tc-apps-history)
+for selected activity and manual linkage.
+
+A dedicated stdio connection discovers policy only when a recognized tc-apps
+request arrives: a KV target under `xyz.tinycloud.agent-data/` or the exact SQL
+database `xyz.tinycloud.agent-data.index`. Initialization, tool discovery and
+unrelated calls do not start a diagnostic helper. Background refresh never
+delays inbound messages or cancellation. Live enable/resume/delete changes
+therefore apply to later requests without a restart, but the first request and
+requests racing discovery may lack evidence. In-flight work keeps its original
+generation and is not recaptured under a new one. Never repeat a mutation just
+to obtain diagnostic history.
+
+Automatic metadata includes fixed operation phases/outcomes, measured counts,
+timings, and available provenance, not keys, values, SQL, tokens, raw errors,
+prompts, or tool-response content. HTTP/MCP delivery, business completeness,
+mutation certainty, verification, and copy state are independent. A successful
+send/response finish is not proof of client receipt, a correct final answer,
+owner acceptance, or phone display. Missing task/turn/client/model evidence
+stays unknown.
+
+Selected intent, visible actions/final claims, feedback, and relevant excerpts
+are a separate explicit **local** detail tier, with a seven-day maximum,
+encrypted-storage/backup-policy acknowledgment, and per-case selection. That
+acknowledgment does not cryptographically verify encryption; the filesystem
+spool does not encrypt itself. Metadata retention is 30 days. Both tiers are
+best effort, bounded, and subject to quota and evidence loss.
+
+Claude Code automatic hooks, Codex automatic hooks, and OpenCode v2 linkage are
+unsupported; baseline capture plus explicit selected-block launch/manual
+selection remains the fallback. The optional OpenCode v1 attribution contract
+targets 1.18.31; source/loopback fixtures do not establish installed-client
+acceptance. Optional plugins stay off in this preview. No adapter grants scope
+or enables capture. Artifact distribution, isolated deployment, real-client/mobile
+acceptance and real capture enablement remain separate gates, not claims made
+by these instructions. Selected-detail intake is outside this metadata-only rollout.
+
 ## Requirements
 
 - Node.js 20 or newer
