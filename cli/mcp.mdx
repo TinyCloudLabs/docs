@@ -24,12 +24,13 @@ Complete OpenKey OAuth when Claude prompts you. See Anthropic's
 Ask Claude to call `tinycloud_connect` to begin. Open the returned
 `approvalUrl` and approve the account-registry delegation in OpenKey. Call
 `tinycloud_connect` again; it now returns `connected: true`. Then list spaces
-and perform the KV or SQLite operation you want. For `authority_required`,
-open `approval.url` and retry unchanged after approval only when the result
-includes that URL. If no URL is present, stop and report the result.
+and perform the KV or SQLite operation you want. For `authority_required`, give
+the owner the returned `approval.url`, wait for approval in OpenKey, then retry
+the identical call. If there is no `approval.url`, stop and report it; don't
+try another route.
 
-Hosted mode provides `tinycloud_connect` and four personal-record tools in
-addition to the shared operation tools. It omits the local-only
+Hosted mode provides `tinycloud_connect` and additional personal-record tools
+alongside the shared operation tools. It omits the local-only
 `tinycloud_auth_import` and `tinycloud_secrets_status`. The service stores a
 distinct delegated session key for each OpenKey OAuth subject and accepts only
 delegations from an owner DID carried by that subject's resource-bound access
@@ -76,9 +77,10 @@ next query resumes them. A nonretryable `NODE_ERROR` with
 Answer from KV instead; retrying the copy or changing its name is not a fix.
 
 Production requests 30-day grants and uses 15-minute approval links. A missing
-or expired session returns a fresh connect link in `error.details`; a missing
-or expired grant returns an `authority_required` approval link. Open the new
-link and retry after approval. If the owner declines, stop rather than asking
+or expired session returns a fresh connect link in `error.details`. An
+`authority_required` result may include `approval.url`; if it does, give the
+link to the owner, wait for approval in OpenKey, then retry unchanged. If it
+does not, stop and report it. If the owner declines, stop rather than asking
 again in that conversation.
 
 <Warning>
@@ -288,14 +290,13 @@ is safe.
 ## Delegated secret flow
 
 1. Call `tinycloud_secrets_get` with the secret name and scope.
-2. If the result is `authority_required` and includes `approval.url`, open it
-   and approve the exact request. If no URL is present, stop and report the
-   result; do not substitute a broader request.
+2. For `authority_required`, give the returned `approval.url` to the owner and
+   wait for approval in OpenKey. If there is no URL, stop and report the result;
+   do not use a fallback or broader request.
 3. In local stdio, import the approved delegation with `tinycloud_auth_import`.
-   Hosted authorization uses the OpenKey flow when the result provides it.
-4. Retry the same call only after the returned authorization action completes.
-   Requests are persisted so approval and retry can happen in separate client
-   sessions.
+   Hosted authorization uses the OpenKey flow above.
+4. After approval completes, retry the identical original call. Requests are
+   persisted so approval and retry can happen in separate client sessions.
 5. If the result is `setup_required`, follow its Secret Manager action to add
    the missing value, then retry.
 
