@@ -12,8 +12,8 @@ lag a documentation deployment.
 
 TinyCloud MCP supports two transports. Claude web, iOS, Android and other
 remote clients connect to `https://mcp.tinycloud.xyz/mcp` using OpenKey OAuth.
-Hosted mode exposes 20 tools: it adds `tinycloud_connect` and four apps tools
-to the 17-tool local surface, omitting local-only `tinycloud_auth_import` and
+Hosted mode exposes 22 tools; local stdio has 19. Hosted adds `tinycloud_connect`
+and its personal-record tools; it omits local-only `tinycloud_auth_import` and
 `tinycloud_secrets_status`. Local clients install `@tinycloud/mcp` alongside
 `@tinycloud/cli` and run its stdio server; MCP is not a `tc` subcommand.
 
@@ -143,11 +143,14 @@ the narrower tool. This authority is not table- or row-scoped.
 Execution failures are not automatically retryable; inspect database state
 before considering another non-idempotent write.
 
-In local stdio, when a tool returns `authority_required`, preserve its returned
-`tinycloud.auth.request` exactly. The owner grants that artifact without
-widening it, the delegate imports the full delegation with
-`tinycloud_auth_import`, and the agent retries the original tool. Hosted mode
-uses the approval URL and callback instead; it does not expose the import tool.
+For hosted HTTP, when `authority_required` includes `approval.url`, give it to
+the owner, wait for approval in OpenKey, then retry the identical call. If no
+URL is returned, stop and report; do not use a fallback or broader request.
+For local stdio, preserve the exact structured `tinycloud.auth.request`; the
+owner grants that request with `tc auth grant --stdin --yes`, and the agent
+imports the returned artifact with `tinycloud_auth_import` using the request ID,
+then retries unchanged. See the [Auth Artifacts](https://docs.tinycloud.xyz/cli/auth-artifacts)
+guide for grant/import details. This local path does not require a hosted URL.
 
 Complete readable pages:
 
@@ -240,3 +243,5 @@ Complete readable pages:
 - Preview locally with `mint dev`.
 - Keep `reference/protocol/capabilities.mdx` synced with `npm run sync-capabilities`.
 - Verify the generated registry with `npm run check-capabilities`.
+
+Details: TC-1362

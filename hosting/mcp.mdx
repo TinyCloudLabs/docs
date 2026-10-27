@@ -46,11 +46,12 @@ The production `docker-compose.phala.yml` explicitly sets
 `TC_MCP_DELEGATION_EXPIRY=30d` and `TC_MCP_APPROVAL_TTL_SECONDS=900`; the
 standalone container command above does not inherit those compose overrides.
 Expired or missing sessions return a fresh connect approval link in
-`error.details`; expired or missing grants return an `authority_required`
-approval link. The owner must approve again.
+`error.details`. A missing or expired grant may return `authority_required`
+with `approval.url`; when present, give the link to the owner, wait for approval
+in OpenKey, then retry unchanged. If no URL is returned, stop and report it.
 
-Hosted mode exposes 20 tools, including `tinycloud_connect` and four
-`tinycloud_apps_*` tools. Local stdio has 17 tools; `tinycloud_auth_import` and
+Hosted mode exposes 22 tools; local stdio has 19. Hosted mode adds
+`tinycloud_connect` and its personal-record tools. `tinycloud_auth_import` and
 `tinycloud_secrets_status` are local-only. Personal-record operations use one
 get/list/put/delete prefix grant for `xyz.tinycloud.agent-data/` in `default`.
 This is an apps-specific exception, not broader authority for generic KV tools.
@@ -102,3 +103,5 @@ The service processes plaintext inputs and results, including delegated secrets.
 Treat its runtime and observability pipeline as part of the data trust boundary.
 Do not log request bodies, text result blocks or structured tool results.
 </Warning>
+
+Details: TC-1362

@@ -290,13 +290,18 @@ is safe.
 ## Delegated secret flow
 
 1. Call `tinycloud_secrets_get` with the secret name and scope.
-2. For `authority_required`, give the returned `approval.url` to the owner and
-   wait for approval in OpenKey. If there is no URL, stop and report the result;
-   do not use a fallback or broader request.
-3. In local stdio, import the approved delegation with `tinycloud_auth_import`.
-   Hosted authorization uses the OpenKey flow above.
-4. After approval completes, retry the identical original call. Requests are
-   persisted so approval and retry can happen in separate client sessions.
+2. Hosted HTTP: if `authority_required` includes `approval.url`, give it to the
+   owner and wait for approval in OpenKey. If no URL is returned, stop and
+   report the result; do not use a fallback or broader request.
+3. Local stdio: for a structured `tinycloud.auth.request`, give the exact
+   request to the owner to grant with `tc auth grant --stdin --yes`, then import
+   the returned artifact with `tinycloud_auth_import` using its request ID. Do
+   not require a hosted `approval.url` for this local flow; without a structured
+   request, stop and report rather than widening it. See [Auth Artifacts](/cli/auth-artifacts)
+   for CLI details.
+4. After the owner-approved hosted action or local artifact import completes,
+   retry the identical original call. Requests are persisted so approval and
+   retry can happen in separate client sessions.
 5. If the result is `setup_required`, follow its Secret Manager action to add
    the missing value, then retry.
 
