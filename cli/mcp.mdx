@@ -73,7 +73,7 @@ the copy is the exact SQL database `xyz.tinycloud.agent-data.index`, with
 read, write and schema authority; query refreshes derived data, not KV records.
 `COPY_PARTIAL` is a successful result with the kinds still to rebuild; the
 next query resumes them. A nonretryable `NODE_ERROR` with
-`error.details.reason: "copy_unavailable"` needs the node team's resolution.
+`error.details.reason: "copy_unavailable"` can't be fixed from the client.
 Answer from KV instead; retrying the copy or changing its name is not a fix.
 
 Production requests 30-day grants and uses 15-minute approval links. A missing
