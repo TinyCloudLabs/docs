@@ -5,7 +5,7 @@ icon: "bot"
 sidebarTitle: "MCP Server"
 ---
 
-The TinyCloud MCP server exposes 20 hosted tools or 17 local stdio tools to
+The TinyCloud MCP server exposes 22 hosted tools or 19 local stdio tools to
 Model Context Protocol clients. **Use hosted Streamable HTTP first** from web
 and mobile clients; local stdio is an alternative when data and delegate keys
 must remain on your machine. Both paths use scoped, revocable authority.
@@ -19,15 +19,14 @@ https://mcp.tinycloud.xyz/mcp
 ```
 
 Complete OpenKey OAuth when Claude prompts you. See Anthropic's
-[remote MCP connector instructions](https://support.anthropic.com/en/articles/11175166-about-custom-integrations-using-remote-mcp).
+[custom connector instructions](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
 
 Ask Claude to call `tinycloud_connect` to begin. Open the returned
 `approvalUrl` and approve the account-registry delegation in OpenKey. Call
 `tinycloud_connect` again; it now returns `connected: true`. Then list spaces
-and perform the KV or SQLite operation you want. When a tool returns
-`authority_required`, open its `approval.url` and retry the same tool unchanged.
-
-
+and perform the KV or SQLite operation you want. For `authority_required`,
+open `approval.url` and retry unchanged after approval only when the result
+includes that URL. If no URL is present, stop and report the result.
 
 Hosted mode provides `tinycloud_connect` and four personal-record tools in
 addition to the shared operation tools. It omits the local-only
@@ -88,15 +87,33 @@ executes them, including delegated secrets. Use local stdio instead when the
 service operator must not be in that trust boundary.
 </Warning>
 
+## Connect Claude Code
+
+In a terminal, add the hosted server using Claude Code's remote HTTP transport:
+
+```bash
+claude mcp add --transport http tinycloud https://mcp.tinycloud.xyz/mcp
+```
+
+The command uses local scope by default; add `--scope project` or `--scope user`
+only when sharing the configuration is intended. Start Claude Code, run `/mcp`,
+select `tinycloud`, and complete OpenKey OAuth in the browser. Claude Code's
+remote MCP setup is separate from Claude web's custom connector flow above.
+For an isolated run, set `CLAUDE_CONFIG_DIR` to a private config directory
+before running the command.
+
+Use `claude mcp list` to check the configured server; `/mcp` shows its status
+and available tools. To disconnect and remove this local-scope entry, run
+`claude mcp remove tinycloud`.
+
+See Anthropic's [Claude Code MCP instructions](https://code.claude.com/docs/en/mcp).
+
 ## Connect ChatGPT
 
-ChatGPT's generic custom MCP integration is distinct from the unpublished
-public `/chatgpt/mcp` release candidate. Availability and available actions
-depend on plan and workspace administrator settings. Follow OpenAI's current
-[custom MCP server instructions](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)
-and [Developer Mode guidance](https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt).
-Use `https://mcp.tinycloud.xyz/mcp` and complete OpenKey OAuth if your account
-and workspace allow this private connection.
+In ChatGPT, add TinyCloud as a custom MCP server from Plugins, using
+`https://mcp.tinycloud.xyz/mcp`, then complete OpenKey OAuth. Availability and
+permissions depend on plan and workspace settings. See OpenAI's
+[custom MCP server instructions](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt).
 
 ## Requirements
 
@@ -270,13 +287,14 @@ is safe.
 ## Delegated secret flow
 
 1. Call `tinycloud_secrets_get` with the secret name and scope.
-2. If the result is `authority_required`, use its structured request and
-   approval action to obtain the exact capabilities. The server never silently
-   falls back to owner authority.
+2. If the result is `authority_required` and includes `approval.url`, open it
+   and approve the exact request. If no URL is present, stop and report the
+   result; do not substitute a broader request.
 3. In local stdio, import the approved delegation with `tinycloud_auth_import`.
-   Hosted mode imports it through the OpenKey approval callback instead.
-4. Retry `tinycloud_secrets_get`. Requests are persisted so approval and retry
-   can happen in separate client sessions.
+   Hosted authorization uses the OpenKey flow when the result provides it.
+4. Retry the same call only after the returned authorization action completes.
+   Requests are persisted so approval and retry can happen in separate client
+   sessions.
 5. If the result is `setup_required`, follow its Secret Manager action to add
    the missing value, then retry.
 
@@ -309,4 +327,3 @@ Omitting either flag keeps owner data execution closed.
 - [Profiles](/cli/profiles)
 - [Auth artifacts](/cli/auth-artifacts)
 - [Secrets, vault, and variables](/cli/secrets)
-Details: TC-1362
