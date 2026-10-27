@@ -33,7 +33,7 @@ returns rules, catalog, local time, timezone and fast-copy state;
 `tinycloud_apps_read` lists prefixes and reads records with ETags;
 `tinycloud_apps_write` runs 1–10 ordered create, conditional edit, move or
 delete operations; `tinycloud_apps_query` refreshes the optional fast copy and
-queries selected kinds. All four are hosted-only.
+queries selected kinds. These apps tools are hosted-only.
 Records use one get/list/put/delete prefix grant under
 `xyz.tinycloud.agent-data/` in `default`; generic KV exact scopes are unchanged.
 Ask for the owner's city once and store the IANA timezone. Fresh ETags protect
