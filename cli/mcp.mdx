@@ -6,36 +6,35 @@ sidebarTitle: "MCP Server"
 ---
 
 The TinyCloud MCP server exposes 20 hosted tools or 17 local stdio tools to
-Model Context Protocol clients. Use the hosted Streamable HTTP endpoint from
-web and mobile clients, or run local stdio when data and delegate keys must
-remain on your machine. Both paths use scoped, revocable authority.
+Model Context Protocol clients. **Use hosted Streamable HTTP first** from web
+and mobile clients; local stdio is an alternative when data and delegate keys
+must remain on your machine. Both paths use scoped, revocable authority.
 
 ## Connect Claude web, iOS or Android
 
-Add a custom connector in Claude and use this URL:
-
+In Claude, open **Settings → Connectors → Add custom connector** and use this
+URL:
 ```text
 https://mcp.tinycloud.xyz/mcp
 ```
 
-Claude discovers OpenKey OAuth from the endpoint, registers its OAuth client,
-and asks you to sign in. After the connector is enabled:
+Complete OpenKey OAuth when Claude prompts you. See Anthropic's
+[remote MCP connector instructions](https://support.anthropic.com/en/articles/11175166-about-custom-integrations-using-remote-mcp).
 
-1. Ask Claude to call `tinycloud_connect`.
-2. Open the returned `approvalUrl` and approve the account-registry delegation
-   in OpenKey.
-3. Ask Claude to call `tinycloud_connect` again. It now returns
-   `connected: true`.
-4. Ask Claude to list your spaces, then perform the KV or SQLite operation you
-   want. When a tool returns `authority_required`, open its `approval.url` and
-   retry the same tool unchanged.
+Ask Claude to call `tinycloud_connect` to begin. Open the returned
+`approvalUrl` and approve the account-registry delegation in OpenKey. Call
+`tinycloud_connect` again; it now returns `connected: true`. Then list spaces
+and perform the KV or SQLite operation you want. When a tool returns
+`authority_required`, open its `approval.url` and retry the same tool unchanged.
 
-Hosted mode adds `tinycloud_connect` and four personal-record tools to the local
-surface, and omits the local-only `tinycloud_auth_import` and
-`tinycloud_secrets_status`. The service stores a distinct delegated session key
-for each OpenKey OAuth subject and accepts only delegations from an owner DID
-carried by that subject's resource-bound access token. It never receives an
-owner private key.
+
+
+Hosted mode provides `tinycloud_connect` and four personal-record tools in
+addition to the shared operation tools. It omits the local-only
+`tinycloud_auth_import` and `tinycloud_secrets_status`. The service stores a
+distinct delegated session key for each OpenKey OAuth subject and accepts only
+delegations from an owner DID carried by that subject's resource-bound access
+token. It never receives an owner private key.
 
 ### Keep personal records naturally
 
@@ -88,6 +87,16 @@ The hosted service can observe plaintext operation inputs and results while it
 executes them, including delegated secrets. Use local stdio instead when the
 service operator must not be in that trust boundary.
 </Warning>
+
+## Connect ChatGPT
+
+ChatGPT's generic custom MCP integration is distinct from the unpublished
+public `/chatgpt/mcp` release candidate. Availability and available actions
+depend on plan and workspace administrator settings. Follow OpenAI's current
+[custom MCP server instructions](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)
+and [Developer Mode guidance](https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt).
+Use `https://mcp.tinycloud.xyz/mcp` and complete OpenKey OAuth if your account
+and workspace allow this private connection.
 
 ## Requirements
 
@@ -300,3 +309,4 @@ Omitting either flag keeps owner data execution closed.
 - [Profiles](/cli/profiles)
 - [Auth artifacts](/cli/auth-artifacts)
 - [Secrets, vault, and variables](/cli/secrets)
+Details: TC-1362
