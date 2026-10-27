@@ -5,37 +5,36 @@ icon: "bot"
 sidebarTitle: "MCP Server"
 ---
 
-The TinyCloud MCP server exposes 20 hosted tools or 17 local stdio tools to
-Model Context Protocol clients. Use the hosted Streamable HTTP endpoint from
-web and mobile clients, or run local stdio when data and delegate keys must
-remain on your machine. Both paths use scoped, revocable authority.
+The TinyCloud MCP server exposes 22 hosted tools or 19 local stdio tools to
+Model Context Protocol clients. **Use hosted Streamable HTTP first** from web
+and mobile clients; local stdio is an alternative when data and delegate keys
+must remain on your machine. Both paths use scoped, revocable authority.
 
 ## Connect Claude web, iOS or Android
 
-Add a custom connector in Claude and use this URL:
-
+In Claude, open **Settings → Connectors → Add custom connector** and use this
+URL:
 ```text
 https://mcp.tinycloud.xyz/mcp
 ```
 
-Claude discovers OpenKey OAuth from the endpoint, registers its OAuth client,
-and asks you to sign in. After the connector is enabled:
+Complete OpenKey OAuth when Claude prompts you. See Anthropic's
+[custom connector instructions](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
 
-1. Ask Claude to call `tinycloud_connect`.
-2. Open the returned `approvalUrl` and approve the account-registry delegation
-   in OpenKey.
-3. Ask Claude to call `tinycloud_connect` again. It now returns
-   `connected: true`.
-4. Ask Claude to list your spaces, then perform the KV or SQLite operation you
-   want. When a tool returns `authority_required`, open its `approval.url` and
-   retry the same tool unchanged.
+Ask Claude to call `tinycloud_connect` to begin. Open the returned
+`approvalUrl` and approve the account-registry delegation in OpenKey. Call
+`tinycloud_connect` again; it now returns `connected: true`. Then list spaces
+and perform the KV or SQLite operation you want. For `authority_required`, give
+the owner the returned `approval.url`, wait for approval in OpenKey, then retry
+the identical call. If there is no `approval.url`, stop and report it; don't
+try another route.
 
-Hosted mode adds `tinycloud_connect` and four personal-record tools to the local
-surface, and omits the local-only `tinycloud_auth_import` and
-`tinycloud_secrets_status`. The service stores a distinct delegated session key
-for each OpenKey OAuth subject and accepts only delegations from an owner DID
-carried by that subject's resource-bound access token. It never receives an
-owner private key.
+Hosted mode provides `tinycloud_connect` and additional personal-record tools
+alongside the shared operation tools. It omits the local-only
+`tinycloud_auth_import` and `tinycloud_secrets_status`. The service stores a
+distinct delegated session key for each OpenKey OAuth subject and accepts only
+delegations from an owner DID carried by that subject's resource-bound access
+token. It never receives an owner private key.
 
 ### Keep personal records naturally
 
@@ -74,13 +73,14 @@ the copy is the exact SQL database `xyz.tinycloud.agent-data.index`, with
 read, write and schema authority; query refreshes derived data, not KV records.
 `COPY_PARTIAL` is a successful result with the kinds still to rebuild; the
 next query resumes them. A nonretryable `NODE_ERROR` with
-`error.details.reason: "copy_unavailable"` needs the node team's resolution.
+`error.details.reason: "copy_unavailable"` can't be fixed from the client.
 Answer from KV instead; retrying the copy or changing its name is not a fix.
 
 Production requests 30-day grants and uses 15-minute approval links. A missing
-or expired session returns a fresh connect link in `error.details`; a missing
-or expired grant returns an `authority_required` approval link. Open the new
-link and retry after approval. If the owner declines, stop rather than asking
+or expired session returns a fresh connect link in `error.details`. An
+`authority_required` result may include `approval.url`; if it does, give the
+link to the owner, wait for approval in OpenKey, then retry unchanged. If it
+does not, stop and report it. If the owner declines, stop rather than asking
 again in that conversation.
 
 <Warning>
@@ -88,6 +88,35 @@ The hosted service can observe plaintext operation inputs and results while it
 executes them, including delegated secrets. Use local stdio instead when the
 service operator must not be in that trust boundary.
 </Warning>
+
+## Connect Claude Code
+
+In a terminal, add the hosted server using Claude Code's remote HTTP transport:
+
+```bash
+claude mcp add --transport http tinycloud https://mcp.tinycloud.xyz/mcp
+```
+
+The command uses local scope by default; add `--scope project` or `--scope user`
+only when sharing the configuration is intended. Start Claude Code, run `/mcp`,
+select `tinycloud`, and complete OpenKey OAuth in the browser. Claude Code's
+remote MCP setup is separate from Claude web's custom connector flow above.
+For an isolated run, set `CLAUDE_CONFIG_DIR` to a private config directory
+before running the command.
+
+Use `claude mcp list` to check the configured server; `/mcp` shows its status
+and available tools. To disconnect and remove this local-scope entry, run
+`claude mcp remove tinycloud`.
+
+See Anthropic's [Claude Code MCP instructions](https://code.claude.com/docs/en/mcp).
+
+## Connect ChatGPT
+
+In ChatGPT on web, go to **Plugins → + → Add custom MCP server**, enter
+`https://mcp.tinycloud.xyz/mcp`, and complete OpenKey OAuth. Developer Mode
+isn't required for this flow. Availability and permissions depend on plan and
+workspace settings. See OpenAI's
+[custom MCP server instructions](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt).
 
 ## Requirements
 
@@ -261,13 +290,18 @@ is safe.
 ## Delegated secret flow
 
 1. Call `tinycloud_secrets_get` with the secret name and scope.
-2. If the result is `authority_required`, use its structured request and
-   approval action to obtain the exact capabilities. The server never silently
-   falls back to owner authority.
-3. In local stdio, import the approved delegation with `tinycloud_auth_import`.
-   Hosted mode imports it through the OpenKey approval callback instead.
-4. Retry `tinycloud_secrets_get`. Requests are persisted so approval and retry
-   can happen in separate client sessions.
+2. Hosted HTTP: if `authority_required` includes `approval.url`, give it to the
+   owner and wait for approval in OpenKey. If no URL is returned, stop and
+   report the result; do not use a fallback or broader request.
+3. Local stdio: for a structured `tinycloud.auth.request`, give the exact
+   request to the owner to grant with `tc auth grant --stdin --yes`, then import
+   the returned artifact with `tinycloud_auth_import` using its request ID. Do
+   not require a hosted `approval.url` for this local flow; without a structured
+   request, stop and report rather than widening it. See [Auth Artifacts](/cli/auth-artifacts)
+   for CLI details.
+4. After the owner-approved hosted action or local artifact import completes,
+   retry the identical original call. Requests are persisted so approval and
+   retry can happen in separate client sessions.
 5. If the result is `setup_required`, follow its Secret Manager action to add
    the missing value, then retry.
 

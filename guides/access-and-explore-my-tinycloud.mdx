@@ -22,7 +22,7 @@ a channel appropriate for account access.
 For Claude web, iOS and Android, add `https://mcp.tinycloud.xyz/mcp` as a custom
 connector. Call `tinycloud_connect`, approve its one-time OpenKey link, and call
 it again before continuing with account discovery below. Hosted mode creates
-and maintains the delegate profile for you and exposes 20 tools.
+and maintains the delegate profile for you and exposes 22 tools.
 
 For personal records, just ask “Log my weight: 80.5 kg today.” Approve connect
 and the separate records request once, then Claude uses `tinycloud_apps_context`,
@@ -41,15 +41,17 @@ query; nonretryable `copy_unavailable` needs the node team, so answer from KV.
 See [TinyCloud MCP](/cli/mcp) for the complete contract and approval settings.
 
 Production grants last 30 days and approval links last 15 minutes. An expired
-session returns a fresh link in `error.details`; an expired grant returns an
-`authority_required` approval link. Approve the new link before retrying.
+session returns a fresh link in `error.details`. An expired grant may return
+`authority_required` with `approval.url`. When present, give the link to the
+owner, wait for approval in OpenKey, then retry unchanged. If no URL is
+returned, stop and report the result.
 Hosted results include readable canonical JSON in text except successful secret
 values. Read-only results have a 100,000-character cap; write results are never
 truncated by it.
 
 For a local MCP client, continue with the CLI bootstrap in this section.
 
-The local stdio surface has 17 tools and requires Node.js 20 or newer and a
+The local stdio surface has 19 tools and requires Node.js 20 or newer and a
 TinyCloud node running 1.6.0 or newer.
 
 Install the CLI and MCP packages with Node.js 20 or newer, then create a
@@ -285,3 +287,4 @@ Stop and return the structured result instead of widening authority when:
 Secret tools have an additional transcript boundary: the MCP server keeps
 secret values out of text results and TinyCloud logs, but the MCP client may
 retain structured results. See [TinyCloud MCP](/cli/mcp) before reading secrets.
+

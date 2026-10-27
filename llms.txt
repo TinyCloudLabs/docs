@@ -12,8 +12,8 @@ lag a documentation deployment.
 
 TinyCloud MCP supports two transports. Claude web, iOS, Android and other
 remote clients connect to `https://mcp.tinycloud.xyz/mcp` using OpenKey OAuth.
-Hosted mode exposes 20 tools: it adds `tinycloud_connect` and four apps tools
-to the 17-tool local surface, omitting local-only `tinycloud_auth_import` and
+Hosted mode exposes 22 tools; local stdio has 19. Hosted adds `tinycloud_connect`
+and its personal-record tools; it omits local-only `tinycloud_auth_import` and
 `tinycloud_secrets_status`. Local clients install `@tinycloud/mcp` alongside
 `@tinycloud/cli` and run its stdio server; MCP is not a `tc` subcommand.
 
@@ -33,7 +33,7 @@ returns rules, catalog, local time, timezone and fast-copy state;
 `tinycloud_apps_read` lists prefixes and reads records with ETags;
 `tinycloud_apps_write` runs 1–10 ordered create, conditional edit, move or
 delete operations; `tinycloud_apps_query` refreshes the optional fast copy and
-queries selected kinds. All four are hosted-only.
+queries selected kinds. These apps tools are hosted-only.
 Records use one get/list/put/delete prefix grant under
 `xyz.tinycloud.agent-data/` in `default`; generic KV exact scopes are unchanged.
 Ask for the owner's city once and store the IANA timezone. Fresh ETags protect
@@ -143,11 +143,14 @@ the narrower tool. This authority is not table- or row-scoped.
 Execution failures are not automatically retryable; inspect database state
 before considering another non-idempotent write.
 
-In local stdio, when a tool returns `authority_required`, preserve its returned
-`tinycloud.auth.request` exactly. The owner grants that artifact without
-widening it, the delegate imports the full delegation with
-`tinycloud_auth_import`, and the agent retries the original tool. Hosted mode
-uses the approval URL and callback instead; it does not expose the import tool.
+For hosted HTTP, when `authority_required` includes `approval.url`, give it to
+the owner, wait for approval in OpenKey, then retry the identical call. If no
+URL is returned, stop and report; do not use a fallback or broader request.
+For local stdio, preserve the exact structured `tinycloud.auth.request`; the
+owner grants that request with `tc auth grant --stdin --yes`, and the agent
+imports the returned artifact with `tinycloud_auth_import` using the request ID,
+then retries unchanged. See the [Auth Artifacts](https://docs.tinycloud.xyz/cli/auth-artifacts)
+guide for grant/import details. This local path does not require a hosted URL.
 
 Complete readable pages:
 
@@ -205,7 +208,7 @@ Complete readable pages:
 ## Operate
 
 - `/cli/overview`
-- `https://docs.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 20 tools and local stdio MCP with 17 tools
+- `https://docs.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 22 tools and local stdio MCP with 19 tools
 - `/cli/account` - Read-only live account space and application discovery commands
 - `/cli/authentication`
 - `/cli/storage`
@@ -240,3 +243,4 @@ Complete readable pages:
 - Preview locally with `mint dev`.
 - Keep `reference/protocol/capabilities.mdx` synced with `npm run sync-capabilities`.
 - Verify the generated registry with `npm run check-capabilities`.
+
