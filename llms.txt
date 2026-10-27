@@ -244,4 +244,3 @@ Complete readable pages:
 - Keep `reference/protocol/capabilities.mdx` synced with `npm run sync-capabilities`.
 - Verify the generated registry with `npm run check-capabilities`.
 
-Details: TC-1362
