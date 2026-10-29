@@ -1,18 +1,20 @@
 ---
 title: "Install TinyCloud Agent Skills"
-description: "Give Claude Code, Codex, or OpenCode the TinyCloud CLI skill, and add app skill packs"
+description: "Give any agent that runs a shell the TinyCloud CLI skill, and add app skill packs"
 icon: "bot"
 sidebarTitle: "Agent skills"
 ---
 
 Coding agents use TinyCloud through the `tc` CLI. The CLI's npm package ships
 a `tc-cli` skill that teaches an agent the commands, the auth flows, and the
-error codes for that exact release. Install the CLI, then install its skill
-into each agent client you use.
+error codes for that exact release. The quickest setup is
+[agents.tinycloud.xyz/onboarding](https://agents.tinycloud.xyz/onboarding): it
+installs the CLI and skill and runs `tinycloud onboard`. The steps below do the
+same by hand.
 
 ## Install the CLI and the `tc-cli` skill
 
-The skill installer needs Node.js 22.20 or newer; the CLI alone needs 20.
+Use Node.js 22.20 or later.
 
 ```bash
 npm install --global @tinycloud/cli@1.3.0
@@ -23,10 +25,10 @@ npx --yes skills@1.7.0 add \
   --skill tc-cli --global --copy --agent opencode codex claude-code --yes
 ```
 
-This copies the skill for that CLI release into each client's skill directory:
-`~/.claude/skills` for Claude Code, and `~/.agents/skills` for OpenCode and
-Codex. Pass only the agents you use. Start a new agent session and ask it to
-use `tc-cli`.
+This copies the skill for that CLI release into each client's skill directory,
+for example `~/.claude/skills` for Claude Code, or `~/.agents/skills` for
+OpenCode and Codex. Pass the agents you use; other agents use their own skills
+folder. Start a new agent session and ask it to use `tc-cli`.
 
 <Warning>
 On Linux, `tc` on the `PATH` often resolves to `/usr/sbin/tc`, the iproute2
@@ -54,16 +56,18 @@ Removing the skill or the CLI does not delete TinyCloud profiles or revoke any
 access an agent was granted. Revoke those with `tc delegation revoke` or from
 the account app.
 
-## Give the agent its own access
+## Give the agent access
 
-An agent should sign in on its own profile with only the access its task needs,
-approved by the owner through OpenKey:
+The agent signs in once with `tinycloud onboard`. If a task needs more, it asks
+once with `tinycloud auth request ... --grant --paste --expiry 30d`: it sends
+the owner the link, the owner sends back a code, and the agent passes it to the
+CLI exactly as sent.
 
 | Task | How the agent gets access |
 |---|---|
-| Publish Share links | `tc --profile publisher enable share` (device approval); see [Share files](/cli/share) |
-| Read named API keys | Scoped paste login with a `secrets` manifest; see [Secrets](/cli/secrets#give-an-agent-read-access-to-a-secret) |
-| Explore and edit app data | MCP with a delegate profile; see [Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud) |
+| Explore and edit app data | Included in `tinycloud onboard`; see [Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud) |
+| Publish Share links | A dedicated `publisher` profile with one paste sign-in: `tinycloud --profile publisher auth login --method openkey --paste --manifest builtin:share-publishing --expiry 30d`; see [Share files](/cli/share) |
+| Read named API keys | A `secrets` manifest on its own profile; see [Secrets](/cli/secrets#give-an-agent-read-access-to-a-secret) |
 
 ## App skill packs
 

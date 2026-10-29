@@ -6,13 +6,15 @@ sidebarTitle: "MCP Server"
 ---
 
 The TinyCloud MCP server exposes 20 hosted tools or 17 local stdio tools to
-Model Context Protocol clients. Use the hosted Streamable HTTP endpoint from
-web and mobile clients, or run local stdio when data and delegate keys must
-remain on your machine. Both paths use scoped, revocable authority.
+Model Context Protocol clients. If your agent can install and run the CLI, use
+the CLI instead: start at
+[agents.tinycloud.xyz/onboarding](https://agents.tinycloud.xyz/onboarding).
+Otherwise, any agent that supports remote MCP can connect to the hosted
+endpoint below. Meetings are available through the CLI.
 
-## Connect Claude web, iOS or Android
+## Connect a remote MCP client
 
-Add a custom connector in Claude and use this URL:
+For example, in Claude (web, iOS or Android), add a custom connector with this URL:
 
 ```text
 https://mcp.tinycloud.xyz/mcp
@@ -91,23 +93,24 @@ service operator must not be in that trust boundary.
 
 ## Requirements
 
-- Node.js 20 or newer
-- The TinyCloud CLI and a delegated profile for local stdio
+- Node.js 22.20 or later
+- The TinyCloud CLI, signed in with `tinycloud onboard`, for local stdio
 - A hosted deployment with the apps tools for personal records; local stdio does not expose them
 - A TinyCloud node running 1.6.0 or newer
 - Local stdio requires structured tool results; hosted clients can also read canonical JSON in text results
 
 ## Configure local stdio
 
-Install both packages with Node.js 20 or newer:
+Install both packages with Node.js 22.20 or later:
 
 ```bash
 npm install --global @tinycloud/cli @tinycloud/mcp
 ```
 
-Before starting MCP with a newly created `delegate-session` profile, complete
-the one-time exact request, owner grant, and CLI import in
-[Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud).
+Sign in once with `tinycloud onboard` (see
+[agents.tinycloud.xyz/onboarding](https://agents.tinycloud.xyz/onboarding)),
+then start the server with that profile. An onboarded profile signs in with
+OpenKey, so pass `--allow-owner-profile` with it.
 
 Then add the local stdio server to your MCP client:
 
@@ -116,7 +119,7 @@ Then add the local stdio server to your MCP client:
   "mcpServers": {
     "tinycloud": {
       "command": "tinycloud-mcp",
-      "args": ["--profile", "agent"]
+      "args": ["--profile", "default", "--allow-owner-profile"]
     }
   }
 }
@@ -160,8 +163,8 @@ request or silently fall back to owner authority. Generic KV tools reject the
 TinyCloud `account` and `secrets` spaces. Use the dedicated account and secret
 tools for those protected spaces.
 
-For the MCP-first account and data discovery sequence, including a separate
-owner agent that grants exact read requests, see
+For the account and data discovery sequence, including how to handle
+`authority_required`, see
 [Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud).
 Account registry discovery is capped at 1,000 records, 1 MiB per record, and 4
 MiB total serialized output. It fails closed instead of returning a partial
@@ -261,11 +264,12 @@ is safe.
 ## Delegated secret flow
 
 1. Call `tinycloud_secrets_get` with the secret name and scope.
-2. If the result is `authority_required`, use its structured request and
-   approval action to obtain the exact capabilities. The server never silently
-   falls back to owner authority.
-3. In local stdio, import the approved delegation with `tinycloud_auth_import`.
-   Hosted mode imports it through the OpenKey approval callback instead.
+2. If the result is `authority_required`, send the owner its `approval.url`
+   and one line saying what it allows. The server never silently falls back to
+   owner authority.
+3. In local stdio, pass the code or delegation the owner sends back, exactly as
+   sent, to `tinycloud_auth_import`. In hosted mode the owner approves and says
+   continue.
 4. Retry `tinycloud_secrets_get`. Requests are persisted so approval and retry
    can happen in separate client sessions.
 5. If the result is `setup_required`, follow its Secret Manager action to add
@@ -278,21 +282,9 @@ policy appropriate for secrets.
 
 ## Owner profiles
 
-Owner-profile data access is disabled by default. To opt in, select the profile
-explicitly and pass both flags:
-
-```json
-{
-  "mcpServers": {
-    "tinycloud-owner": {
-      "command": "tinycloud-mcp",
-      "args": ["--profile", "owner", "--allow-owner-profile"]
-    }
-  }
-}
-```
-
-Use this mode only when the MCP host should have the owner's full authority.
+Owner-profile data access is disabled by default. A profile signed in with
+`tinycloud onboard` is an OpenKey owner profile, so select it explicitly and
+pass both flags, as in [Configure local stdio](#configure-local-stdio).
 Omitting either flag keeps owner data execution closed.
 
 ## Related CLI workflows
