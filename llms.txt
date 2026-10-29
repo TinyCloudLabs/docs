@@ -10,8 +10,14 @@ lag a documentation deployment.
 
 ## Agent access quickstart
 
-TinyCloud MCP supports two transports. Claude web, iOS, Android and other
-remote clients connect to `https://mcp.tinycloud.xyz/mcp` using OpenKey OAuth.
+Agents that can install and run the CLI start at
+https://agents.tinycloud.xyz/onboarding: it installs the CLI and its skill and
+runs `tinycloud onboard`, the one sign-in and starting grant. Otherwise, any
+agent that supports remote MCP uses hosted MCP at
+`https://mcp.tinycloud.xyz/mcp`. Meetings are available through the CLI.
+
+TinyCloud MCP supports two transports. Remote MCP clients (for example Claude
+web, iOS or Android) connect to `https://mcp.tinycloud.xyz/mcp` using OpenKey OAuth.
 Hosted mode exposes 20 tools: it adds `tinycloud_connect` and four apps tools
 to the 17-tool local surface, omitting local-only `tinycloud_auth_import` and
 `tinycloud_secrets_status`. Local clients install `@tinycloud/mcp` alongside
@@ -24,7 +30,7 @@ call `tinycloud_connect` again. Continue only after it returns
 `connected: true`. Later `authority_required` results carry an exact approval
 URL; approve the request and retry the original tool unchanged.
 
-Local stdio requires Node.js 20 or newer and a deployed TinyCloud node running
+Local stdio requires Node.js 22.20 or later and a deployed TinyCloud node running
 1.6.0 or newer. Hosted apps do not require local CLI or skill installation.
 
 For personal records, ask naturally: “Log my weight: 80.5 kg today.”
@@ -70,44 +76,29 @@ SQLite `INSERT`, `UPDATE`, or `DELETE`; and read a delegated secret. Generic KV
 access blocks the protected `account` and `secrets` spaces. Treat file-like
 values according to the owning app's manifest and schema.
 
-For local stdio, install the packages and create a delegated agent profile:
+For local stdio, install the packages and sign in once with `tinycloud onboard`:
 
 ```sh
 npm install --global @tinycloud/cli @tinycloud/mcp
-tc profile create agent --posture delegate-session --operator agent
+tinycloud onboard
 ```
 
-A fresh delegate profile must bootstrap once. The delegate emits one exact
-account-registry request:
-
-```sh
-tc --profile agent --quiet --json auth request \
-  --cap tinycloud.kv:account:spaces/:get,list \
-  --emit request.json
-```
-
-An authenticated owner reviews and grants that exact artifact, then the
-delegate imports the returned delegation:
-
-```sh
-tc --profile owner --quiet --json auth grant request.json --yes > delegation.json
-tc --profile agent --quiet --json auth import delegation.json
-```
-
-Configure the MCP client to start the server with that explicit profile:
+Onboarding already allows account registry reads. An onboarded profile signs
+in with OpenKey, so start the server with that explicit profile and
+`--allow-owner-profile`:
 
 ```json
 {
   "mcpServers": {
     "tinycloud": {
       "command": "tinycloud-mcp",
-      "args": ["--profile", "agent"]
+      "args": ["--profile", "default", "--allow-owner-profile"]
     }
   }
 }
 ```
 
-Use these exact data tools after selecting the delegated profile:
+Use these exact data tools after selecting the profile:
 
 - `tinycloud_account_spaces_list` - list the canonical account space registry
 - `tinycloud_account_applications_list` - list registered apps and manifests
@@ -143,11 +134,15 @@ the narrower tool. This authority is not table- or row-scoped.
 Execution failures are not automatically retryable; inspect database state
 before considering another non-idempotent write.
 
-In local stdio, when a tool returns `authority_required`, preserve its returned
-`tinycloud.auth.request` exactly. The owner grants that artifact without
-widening it, the delegate imports the full delegation with
-`tinycloud_auth_import`, and the agent retries the original tool. Hosted mode
-uses the approval URL and callback instead; it does not expose the import tool.
+When a tool returns `authority_required`, send the owner its approval link and
+one line saying what it allows. In local stdio the owner sends back a code or
+delegation; pass it to `tinycloud_auth_import` exactly as sent, then retry the
+original tool. In hosted mode the owner approves and says continue, and the
+agent retries; it does not expose the import tool.
+
+Agents using the CLI directly ask for more than onboarding granted with
+`tinycloud auth request --cap <spec> --grant --paste --expiry 30d`: send the
+owner the link, then pass the code they send back exactly as sent.
 
 Complete readable pages:
 
@@ -160,7 +155,7 @@ Complete readable pages:
 - `/` - Homepage and reader-journey selector
 - `https://mcp.tinycloud.xyz/mcp` - Hosted Streamable HTTP MCP connector for remote clients
 - `https://docs.tinycloud.xyz/cli/mcp` - Hosted and local MCP setup and tool reference
-- `https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - MCP-first delegated discovery, safe KV CRUD, and SQLite operations
+- `https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - Agent account discovery, safe KV CRUD, and SQLite operations
 - `/start/browser-app` - Web SDK path from sign-in to first KV write
 - `/start/backend-service` - Node SDK path and sign-in mode decision
 - `/start/protocol` - Capability, manifest, and delegation vocabulary

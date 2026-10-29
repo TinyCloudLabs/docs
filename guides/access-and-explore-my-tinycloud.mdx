@@ -1,28 +1,26 @@
 ---
 title: "Access and explore my TinyCloud"
-description: "Give an agent exact delegated access to discover, read, and safely update selected TinyCloud data"
+description: "Let an agent discover, read, and safely update selected TinyCloud data"
 icon: "folder-search-2"
 sidebarTitle: "Explore my TinyCloud"
 ---
 
 Use this workflow when an agent needs to discover what is in a user's
-TinyCloud without receiving the user's owner identity. The delegated path uses
-MCP. The CLI section is an owner-side inspection fallback, not an equivalent
-delegate workflow.
+TinyCloud. Agents that can run the CLI sign in once with `tinycloud onboard`
+(start at
+[agents.tinycloud.xyz/onboarding](https://agents.tinycloud.xyz/onboarding))
+and use the [CLI path](#cli-path). Other agents use hosted MCP.
 
-<Warning>
-Keep the agent on a `delegate-session` profile. Do not start MCP with an owner
-profile or `--allow-owner-profile` for data work. A delegation is a bearer
-artifact: approve only the exact requested capabilities and transfer it through
-a channel appropriate for account access.
-</Warning>
+Approval codes and delegations are permission slips; it's fine to send them in
+chat.
 
 ## MCP path
 
-For Claude web, iOS and Android, add `https://mcp.tinycloud.xyz/mcp` as a custom
-connector. Call `tinycloud_connect`, approve its one-time OpenKey link, and call
-it again before continuing with account discovery below. Hosted mode creates
-and maintains the delegate profile for you and exposes 20 tools.
+In any client that supports remote MCP (for example Claude web, iOS or
+Android), add `https://mcp.tinycloud.xyz/mcp` as a custom connector. Call
+`tinycloud_connect`, approve its one-time OpenKey link, and call it again
+before continuing with account discovery below. Hosted mode creates and
+maintains the agent's profile for you and exposes 20 tools.
 
 For personal records, just ask “Log my weight: 80.5 kg today.” Approve connect
 and the separate records request once, then Claude uses `tinycloud_apps_context`,
@@ -47,45 +45,17 @@ Hosted results include readable canonical JSON in text except successful secret
 values. Read-only results have a 100,000-character cap; write results are never
 truncated by it.
 
-For a local MCP client, continue with the CLI bootstrap in this section.
-
-The local stdio surface has 17 tools and requires Node.js 20 or newer and a
-TinyCloud node running 1.6.0 or newer.
-
-Install the CLI and MCP packages with Node.js 20 or newer, then create a
-delegated agent profile once if one does not already exist:
+For a local MCP client, install the CLI and MCP packages with Node.js 22.20 or
+later and sign in once with `tinycloud onboard`. The local stdio surface has 17
+tools and needs a TinyCloud node running 1.6.0 or newer.
 
 ```bash
 npm install --global @tinycloud/cli @tinycloud/mcp
-tc profile create agent --posture delegate-session --operator agent
+tinycloud onboard
 ```
 
-A new delegated profile has a session key but no authenticated TinyCloud
-session. Bootstrap it with one exact account-registry request before starting
-MCP:
-
-```bash
-tc --profile agent --quiet --json auth request \
-  --cap tinycloud.kv:account:spaces/:get,list \
-  --emit request.json
-```
-
-Have the owner review and grant that exact artifact:
-
-```bash
-tc --profile owner --quiet --json auth grant request.json --yes > delegation.json
-```
-
-Then import it into the same delegated profile:
-
-```bash
-tc --profile agent --quiet --json auth import delegation.json
-```
-
-This one-time import establishes the delegated session. It does not grant app,
-prefix, key, write, SQL, or secret access beyond the exact account-space listing
-request. Configure MCP with the same explicit profile as described in
-[TinyCloud MCP](/cli/mcp). The data surface is:
+Onboarding already allows account registry reads. Configure MCP with that
+profile as described in [TinyCloud MCP](/cli/mcp). The data surface is:
 
 | Tool | Purpose |
 |---|---|
@@ -144,7 +114,7 @@ tool input can be:
 }
 ```
 
-If that returns `authority_required`, complete the exact request flow below and
+If that returns `authority_required`, follow [Approving more access](#approving-more-access) and
 retry the same input. `create` cannot overwrite an existing key. To update a
 known value safely, call `tinycloud_kv_head`, copy its strong quoted `etag`, and
 use `mode: "replace"` with that ETag. Use `mode: "upsert"` only when overwriting
@@ -212,46 +182,30 @@ Execution failures are never marked automatically retryable. Because the tool
 is non-idempotent, inspect database state before deciding whether another write
 is safe.
 
-## Two-agent approval
+## Approving more access
 
-Use separate delegate and owner agents when a data tool returns
-`authority_required`.
+When a tool returns `authority_required`, send the owner its approval link and
+one line saying what it allows. On local stdio the owner sends back the short
+code and you pass it to `tinycloud_auth_import` exactly as sent; on hosted MCP
+the owner approves, says continue, and you retry the same tool unchanged.
+Imports persist in the selected profile, so approval and retry may happen in
+different MCP process sessions.
 
-1. The delegate agent calls the data tool and saves the returned
-   `tinycloud.auth.request` object exactly as `request.json`. Do not edit its
-   request ID, audience, host, or capabilities.
-2. The owner agent reviews the artifact. It must contain only the exact
-   account-registry, KV key or prefix, or SQLite database capabilities expected
-   for this step. A write or delete request must match the user's stated action.
-   For `tinycloud.sql/write`, the owner must separately accept that the actual
-   capability is database-wide rather than table- or row-scoped.
-3. The owner agent grants that exact request with an explicit owner profile:
+Don't edit the request, and don't replace an exact request with a broad
+space-wide one. For `tinycloud.sql/write`, tell the owner it covers the whole
+database.
 
-```bash
-tc --profile owner --quiet --json auth grant request.json --yes > delegation.json
-```
+## CLI path
 
-4. The delegate agent passes the complete delegation object to
-   `tinycloud_auth_import`.
-5. The delegate agent retries the same exploration tool. Imports persist in
-   the selected profile, so approval and retry may happen in different MCP
-   process sessions.
-
-Repeat the exchange if a later KV or SQLite call needs a capability that was not
-in the first request. Do not replace an exact request with a broad space-wide
-grant.
-
-## Owner CLI inspection
-
-When MCP is unavailable, the owner can inspect the same registries locally and
-return a read-only summary to the agent. Use an explicit owner profile,
-machine-readable output, and canonical live account reads:
+After `tinycloud onboard`, the agent can read the account registry and the
+applications space directly. Use machine-readable output and canonical live
+account reads:
 
 ```bash
-tc --profile owner --quiet --json account spaces list --live
-tc --profile owner --quiet --json account apps list --live
-tc --profile owner --quiet --json account spaces info <SPACE_ID>
-tc --profile owner --quiet --json account apps info <APP_ID>
+tinycloud --quiet --json account spaces list --live
+tinycloud --quiet --json account apps list --live
+tinycloud --quiet --json account spaces info <SPACE_ID>
+tinycloud --quiet --json account apps info <APP_ID>
 ```
 
 `--live` matters for read-only discovery. The default indexed spaces path may
@@ -260,14 +214,19 @@ refresh and register accessible spaces when its index is empty.
 After selecting a space, list keys and read only the chosen key:
 
 ```bash
-tc --profile owner --quiet --json kv list --space <SPACE_URI> --prefix <PREFIX>
-tc --profile owner --quiet --json kv get <KEY> --space <SPACE_URI>
+tinycloud --quiet --json kv list --space <SPACE_URI> --prefix <PREFIX>
+tinycloud --quiet --json kv get <KEY> --space <SPACE_URI>
 ```
 
-Current `tc account` commands derive the account registry from the active
-profile. Do not run these commands with a delegate profile and assume they
-target the owner's account. Use the MCP tools and their canonical per-operation
-requests for delegated exploration.
+If a command needs more than onboarding granted, ask once:
+
+```bash
+tinycloud auth request --cap tinycloud.kv:<SPACE>:<PREFIX>:get,list \
+  --grant --paste --expiry 30d
+```
+
+Send the owner the link it prints and one line saying what it allows. The
+owner approves and sends back a short code; pass it to the CLI exactly as sent.
 
 ## Stop conditions
 

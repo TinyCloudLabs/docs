@@ -12,14 +12,19 @@ email address or email domain can open.
 
 ## Enable publishing
 
-Publishing needs a session that can write to Share's paths in your space.
-Approve that scope once through OpenKey, preferably on a dedicated profile so
-your existing app profiles keep their sessions:
+Publishing needs a session that can write to Share's paths in your `default`
+space. Sign a dedicated profile in once through OpenKey:
 
 ```bash
 tc init --name publisher --key-only
-tc --profile publisher enable share
+tc --profile publisher auth login --method openkey --paste \
+  --manifest builtin:share-publishing --expiry 30d
 ```
+
+Open the link it prints and approve; the CLI then waits for the code. Agents
+send the owner the link and pass back the code the owner sends, exactly as
+sent. Publish with `tc --profile publisher share publish ...`. To approve on
+your phone instead, run `tc --profile publisher enable share`.
 
 `tc enable share` is the same as
 `tc auth login --device --manifest builtin:share-publishing`. It opens an

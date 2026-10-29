@@ -9,18 +9,16 @@ The account registry connects a TinyCloud identity to its known spaces and
 registered application manifests. Use the live commands below for read-only,
 canonical owner-side discovery.
 
-<Warning>
-Use an explicit owner profile on this page. Current `tc account` commands
-derive the account registry from the active profile; a delegate profile does
-not automatically retarget them to the delegating owner's account. Delegated
-agents should use the MCP workflow in
-[Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud).
-</Warning>
+<Note>
+Use the profile you signed in with. `tinycloud onboard` already includes
+account registry read. Current `tc account` commands derive the account
+registry from the active profile.
+</Note>
 
 ## Account summary and billing
 
 ```bash
-tc --profile owner --json account status
+tc --json account status
 tc account billing status
 tc account billing portal --open
 ```
@@ -34,8 +32,8 @@ There is no CLI command for storage usage.
 ## List spaces
 
 ```bash
-tc --profile owner --quiet --json account spaces list --live
-tc --profile owner --quiet --json account spaces info <SPACE_ID>
+tc --quiet --json account spaces list --live
+tc --quiet --json account spaces info <SPACE_ID>
 ```
 
 The list returns each space ID, name, owner DID, type, status, permissions, and
@@ -51,8 +49,8 @@ into the account registry when the index is empty.
 ## List applications
 
 ```bash
-tc --profile owner --quiet --json account apps list --live
-tc --profile owner --quiet --json account apps info <APP_ID>
+tc --quiet --json account apps list --live
+tc --quiet --json account apps info <APP_ID>
 ```
 
 Application records contain registered manifests. Use their declared spaces,
@@ -62,14 +60,14 @@ The registry record grants no additional data authority by itself.
 ## Inspect selected KV data
 
 ```bash
-tc --profile owner --quiet --json kv list --space <SPACE_URI> --prefix <PREFIX>
-tc --profile owner --quiet --json kv get <KEY> --space <SPACE_URI>
+tc --quiet --json kv list --space <SPACE_URI> --prefix <PREFIX>
+tc --quiet --json kv get <KEY> --space <SPACE_URI>
 ```
 
-The active owner profile must still hold `tinycloud.kv/list` or
-`tinycloud.kv/get` authority for the selected resource. See
-[Access and explore my TinyCloud](/guides/access-and-explore-my-tinycloud) for
-the request, owner grant, import, and retry exchange.
+The active profile must still hold `tinycloud.kv/list` or `tinycloud.kv/get`
+authority for the selected resource. If a read is denied, ask once with
+`tinycloud auth request --cap <spec> --grant --paste --expiry 30d`, send the
+owner the link, and pass back the code they send exactly as sent.
 
 ## Read-only boundary
 
