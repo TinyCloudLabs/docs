@@ -6,6 +6,13 @@ icon: "key"
 
 OpenKey is TinyCloud Labs' passkey-based key management service. Use it when you want a browser-friendly signer that keeps the user out of seed phrases and browser-extension wallets.
 
+OpenKey-managed keys use server-side sealing and signing, not a promise that
+the key stays solely on the user's device. Production sealing uses dstack;
+local development uses explicitly enabled mock keys. Passkeys authenticate
+the user but do not themselves encrypt TinyCloud records. Review
+[Security and trust](/concepts/security-and-trust#tee-and-openkey-limits) for
+runtime and attestation assumptions.
+
 ## Choose a path
 
 <CardGroup cols={2}>

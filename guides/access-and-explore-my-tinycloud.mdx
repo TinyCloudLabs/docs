@@ -9,15 +9,17 @@ Use this workflow when an agent needs to discover what is in a user's
 TinyCloud. Agents that can run the CLI sign in once with `tinycloud onboard`
 (start at
 [agents.tinycloud.xyz/onboarding](https://agents.tinycloud.xyz/onboarding))
-and use the [CLI path](#cli-path). Other agents use hosted MCP.
+and use the [CLI path](#cli-path). Other agents need a compatible hosted MCP
+connection; check [client setup and support](/cli/mcp#choose-your-client).
 
-Approval codes and delegations are permission slips; it's fine to send them in
-chat.
+Approval codes and delegations are credentials. Return them only to the
+requesting agent's trusted conversation when that flow requires it; never
+publish them or send an owner private key.
 
 ## MCP path
 
-In any client that supports remote MCP (for example Claude web, iOS or
-Android), add `https://mcp.tinycloud.xyz/mcp` as a custom connector. Call
+In a client that supports Streamable HTTP MCP and OAuth (for example Claude
+app or a ChatGPT custom connection), add `https://mcp.tinycloud.xyz/mcp`. Call
 `tinycloud_connect`, approve its one-time OpenKey link, and call it again
 before continuing with account discovery below. Hosted mode creates and
 maintains the agent's profile for you and exposes 20 tools.
@@ -28,7 +30,7 @@ and the separate records request once, then Claude uses `tinycloud_apps_context`
 These hosted-only tools share the coding-agent records under
 `xyz.tinycloud.agent-data/` in `default`, using one prefix grant for get, list,
 put and delete. Generic KV tools still request their exact input scope.
-Claude asks for your city once to store your timezone.
+Supply an IANA timezone once, not your city or precise location.
 
 Fresh reads return ETags for conditional edits; stale edits return `CHANGED`.
 Ordered write batches can partially succeed: inspect each outcome and move
@@ -37,6 +39,9 @@ Claude can offer an optional **fast, searchable copy of your records**, with
 its own approval. KV remains the truth. `COPY_PARTIAL` resumes on the next
 query; nonretryable `copy_unavailable` needs the node team, so answer from KV.
 See [TinyCloud MCP](/cli/mcp) for the complete contract and approval settings.
+
+Hosted MCP and the AI client receive plaintext results. Read the
+[privacy boundaries](/concepts/security-and-trust) before approving access.
 
 Production grants last 30 days and approval links last 15 minutes. An expired
 session returns a fresh link in `error.details`; an expired grant returns an

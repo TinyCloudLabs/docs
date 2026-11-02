@@ -5,7 +5,8 @@ icon: "terminal"
 sidebarTitle: "Overview"
 ---
 
-`tc` is the terminal entry point for TinyCloud. Start here if you want to sign in, create a space, store data, or inspect local profile state.
+`tinycloud` (also installed as `tc` when available) is the terminal entry point
+for TinyCloud. Start here to sign in, store data or inspect local profile state.
 
 ## Choose a path
 
@@ -26,17 +27,98 @@ sidebarTitle: "Overview"
 
 ## Install
 
+Use Node.js 22.20 or later. Reuse a compatible installed CLI (1.5.0 or newer)
+rather than downgrading it or creating a second installation.
+
+For a fresh manual npm installation:
+
 ```bash
-npm install -g @tinycloud/cli@1.3.0
-tc --version
+npm install -g @tinycloud/cli@1.5.1
+tinycloud --version
 ```
 
-Use Node.js 22.20 or later.
+On Linux, `tc` may be the system traffic-control command (`/usr/sbin/tc`).
+Do not replace it. Use the TinyCloud executable selected by onboarding or
+`tinycloud`, and keep an explicit `TC_BIN` override if you already use one.
 
 Agents: start at
 [agents.tinycloud.xyz/onboarding](https://agents.tinycloud.xyz/onboarding). It
 installs the CLI and its skill and signs in with `tinycloud onboard`; see also
 [Agent skills](/guides/agent-skills).
+
+### Windows
+
+Use Node.js 22.20 or later and npm. Run installation in PowerShell; the
+resulting launchers also work in Command Prompt. The installer reuses a
+compatible CLI or installs into a private npm prefix, then
+adds its Windows shim directory to your **user** PATH without replacing the
+machine PATH or unrelated commands.
+
+PowerShell:
+
+```powershell
+$installDir = Join-Path ([IO.Path]::GetTempPath()) ("tinycloud-install-" + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $installDir | Out-Null
+$installer = Join-Path $installDir "install.mjs"
+Invoke-WebRequest https://agents.tinycloud.xyz/install-cli.mjs -OutFile $installer
+node $installer
+if ($LASTEXITCODE -ne 0) { throw "TinyCloud installation failed; inspect the error above." }
+$env:TC_BIN = (node $installer --resolve)
+if ($LASTEXITCODE -ne 0) { throw "TinyCloud selection failed." }
+$env:Path += ";$env:USERPROFILE\.local\bin"
+Remove-Item -Recurse $installDir
+```
+
+For a new private installation, packages live under
+`%USERPROFILE%\.local\share\tinycloud\cli`; `tinycloud.cmd` and `tc.cmd` shims
+live under `%USERPROFILE%\.local\bin` when those names are available.
+Existing commands are not overwritten. Use the executable path the installer
+reports when a name is already occupied or an existing CLI was selected.
+
+**Restart the entire terminal application and your agent, not just a tab.**
+Running processes do not inherit the updated user PATH. If their launcher
+still has the old environment, sign out of Windows and sign in again.
+This does not require another OpenKey approval or a new TinyCloud profile.
+
+#### Repair Windows PATH
+
+For the current session only, use the block for your shell:
+
+```powershell
+$env:Path += ";$env:USERPROFILE\.local\bin"
+Get-Command tinycloud,tc -All
+tinycloud --version
+```
+
+```bat
+set "PATH=%PATH%;%USERPROFILE%\.local\bin"
+where tinycloud
+where tc
+tinycloud --version
+```
+
+For persistent repair, rerun the installer above. If you retained a downloaded
+`install.mjs`, `node install.mjs --repair-path` repairs only the Windows user
+PATH without installing packages or replacing launchers. The installer
+preserves existing entries and expandable variables, never copies the merged
+process PATH into the registry, never changes machine PATH, and never uses
+`setx`. `TC_PATH_UPDATED` or `TC_PATH_READY` means success. If it reports
+`TC_PATH_FAILED`, correct the reported registry/permission problem first;
+do not retry with administrator privileges.
+
+When a command name conflicts or before restarting, use the reported `TC_BIN`.
+For a fresh private installation, the absolute executable works without PATH:
+
+```powershell
+& "$env:USERPROFILE\.local\share\tinycloud\cli\node_modules\.bin\tc.cmd" --version
+```
+
+```bat
+"%USERPROFILE%\.local\share\tinycloud\cli\node_modules\.bin\tc.cmd" --version
+```
+
+If the installer selected a different existing executable, use that path
+instead. Never delete or replace an unrelated `tc` or `tinycloud` command.
 
 ## Defaults
 
@@ -63,4 +145,6 @@ installs the CLI and its skill and signs in with `tinycloud onboard`; see also
 
 ## Source note
 
-Command names, flags, and defaults on the CLI pages are written against `@tinycloud/cli` 1.0.0; the install command above uses the current stable 1.3.0.
+Command names, flags, and defaults on the CLI pages were originally written
+against `@tinycloud/cli` 1.0.0. New installation examples pin stable 1.5.1;
+reuse a compatible newer CLI rather than downgrading.

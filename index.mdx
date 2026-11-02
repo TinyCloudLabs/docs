@@ -13,9 +13,26 @@ TinyCloud is designed for data the user should own and control. It is not a
 replacement for every application database, especially when the application
 operator must own all data and access policy.
 
+## Privacy at a glance
+
+User-owned access is not the same as end-to-end encryption (E2EE).
+Choose the trust boundary for the actual data path:
+
+| Mode | Who can see plaintext? |
+| --- | --- |
+| HTTPS / encrypted disks or backups | HTTPS protects traffic in transit; storage encryption protects stored bytes. Neither hides data from the service processing it. Storage protection depends on the deployment. |
+| Ordinary KV / SQL | The node processes readable values and queries unless the app encrypts values first. An ordinary node operator can access that plaintext. |
+| Application E2EE | Only endpoints holding the decryption keys, **if** the app keeps those keys out of the storage service. This is not the default for all TinyCloud data; metadata may remain visible. |
+| Hosted MCP | MCP processes tool inputs and results, including secrets it is authorized to decrypt. Its runtime/operator and the connected AI client are in the trust boundary. |
+| Attested TEE processing | Plaintext or keys may exist inside the trusted runtime. Protection from infrastructure operators depends on verified attestation, approved code and key-release policy; a `tee` hostname is not proof or app E2EE. |
+| Self-hosted | You choose the operator; ordinary node/MCP administrators can still access plaintext processed there. Self-hosting does not add E2EE. |
+
+See [Security and trust](/concepts/security-and-trust) for encryption modes,
+authorized clients, OpenKey and attestation limits.
+
 <Note>
 Install examples pin the current stable `@tinycloud/web-sdk` and
-`@tinycloud/node-sdk` 3.3.0 and `@tinycloud/cli` 1.3.0. Page content was last
+`@tinycloud/node-sdk` 3.3.0 and `@tinycloud/cli` 1.5.1. Page content was last
 verified against 3.0.0 / CLI 1.0.0 unless a page says otherwise; behavior
 labeled beta may already be in stable.
 </Note>
@@ -33,8 +50,8 @@ labeled beta may already be in stable.
   <Card title="Operate TinyCloud" icon="wrench" href="/start/operator">
     Install, host, troubleshoot, and wire OpenKey without detouring into theory.
   </Card>
-  <Card title="Connect an agent" icon="bot" href="https://agents.tinycloud.xyz/onboarding">
-    Set up the TinyCloud CLI for your agent, or hosted MCP if it can't run the CLI.
+  <Card title="Connect an agent" icon="bot" href="/cli/mcp#choose-your-client">
+    Find setup and support status for ChatGPT, Claude, coding agents and chat bots.
   </Card>
 </CardGroup>
 

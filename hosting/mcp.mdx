@@ -9,6 +9,14 @@ endpoint. It is an OAuth resource server, not an owner authority: every tenant
 gets a separate generated session key and can use only capabilities approved
 through OpenKey.
 
+<Warning>
+Hosted MCP is not an endpoint-only E2EE path: its runtime processes plaintext
+tool inputs and results, including secrets it is authorized to decrypt. An
+ordinary MCP operator can access that plaintext. A TEE deployment requires
+separately verified attestation and code/key policy before claiming protection
+from infrastructure operators. See [Security and trust](/concepts/security-and-trust).
+</Warning>
+
 ## Container
 
 ```bash
