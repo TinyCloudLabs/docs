@@ -8,16 +8,44 @@ For release-sensitive MCP details, use the current Markdown pages linked below.
 The Mintlify-generated `/llms-full.txt` aggregate is cached separately and can
 lag a documentation deployment.
 
+## Privacy and client support
+
+User-owned access is not blanket E2EE. HTTPS protects transport; encrypted
+storage does not hide plaintext from a process that can decrypt it. Ordinary
+KV/SQL nodes can read unencrypted values and queries. Hosted MCP processes
+plaintext inputs/results, including delegated secrets, and the connected AI
+client can retain those results. Local CLI/stdio removes the hosted MCP hop,
+not the node/client trust boundary. Application E2EE requires keys confined
+to intended endpoints. Network-backed vaults add node-mediated key release.
+TEE operator protection requires verified attestation and accepted code/key
+policy; a hostname is not proof. Self-hosting changes the trusted operator,
+not whether ordinary node/MCP administrators can read plaintext.
+See https://docs.tinycloud.xyz/concepts/security-and-trust and the mode table
+at https://docs.tinycloud.xyz/#privacy-at-a-glance.
+
+Client setup/status: https://docs.tinycloud.xyz/cli/mcp#choose-your-client.
+ChatGPT custom MCP and Claude app use the remote endpoint below with OAuth.
+For ChatGPT's current custom-connection form and account/workspace availability,
+follow https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt.
+This is not a claim of published ChatGPT app status or verified mobile UI.
+Claude Code, Codex and OpenCode can use CLI onboarding in shell-enabled
+runtimes. Grok/GrokBot requires an actual shell or compatible MCP/OAuth
+runtime; no native connector is asserted. Cian reported an Instinct read
+through WhatsApp with a two-hour read-only Todos delegation and no writes.
+That observation does not establish native WhatsApp MCP, general installation
+support or all-device approval compatibility.
+Windows installation and PATH repair: https://docs.tinycloud.xyz/cli/overview#windows.
+
 ## Agent access quickstart
 
 Agents that can install and run the CLI start at
 https://agents.tinycloud.xyz/onboarding: it installs the CLI and its skill and
-runs `tinycloud onboard`, the one sign-in and starting grant. Otherwise, any
-agent that supports remote MCP uses hosted MCP at
+runs `tinycloud onboard`, the one sign-in and starting grant. Otherwise,
+clients supporting Streamable HTTP MCP and OAuth can use hosted MCP at
 `https://mcp.tinycloud.xyz/mcp`. Meetings are available through the CLI.
 
 TinyCloud MCP supports two transports. Remote MCP clients (for example Claude
-web, iOS or Android) connect to `https://mcp.tinycloud.xyz/mcp` using OpenKey OAuth.
+app and ChatGPT custom connections) use OpenKey OAuth.
 Hosted mode exposes 20 tools: it adds `tinycloud_connect` and four apps tools
 to the 17-tool local surface, omitting local-only `tinycloud_auth_import` and
 `tinycloud_secrets_status`. Local clients install `@tinycloud/mcp` alongside
@@ -42,7 +70,7 @@ delete operations; `tinycloud_apps_query` refreshes the optional fast copy and
 queries selected kinds. All four are hosted-only.
 Records use one get/list/put/delete prefix grant under
 `xyz.tinycloud.agent-data/` in `default`; generic KV exact scopes are unchanged.
-Ask for the owner's city once and store the IANA timezone. Fresh ETags protect
+Ask for an IANA timezone once, not a city or precise location. Fresh ETags protect
 edits; `CHANGED` means re-read, not overwrite. Inspect every write outcome and
 completed move step, and report partial success rather than replaying a batch.
 In Claude Settings → Connectors → TinyCloud, `tinycloud_apps_write` can be set
@@ -165,7 +193,7 @@ Complete readable pages:
 
 - `/quickstart/web-sdk`
 - `/quickstart/node-sdk`
-- `/guides/agent-skills` - Install the `tc-cli` agent skill and app skill packs
+- `/guides/agent-skills` - Install the `tinycloud-cli` agent skill and app skill packs
 - `/guides/authentication`
 - `/guides/authentication/web`
 - `/guides/authentication/node`

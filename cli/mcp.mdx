@@ -1,6 +1,6 @@
 ---
 title: "TinyCloud MCP"
-description: "Connect AI clients to delegated TinyCloud operations"
+description: "Setup and support status for ChatGPT, Claude, coding agents and chat bots"
 icon: "bot"
 sidebarTitle: "MCP Server"
 ---
@@ -9,26 +9,72 @@ The TinyCloud MCP server exposes 20 hosted tools or 17 local stdio tools to
 Model Context Protocol clients. If your agent can install and run the CLI, use
 the CLI instead: start at
 [agents.tinycloud.xyz/onboarding](https://agents.tinycloud.xyz/onboarding).
-Otherwise, any agent that supports remote MCP can connect to the hosted
-endpoint below. Meetings are available through the CLI.
+Otherwise, clients supporting Streamable HTTP MCP and OpenKey OAuth can use
+the hosted endpoint below. Meetings are available through the CLI.
+
+## Choose your client
+
+This is a connection-method guide, not a claim that TinyCloud is published in
+every client's app directory. Client interfaces and administrator settings
+change; a working transport does not guarantee that an account has the UI.
+
+| Client | Setup path and support boundary |
+| --- | --- |
+| ChatGPT | Use a custom remote MCP connection with OpenKey OAuth; see [ChatGPT setup](#chatgpt-setup). This does not claim app-directory publication or verification on every ChatGPT surface. |
+| Claude app (web, iOS, Android) | Add the [remote MCP connector](#connect-a-remote-mcp-client). The app does not need a local CLI or skill installation. Connector availability/settings are controlled by the client. |
+| Claude Code | Prefer [CLI onboarding](https://agents.tinycloud.xyz/onboarding) and the [agent skill](/guides/agent-skills); local stdio MCP is an alternative. |
+| Codex | Use [CLI onboarding](https://agents.tinycloud.xyz/onboarding) and [agent skills](/guides/agent-skills) in a shell-enabled runtime. This does not promise CLI installation in every hosted Codex environment. |
+| OpenCode | Use [CLI onboarding](https://agents.tinycloud.xyz/onboarding) and [agent skills](/guides/agent-skills). Local stdio MCP is also available to MCP-capable runtimes. |
+| Grok / GrokBot | Choose [CLI onboarding](https://agents.tinycloud.xyz/onboarding) only if the actual bot/runtime can install and run commands. Otherwise use the hosted endpoint only if it supports Streamable HTTP MCP and OAuth. No native Grok connector or universal bot-install support is verified here. |
+| WhatsApp / Instinct | WhatsApp is the conversation channel; the bot's runtime determines integration. In Cian's reported test, Instinct read a Claude Code-written note with a two-hour, read-only Todos delegation and made no writes. That observation is not proof of native WhatsApp MCP, general installation support or all-device approval compatibility. |
+
+If a bot cannot install the CLI or connect through MCP, sending it a setup
+link does not add those capabilities. Do not send it an owner private key.
+Use [Windows installation](/cli/overview#windows) for a Windows shell.
+
+<Warning>
+Hosted MCP and the connected AI client receive plaintext tool inputs/results.
+Local CLI/stdio avoids the hosted MCP hop, but does not make ordinary node
+storage or AI processing E2EE. Read [Security and trust](/concepts/security-and-trust)
+before granting access.
+</Warning>
+
+### ChatGPT setup
+
+1. Open ChatGPT on the web and use its custom MCP server connection form.
+   Follow [OpenAI's current custom MCP setup guide](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)
+   for the current UI and account/workspace availability. If the form is
+   absent, check that guidance or your workspace administrator; this guide
+   does not infer a subscription restriction.
+2. Enter `https://mcp.tinycloud.xyz/mcp` and complete OpenKey OAuth.
+   Use the same OpenKey owner/key that holds your TinyCloud data.
+3. Enable/select the connection in the conversation, ask it to call
+   `tinycloud_connect`, and complete the scoped approval flow below.
+4. Continue only when `tinycloud_connect` reports `connected: true`; ask to
+   list spaces and read one known record before requesting edits.
+
+This is the custom-connection route documented by TinyCloud MCP, not a claim
+of reviewed/published ChatGPT app status. Actual ChatGPT UI acceptance and
+mobile availability must be checked in the target account.
 
 ## Connect a remote MCP client
 
-For example, in Claude (web, iOS or Android), add a custom connector with this URL:
+For example, in Claude (web, iOS or Android), add a custom connector with this
+URL. Other compatible clients, including ChatGPT, use the same endpoint:
 
 ```text
 https://mcp.tinycloud.xyz/mcp
 ```
 
-Claude discovers OpenKey OAuth from the endpoint, registers its OAuth client,
-and asks you to sign in. After the connector is enabled:
+The client discovers OpenKey OAuth from the endpoint, registers its OAuth
+client, and asks you to sign in. After the connector is enabled:
 
-1. Ask Claude to call `tinycloud_connect`.
+1. Ask the client to call `tinycloud_connect`.
 2. Open the returned `approvalUrl` and approve the account-registry delegation
    in OpenKey.
-3. Ask Claude to call `tinycloud_connect` again. It now returns
+3. Ask the client to call `tinycloud_connect` again. It now returns
    `connected: true`.
-4. Ask Claude to list your spaces, then perform the KV or SQLite operation you
+4. Ask the client to list your spaces, then perform the KV or SQLite operation you
    want. When a tool returns `authority_required`, open its `approval.url` and
    retry the same tool unchanged.
 
@@ -48,8 +94,8 @@ agents using `tc-apps`, without a local CLI or skill installation.
 At first use, approve connect and then personal-record access in OpenKey.
 Records use one grant for get, list, put and delete under
 `xyz.tinycloud.agent-data/` in your `default` space, not a separate approval
-for every key. Claude asks for your city once to store an IANA timezone; it
-must not infer your local date from the hosted server's clock.
+for every key. Supply an IANA timezone once; the client must not infer your
+local date from the hosted server's clock or require your precise location.
 In **Settings → Connectors → TinyCloud**, you can set `tinycloud_apps_write`
 to **Always allow** to avoid per-call tool confirmations. This does not bypass
 OpenKey permission approval.
@@ -87,8 +133,8 @@ again in that conversation.
 
 <Warning>
 The hosted service can observe plaintext operation inputs and results while it
-executes them, including delegated secrets. Use local stdio instead when the
-service operator must not be in that trust boundary.
+executes them, including delegated secrets. Local stdio removes that hosted
+service from the path; it does not remove the node or AI-client trust boundary.
 </Warning>
 
 ## Requirements

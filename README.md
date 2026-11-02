@@ -32,13 +32,15 @@ page should remain hand-off only: do not edit it directly.
 
 ## Doc map
 
-- `/` - Reader-journey homepage
+- `/` - Reader-journey homepage with a privacy-mode comparison
 - `/start/browser-app` - Web SDK path from sign-in to first KV write
 - `/start/backend-service` - Node SDK path and sign-in mode decision
 - `/start/protocol` - Capability, manifest, and delegation vocabulary
 - `/start/operator` - CLI, hosting, OpenKey, and troubleshooting path
 - `/guides/browser-e2e-testing` - Automated OpenKey + TinyCloud E2E testing for agents and CI
-- `/guides/agent-skills` - Install the `tc-cli` agent skill and app skill packs
+- `/guides/agent-skills` - Install the `tinycloud-cli` agent skill and app skill packs
+- `/cli/mcp` - Client setup and support status, including ChatGPT, Claude, coding agents and chat bots
+- `/cli/overview#windows` - Windows installation and PATH repair
 - `/guides/share-viewer` - Share viewer content rules and Web SDK share receiving
 - `/cli/share` - Publish, notify, inspect, receive, and revoke Share links
 - `/concepts/system-model` - High-level model of identity, spaces, capabilities, and services

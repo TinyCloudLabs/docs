@@ -5,9 +5,11 @@ icon: "lock"
 sidebarTitle: "Data Vault"
 ---
 
-Use the data vault when you want client-side encrypted KV storage instead of
-plain TinyCloud KV.
-For the trust model and public/primary space split, see
+Use the data vault when you want to encrypt KV values before storage instead
+of sending plain TinyCloud KV. This page describes the wallet-derived flow;
+network-backed vaults use a separate node-mediated key-release path. Check
+which mode your app configures before assuming only its endpoints hold keys.
+For both trust boundaries and the public/primary space split, see
 [Data Vault](/concepts/data-vault).
 
 ## Unlock the vault
@@ -26,9 +28,10 @@ const signer = new PrivateKeySigner(process.env.WALLET_PRIVATE_KEY);
 await tc.vault.unlock(signer);
 ```
 
-Unlocking derives the encryption keys locally. The same wallet produces the
-same vault keys again later, so the encrypted data remains readable across
-sessions.
+In wallet-derived mode, unlocking derives encryption keys locally. The same
+wallet signing material produces the same vault keys again later, so the
+encrypted data remains readable across sessions. This statement does not
+describe network-backed key custody.
 
 ## Store and read values
 
@@ -42,7 +45,8 @@ const result = await tc.vault.get("medical/records");
 ```
 
 Use `list()`, `head()`, and `delete()` the same way you would on a normal KV
-store, but remember that the server only sees encrypted blobs.
+store. The storage layer receives ciphertext and metadata; authorized
+decrypting clients can still see and retain plaintext.
 
 ## Share encrypted data
 
@@ -83,8 +87,9 @@ tc vault delete api-key
 
 ## When to use this page
 
-Use the vault when the data must stay encrypted on the client. If you only need
-plain TinyCloud KV, use the KV guide instead.
+Use this flow for wallet-derived encrypted KV and review key custody before
+using it for sensitive data. If you only need plain TinyCloud KV, use the
+[KV guide](/guides/kv-storage) instead.
 
 ## Source note
 

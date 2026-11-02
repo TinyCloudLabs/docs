@@ -6,6 +6,59 @@ icon: "shield"
 
 TinyCloud is built around cryptographic proofs and attenuated capabilities. The safe default is to assume only what the linked docs and source explicitly establish.
 
+## Encryption and operator access
+
+TinyCloud capabilities control **who is authorized to act**. They do not by
+themselves encrypt content or make the service unable to read it. The
+[homepage mode comparison](/#privacy-at-a-glance) summarizes the choices.
+
+- **Transport and storage:** HTTPS encrypts traffic to its TLS endpoint.
+  Disk, database, backup or sealed-state encryption protects stored bytes,
+  not plaintext in the process that can decrypt them. Do not assume every
+  deployment encrypts every disk or backup.
+- **Ordinary KV and SQL:** the SDK sends values, SQL and parameters to the
+  node for processing. Unless the application encrypts content first, an
+  ordinary node operator can read it. A space is an authorization boundary,
+  not an encryption boundary.
+- **Application E2EE:** this requires encryption before storage and keys
+  available only to the intended endpoints. The SDK's wallet-derived vault
+  mode encrypts and decrypts locally. Network-backed vault mode also encrypts
+  values locally, but uses a node-mediated key-release/decrypt flow: its key
+  service is an additional trust boundary. Do not describe both modes as
+  “only the user can decrypt.” See [Data Vault](/concepts/data-vault).
+- **Authorized clients:** a client, agent or recipient that receives
+  plaintext can retain or disclose it. An AI provider's handling of tool
+  results is a separate trust decision. Expiry and revocation stop future
+  authorized access; they cannot recall copies already read.
+- **Hosted MCP:** the service processes readable inputs and results,
+  including delegated secret values. Its runtime and operator are in the
+  trust boundary even when the node stores encrypted envelopes. Local
+  CLI/stdio removes that hosted MCP hop, not the node or AI-client boundary.
+- **Self-hosting:** choosing your own node or MCP operator changes whom you
+  trust. It does not hide plaintext from that operator's administrators,
+  runtime, logs or backups unless a separate verified protection does so.
+
+### TEE and OpenKey limits
+
+A trusted execution environment (TEE) is a server-side execution boundary,
+not application E2EE. The protected program may handle plaintext or keys.
+Protection from the infrastructure operator depends on hardware trust,
+verification of a fresh attestation bound to the service/key, accepted code
+measurements, key-release policy, and what the program exports or logs.
+It does not protect plaintext sent onward to an authorized client.
+
+OpenKey's production key-sealing implementation uses dstack-derived keys and
+exposes bound quotes; its explicit local-development mode uses mock keys.
+OpenKey-managed keys are unsealed for signing in the service runtime.
+This is different from a wallet whose key stays exclusively on the user's
+device. Passkey sign-in alone does not encrypt application records.
+
+Neither a `tee` hostname, a deployment file, nor the existence of an
+attestation endpoint proves that your client verified the running deployment.
+These docs do not certify a live deployment or promise that every SDK/MCP
+request verifies hardware attestation. Check the actual verifier, accepted
+measurements and deployment policy before relying on operator exclusion.
+
 ## What TinyCloud verifies
 
 - A signer proves control of the wallet or key that signs the SIWE flow.
@@ -27,9 +80,9 @@ TinyCloud is built around cryptographic proofs and attenuated capabilities. The 
 | --- | --- | --- |
 | Identity | `tc.did` becomes the owner DID after sign-in; `tc.sessionDid` remains the ephemeral session key DID. | [DID Formats](/concepts/did-formats) |
 | Authorization | Capabilities are delegated, scoped, and revocable. | [Capabilities](/concepts/capabilities) and [Delegations](/guides/delegations) |
-| Storage | Spaces isolate user data, and the docs describe encryption flows separately when client-side encryption is involved. | [Spaces](/guides/spaces) and [Data Vault](/guides/data-vault) |
+| Storage | Ordinary node operators can read unencrypted values; application encryption and network-backed key release have separate trust boundaries. | [Spaces](/guides/spaces) and [Data Vault](/concepts/data-vault) |
 | App requests | Manifests describe requested permissions and delegation targets before sign-in. | [App manifests](/concepts/app-manifests) |
-| Sharing | The part of a Share URL after `#` is the read authority and is never sent to a server. Addressed shares are encrypted and enforced by a signed policy at the owner's node. | [Share files](/cli/share) |
+| Sharing | Browsers omit a URL fragment from the HTTP request, but client code can read it. Addressed shares use encryption and a signed policy at the owner's node. Keep complete links out of logs and messages to unintended recipients. | [Share files](/cli/share) |
 | Agents | An agent holds only what the owner approved for its profile through OpenKey, and the owner sees each capability before approving. | [Agent skills](/guides/agent-skills) |
 
 ## Security posture
@@ -41,4 +94,9 @@ TinyCloud is built around cryptographic proofs and attenuated capabilities. The 
 
 ## Source note
 
-The trust model here is derived from the authentication, spaces, capabilities, manifests, data vault, and delegation docs, plus the TinyCloud node and SDK source. If you need a guarantee, verify it against those sources rather than assuming it from the concept wording.
+The boundaries above follow the SDK's `KVService`, `SQLService`,
+`DataVaultService` and `EncryptionService`, the MCP operation/result pipeline,
+and OpenKey's `packages/tee` sealing and quote implementation. Source:
+[JS SDK](https://github.com/TinyCloudLabs/js-sdk) and
+[OpenKey](https://github.com/TinyCloudLabs/openkey).
+They describe implementation paths, not a live deployment audit.

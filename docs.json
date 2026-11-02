@@ -50,6 +50,8 @@
               "index",
               "guides/access-and-explore-my-tinycloud",
               "guides/agent-skills",
+              "cli/mcp",
+              "concepts/security-and-trust",
               "start/browser-app",
               "start/backend-service",
               "start/protocol",
