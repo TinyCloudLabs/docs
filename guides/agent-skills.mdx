@@ -21,13 +21,13 @@ runtimes that can execute local commands, not every app bearing those names.
 
 Use Node.js 22.20 or later. Prefer onboarding, which reuses a compatible
 installed CLI rather than installing a second copy. For a fresh manual
-installation, the stable CLI pin is 1.5.0; do not downgrade a compatible
+installation, the stable CLI pin is 1.5.1; do not downgrade a compatible
 newer installation.
 
 ### macOS and Linux
 
 ```bash
-npm install --global @tinycloud/cli@1.5.0
+npm install --global @tinycloud/cli@1.5.1
 TC="$(npm prefix --global)/bin/tc"      # avoids /usr/sbin/tc on Linux
 VERSION="$("$TC" --version)"
 npx --yes skills@1.7.0 add \
