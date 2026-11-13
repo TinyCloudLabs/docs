@@ -15,12 +15,16 @@ operator must own all data and access policy.
 
 ## Privacy at a glance
 
-User-owned access is not the same as end-to-end encryption (E2EE).
-Choose the trust boundary for the actual data path:
+User-controlled, capability-based access is not the same as encryption.
+Agents receive only the scopes you grant. Hosted nodes currently store ordinary
+KV and SQL data in plaintext at rest; TinyCloud does not currently provide
+encryption at rest or end-to-end encryption for that stored data.
+Application-specific encryption modes have separate requirements and trust
+boundaries. Choose the trust boundary for the actual data path:
 
 | Mode | Who can see plaintext? |
 | --- | --- |
-| HTTPS / encrypted disks or backups | HTTPS protects traffic in transit; storage encryption protects stored bytes. Neither hides data from the service processing it. Storage protection depends on the deployment. |
+| HTTPS / storage encryption | HTTPS protects traffic to its TLS endpoint. Hosted storage is currently plaintext at rest; transport encryption does not make stored data unreadable by operators. |
 | Ordinary KV / SQL | The node processes readable values and queries unless the app encrypts values first. An ordinary node operator can access that plaintext. |
 | Application E2EE | Only endpoints holding the decryption keys, **if** the app keeps those keys out of the storage service. This is not the default for all TinyCloud data; metadata may remain visible. |
 | Hosted MCP | MCP processes tool inputs and results, including secrets it is authorized to decrypt. Its runtime/operator and the connected AI client are in the trust boundary. |
