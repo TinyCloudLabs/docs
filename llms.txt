@@ -86,7 +86,7 @@ requires the node team; answer from KV rather than retrying the copy.
 
 Production compose sets `TC_MCP_DELEGATION_EXPIRY=30d` and
 `TC_MCP_APPROVAL_TTL_SECONDS=900`. Standalone defaults remain `1h` and 300
-seconds. `TC_HOST` defaults to `https://node.tinycloud.xyz`.
+seconds. `TC_HOST` defaults to `https://tee.node.tinycloud.xyz`.
 Missing/expired sessions return a fresh connect link in `error.details`;
 missing/expired grants return an `authority_required` link. Renew through
 owner approval; stop if declined.
