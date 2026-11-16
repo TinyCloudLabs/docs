@@ -40,6 +40,7 @@ page should remain hand-off only: do not edit it directly.
 - `/guides/browser-e2e-testing` - Automated OpenKey + TinyCloud E2E testing for agents and CI
 - `/guides/agent-skills` - Install the `tinycloud-cli` agent skill and app skill packs
 - `/cli/mcp` - Client setup and support status, including ChatGPT, Claude, coding agents and chat bots
+- `/guides/assistant-connector` - The personal-records connector listed in assistant directories: connect, approvals, tools and limits
 - `/cli/overview#windows` - Windows installation and PATH repair
 - `/guides/share-viewer` - Share viewer content rules and Web SDK share receiving
 - `/cli/share` - Publish, notify, inspect, receive, and revoke Share links
