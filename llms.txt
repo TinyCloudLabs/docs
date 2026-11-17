@@ -183,6 +183,7 @@ Complete readable pages:
 - `/` - Homepage and reader-journey selector
 - `https://mcp.tinycloud.xyz/mcp` - Hosted Streamable HTTP MCP connector for remote clients
 - `https://docs.tinycloud.xyz/cli/mcp` - Hosted and local MCP setup and tool reference
+- `https://docs.tinycloud.xyz/guides/assistant-connector` - The five-tool personal-records connector that assistants list in their directories: connect, approvals, tools, limits, removing access
 - `https://docs.tinycloud.xyz/guides/access-and-explore-my-tinycloud` - Agent account discovery, safe KV CRUD, and SQLite operations
 - `/start/browser-app` - Web SDK path from sign-in to first KV write
 - `/start/backend-service` - Node SDK path and sign-in mode decision
