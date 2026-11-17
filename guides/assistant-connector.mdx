@@ -34,8 +34,10 @@ You do not need to install anything or paste a key.
    the assistant that is asking. Choose **Allow**.
 3. Ask the assistant to connect TinyCloud. The first time, it shows you an
    approval link.
-4. Open the link, read what it asks for, and choose **Approve**.
-5. Go back to the assistant and tell it to continue.
+4. Open the link. The page is titled **Authorize capabilities**. Read what it
+   asks for and choose **Approve**.
+5. The page then says "You can close this window and return to the CLI."
+   Close it, go back to the assistant and tell it to continue.
 
 Signing in does not give the assistant access to your records. Step 4 connects
 it to your account, and each app's records need their own approval later.
@@ -68,8 +70,13 @@ returns a link instead of a result, and the assistant shows it to you.
 - An approval lasts 30 days. After that the connector asks again.
 - If you decline, nothing is read or written, and the assistant stops that
   request.
-- The approval page says that OpenKey cannot confirm who sent the request.
-  Approve only a link that your own assistant just showed you.
+- The approval page names the requester as "TinyCloud CLI", whichever
+  assistant you use. Under "Returned to" it shows where your approval goes: an
+  address that starts with `https://mcp.tinycloud.xyz/` and names your
+  assistant, such as `https://mcp.tinycloud.xyz/claude/connect/callback`.
+- The page shows the reason for the request and says that it comes from the
+  caller and is not verified. Approve only a link that your own assistant just
+  showed you.
 
 ## What you can ask
 
@@ -128,6 +135,8 @@ of one app's records.
 - Read or write secrets, files or any data outside personal records.
 - Run SQL against your other databases, or read arbitrary keys.
 - Share or publish anything.
+- Work with TinyCloud's Health Log or Recipes apps. If you ask for one, the
+  connector answers that it is not available and gives you the app's link.
 - Make payments or generate images, audio or video.
 
 ## Privacy
@@ -152,7 +161,8 @@ assistant may keep what it was shown. Read
 - **In your assistant:** disconnect or remove the TinyCloud connector.
 - **In OpenKey:** sign in at [openkey.so](https://openkey.so) and open
   **Settings**. Under **Connected MCP apps**, choose **Disconnect** for the
-  assistant. Its access ends within about a minute.
+  assistant, then **Disconnect app**. Its access usually ends within a minute
+  and always within five.
 
 ## If something goes wrong
 
@@ -162,6 +172,7 @@ assistant may keep what it was shown. Read
 | "This approval link is unavailable" | The link expired or was already used | Ask the assistant to connect TinyCloud again |
 | `AUTH_REQUIRED` or `SESSION_NOT_FOUND` | The connection lapsed | Open the new link in the answer and approve |
 | `INPUT_INVALID` | The assistant sent something the tool does not accept. The message names the field | Ask the assistant to correct it and try again |
+| "… is not available through this connector" | You asked for Health Log or Recipes, which this connector cannot work with | Open the link in the answer to use that app |
 | `TIMEZONE_REQUIRED` | No timezone is saved yet | Tell the assistant your timezone |
 | `CHANGED` | The record changed since it was read | Ask the assistant to read it again, then repeat the change |
 | `COPY_PARTIAL` | The searchable copy is not complete yet, so the answer is not either | Ask the same question again |
