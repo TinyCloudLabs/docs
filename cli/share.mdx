@@ -56,7 +56,7 @@ metadata.
 | `--prefix` | Publish several files beneath one addressed prefix (the viewer cannot open folders yet) | off |
 | `--name <filename>` | Filename for stdin input | `stdin.md` |
 | `--media-type <type>` | Media type for a single input | inferred |
-| `--max-bytes <bytes>` | Bound the input size | 100 MiB maximum |
+| `--max-bytes <bytes>` | Bound the input size | 95 MiB maximum |
 | `--binary` | Allow non-UTF-8 bearer content | off |
 
 ### Expiry
@@ -159,7 +159,7 @@ output rather than relying on the exit status alone.
 | `5` | `PERMISSION_DENIED` | The session lacks the scope, or carries restrictions a bearer link cannot honor |
 | `5` | `SIGNATURE_INVALID`, `CID_MISMATCH`, `DECRYPT_FAILED`, `ENVELOPE_INVALID`, `CAPABILITY_INVALID`, `CONTENT_INTEGRITY_FAILED` | A received link failed verification; do not trust it |
 | `6` | `CLAIM_REQUIRED`, `DEVICE_AUTH_REQUIRED`, `REGISTRY_REJECTED` | The recipient or owner must act, or the registry refused the owner's location record |
-| `7` | `MAX_BYTES_EXCEEDED` | Input or download exceeds `--max-bytes` |
+| `7` | `MAX_BYTES_EXCEEDED` | File exceeds 95 MiB; publish a smaller file or split it |
 | `8` | `UNSAFE_FILENAME`, `OUTPUT_EXISTS` | Rename the file, or pass `--force` on receive |
 | `9` | partial failure | Stored, but the invitation email failed; retry `tc share notify` |
 
