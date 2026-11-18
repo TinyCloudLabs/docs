@@ -163,6 +163,10 @@ output rather than relying on the exit status alone.
 | `6` | `CLAIM_REQUIRED`, `DEVICE_AUTH_REQUIRED`, `REGISTRY_REJECTED` | The recipient or owner must act, or the registry refused the owner's location record |
 | `7` | `MAX_BYTES_EXCEEDED` | Shared files must be under 95 MB. Use a smaller file or split it. |
 | `7` | `MAX_BYTES_EXCEEDED` | These files add up to more than 95 MB. Share fewer at once or use smaller files. |
+| `7` | `MAX_BYTES_EXCEEDED` | `This file is over the --max-bytes limit you set (<N> bytes). Use a smaller file or raise --max-bytes, up to 95 MiB.` |
+| `7` | `MAX_BYTES_EXCEEDED` | `These files add up to more than the --max-bytes limit you set (<N> bytes). Share fewer at once or raise --max-bytes, up to 95 MiB.` |
+| `7` | `MAX_BYTES_EXCEEDED` | --max-bytes must be between 1 byte and 95 MiB. |
+| `7` | `MAX_BYTES_EXCEEDED` | `tinycloud share receive --max-bytes <N>: shared content exceeds max-bytes` |
 | `8` | `UNSAFE_FILENAME`, `OUTPUT_EXISTS` | Rename the file, or pass `--force` on receive |
 | `9` | partial failure | Stored, but the invitation email failed; retry `tc share notify` |
 
