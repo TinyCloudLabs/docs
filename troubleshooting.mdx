@@ -29,10 +29,11 @@ tc auth login --method local
 with `AUTH_REQUIRED` (exit `3`; every command in CLI 1.1.0 beta, headless
 `tc secrets` commands in 1.0.0).
 
-**Fix:** sign in again the same way the profile was created: `tc auth login`
-for an OpenKey owner, `tc auth login --method local` for a local key, or the
-scoped `--paste --manifest` login for an agent profile. Device logins can be
-renewed with the same `--device --manifest` command.
+**Fix:** sign in again the same way the profile was created: `tinycloud onboard`
+for an agent, `tc auth login` for an OpenKey owner, `tc auth login --method
+local` for a local key, or the scoped `--paste --manifest` login for a
+secrets profile. Device logins can be renewed with the same `--device
+--manifest` command.
 
 If a login fails with `SESSION_IN_USE`, the new request would narrow or
 shorten a session the profile already holds. Use a new profile for the new
@@ -49,9 +50,10 @@ tc auth login --paste
 tc auth login --no-popup
 ```
 
-On a server or in an agent with no browser, use device login and approve on
-your phone: `tc auth login --device --manifest <file>`. See
-[CLI authentication](/cli/authentication#device-login-for-agents-and-servers).
+An agent runs `tinycloud onboard` and sends the owner its link. On a server with
+no browser, use device login and approve on your phone: `tc auth login --device
+--manifest <file>`. See
+[CLI authentication](/cli/authentication#device-login-for-servers).
 
 If you are pointing at a self-hosted OpenKey instance, verify `TC_OPENKEY_HOST` or the profile's `openkeyHost`.
 

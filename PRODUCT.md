@@ -24,6 +24,7 @@ Do not resemble an uncustomized Mintlify starter kit, a generic SaaS documentati
 
 - Lead with reader intent: Build, Understand, and Operate should always be obvious entry points.
 - Earn trust with exactness: distinguish verified behavior, boundaries, beta versions, and known limitations.
+- Separate ownership from confidentiality: ordinary nodes and hosted MCP can process plaintext; distinguish transport/storage encryption, application E2EE, network key custody, verified TEE assumptions and self-hosted operator access.
 - Make progress visible: every tutorial should state prerequisites, actions, and a recognizable success result.
 - Keep theory and action connected: concepts should clarify implementation decisions, not become detours.
 - Make TinyCloud unmistakable: use TinyCloud identity and language instead of framework defaults.

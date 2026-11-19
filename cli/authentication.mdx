@@ -14,17 +14,19 @@ Use this page when you need a TinyCloud profile, a session, or a headless auth p
     Browser or paste sign-in. Best for interactive use.
   </Card>
   <Card title="OpenKey device" icon="smartphone">
-    The owner approves on their phone. Best for agents and servers.
+    The owner approves on their phone. Useful for servers.
   </Card>
   <Card title="Local key" icon="cpu">
     Private-key sign-in. Best for CI against a key you control.
   </Card>
 </CardGroup>
 
-Give each purpose its own profile, such as `publisher` for Share publishing or
-`agent-secrets` for an agent that reads API keys. Signing an existing profile
-in again for a different purpose can replace the session another app relies
-on.
+Agents sign in once with `tinycloud onboard` (see
+[agents.tinycloud.xyz/onboarding](https://agents.tinycloud.xyz/onboarding))
+and ask for more with `tinycloud auth request --cap <spec> --grant --paste
+--expiry 30d`, which adds to that profile. Signing an existing profile in again
+with `auth login` for a different purpose can replace the session another app
+relies on.
 
 ## Start with a profile
 
@@ -84,7 +86,7 @@ and saves nothing. If another `tc` or MCP process holds the profile while a
 login commits, the CLI waits up to 45 seconds and then fails with
 `PROFILE_LOCK_TIMEOUT`; retry once the other process finishes.
 
-## Device login for agents and servers
+## Device login for servers
 
 Use device login when the owner cannot open a browser on the machine running
 `tc`. It requires a KV-scoped manifest.

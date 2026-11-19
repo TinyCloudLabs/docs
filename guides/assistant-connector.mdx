@@ -1,0 +1,184 @@
+---
+title: "TinyCloud connector for AI assistants"
+description: "Keep personal records in your own TinyCloud space and let an assistant read, change and search them when you ask"
+icon: "plug"
+sidebarTitle: "Assistant connector"
+---
+
+The TinyCloud connector lets an AI assistant work with your personal records:
+todos, goals, reading lists and other things you keep track of. The records
+live in your own TinyCloud space. The assistant can read, add, change, move,
+delete and search them, and only after you approve each kind of access.
+
+This page covers the connector that assistants list in their connector
+directories. It has five tools and works only with personal records. For
+secrets, files, key-value data or SQL databases, use the
+[full TinyCloud MCP server](/cli/mcp) or the CLI instead.
+
+## Before you start
+
+You need:
+
+- An assistant that lists TinyCloud in its connector directory.
+- A TinyCloud account. If you do not have one, you create it during sign-in
+  with an email address, a passkey or Google.
+
+You do not need to install anything or paste a key.
+
+## Connect
+
+1. Open your assistant's connector directory, find **TinyCloud** and choose
+   **Connect**. In Claude, the directory is under **Customize**, then
+   **Connectors**.
+2. Sign in with OpenKey, TinyCloud's sign-in service. OpenKey shows the name of
+   the assistant that is asking. Choose **Allow**.
+3. Ask the assistant to connect TinyCloud. The first time, it shows you an
+   approval link.
+4. Open the link. The page is titled **Authorize capabilities**. Read what it
+   asks for and choose **Approve**.
+5. The page then says "You can close this window and return to the CLI."
+   Close it, go back to the assistant and tell it to continue.
+
+Signing in does not give the assistant access to your records. Step 4 connects
+it to your account, and each app's records need their own approval later.
+
+Each assistant uses its own address. Connecting TinyCloud in two assistants
+gives you two separate connections, each with its own approvals.
+
+| Assistant | Address |
+| --- | --- |
+| Claude | `https://mcp.tinycloud.xyz/claude/mcp` |
+| ChatGPT | `https://mcp.tinycloud.xyz/chatgpt/mcp` |
+| Grok | `https://mcp.tinycloud.xyz/grok/mcp` |
+| Muse | `https://mcp.tinycloud.xyz/muse/mcp` |
+
+Whether TinyCloud appears in a directory is decided by that assistant. You
+only need an address if your assistant asks you to enter one.
+
+## Approvals
+
+The connector asks before it can do anything new. A tool that needs access
+returns a link instead of a result, and the assistant shows it to you.
+
+| Approval | When it is asked for | What it allows |
+| --- | --- | --- |
+| Connection | The first time you connect | Lets the connector find your TinyCloud account and its apps |
+| An app's records | The first time the assistant works with an app, such as todos | Reading that app's records, or reading and changing them |
+| Searchable copy | The first time you ask a question across many records of an app | Keeping and querying a searchable copy of that app's records |
+
+- An approval link works for 15 minutes and only once.
+- An approval lasts 30 days. After that the connector asks again.
+- If you decline, nothing is read or written, and the assistant stops that
+  request.
+- The approval page names the requester as "TinyCloud CLI", whichever
+  assistant you use. Under "Returned to" it shows where your approval goes: an
+  address that starts with `https://mcp.tinycloud.xyz/` and names your
+  assistant, such as `https://mcp.tinycloud.xyz/claude/connect/callback`.
+- The page shows the reason for the request and says that it comes from the
+  caller and is not verified. Approve only a link that your own assistant just
+  showed you.
+
+## What you can ask
+
+- "Add a todo called Review release checklist, then show it to me."
+- "What is on my todo list?"
+- "Mark Review release checklist as done."
+- "Delete the todo called Old draft."
+- "Use a searchable copy to count the todos I finished this month."
+
+The first time you save a record, the assistant asks for your timezone, for
+example `Europe/London`, so that records carry your local date and time. It
+does not need your city or location.
+
+## Tools
+
+| Tool | What it does | Changes data |
+| --- | --- | --- |
+| `tinycloud_connect` | Checks the connection and returns an approval link when one is needed | No |
+| `tinycloud_apps_context` | Returns your apps, your local time, your saved timezone and the rules for handling records. Saves your timezone when the assistant passes one | Only your timezone setting |
+| `tinycloud_apps_read` | Lists the records in a folder and reads up to 100 records | No |
+| `tinycloud_apps_write` | Creates, replaces, moves or deletes up to 10 records in one call | Yes |
+| `tinycloud_apps_query` | Refreshes the searchable copy of one app, then runs one read-only query over it | Only the searchable copy |
+
+Your assistant may ask you to confirm a tool before it runs. That confirmation
+is the assistant's own; it does not replace an approval in OpenKey.
+
+## How records are kept
+
+- An **app** is a group of records, such as todos. Each app has a short
+  description of its record kinds, which the assistant creates the first time
+  and reads before it writes.
+- A record has a key, a version, a time and your data. The connector adds who
+  wrote it.
+- Before changing a record, the assistant reads it. If the record changed in
+  the meantime, TinyCloud refuses the change and the assistant reads it again.
+  It never overwrites a newer version silently.
+- Deleting a record removes it from lists and reads. The storage node may keep
+  the bytes of earlier versions.
+
+## Searchable copy
+
+Reading records one folder at a time is slow for questions such as "how many
+did I finish this month?". For those, the connector can keep a searchable copy
+of one app's records.
+
+- It is optional and needs its own approval.
+- It is a copy. Your records stay the source of truth, and a query never
+  changes them.
+- A query is one `SELECT` or `WITH` statement in SQLite syntax over a table
+  named `entries`, with the columns `key`, `kind`, `folder`, `id`, `day`, `v`,
+  `at`, `by`, `data` and `rec`.
+- The first query for an app builds the copy and can take several seconds.
+
+## What the connector cannot do
+
+- Read or write secrets, files or any data outside personal records.
+- Run SQL against your other databases, or read arbitrary keys.
+- Share or publish anything.
+- Work with TinyCloud's Health Log or Recipes apps. If you ask for one, the
+  connector answers that it is not available and gives you the app's link.
+- Make payments or generate images, audio or video.
+
+## Privacy
+
+<Warning>
+The connector and your assistant both see the records they work with. The
+connector receives each tool call and its result in plain text, and your
+assistant may keep what it was shown. Read
+[Security and trust](/concepts/security-and-trust) before you connect.
+</Warning>
+
+- Do not keep passwords, API keys, payment-card numbers, government
+  identifiers or protected health information in personal records.
+- The connector's logs hold the tool name, the outcome and the duration. They
+  do not hold keys, values or queries.
+- Disconnecting the connector in your assistant does not delete your records.
+- The [privacy policy](https://tinycloud.xyz/privacy) describes how TinyCloud
+  handles your account and content.
+
+## Remove access
+
+- **In your assistant:** disconnect or remove the TinyCloud connector.
+- **In OpenKey:** sign in at [openkey.so](https://openkey.so) and open
+  **Settings**. Under **Connected MCP apps**, choose **Disconnect** for the
+  assistant, then **Disconnect app**. Its access usually ends within a minute
+  and always within five.
+
+## If something goes wrong
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| "TinyCloud approval is required" with a link | The connector needs an approval | Open the link, approve, then tell the assistant to continue |
+| "This approval link is unavailable" | The link expired or was already used | Ask the assistant to connect TinyCloud again |
+| `AUTH_REQUIRED` or `SESSION_NOT_FOUND` | The connection lapsed | Open the new link in the answer and approve |
+| `INPUT_INVALID` | The assistant sent something the tool does not accept. The message names the field | Ask the assistant to correct it and try again |
+| "… is not available through this connector" | You asked for Health Log or Recipes, which this connector cannot work with | Open the link in the answer to use that app |
+| `TIMEZONE_REQUIRED` | No timezone is saved yet | Tell the assistant your timezone |
+| `CHANGED` | The record changed since it was read | Ask the assistant to read it again, then repeat the change |
+| `COPY_PARTIAL` | The searchable copy is not complete yet, so the answer is not either | Ask the same question again |
+| `STORAGE_QUOTA_EXCEEDED` | Your TinyCloud storage is full. Nothing was saved | Free up space at [account.tinycloud.xyz/storage](https://account.tinycloud.xyz/storage) |
+
+For anything else, write to [team@tinycloud.xyz](mailto:team@tinycloud.xyz) or
+see [tinycloud.xyz/support](https://tinycloud.xyz/support). Say which
+assistant you used and what happened. Do not send passwords, codes or approval
+links.

@@ -4,17 +4,28 @@ description: "Understand the client-side encrypted vault model used by TinyCloud
 icon: "lock"
 ---
 
-TinyCloud's data vault is client-side encrypted storage. The server stores the
-ciphertext and metadata; the SDK keeps the keys and performs the encryption and
-decryption locally.
-For the unlock and sharing flow, see [Data Vault](/guides/data-vault).
+TinyCloud's data vault encrypts values before KV storage. Storage receives
+ciphertext and metadata, but **key custody depends on the vault mode**.
+Do not equate every encrypted vault with endpoint-only E2EE.
+For the wallet-derived unlock and sharing flow, see [Data Vault](/guides/data-vault).
 
 ## Vault model
 
 The vault sits on top of the user's TinyCloud space and is available through
-the Node and Web SDKs. When you unlock it, the SDK derives the encryption keys
-from wallet material and publishes discovery metadata so other principals can
-share data with you.
+the Node and Web SDKs:
+
+| Mode | Key and plaintext boundary |
+| --- | --- |
+| Wallet-derived vault | The SDK derives keys from wallet signing material and encrypts/decrypts locally. Keeping the wallet/key material and decrypted results exclusively at trusted endpoints is an application responsibility. |
+| Network-backed vault | The SDK encrypts values locally to an encryption network and uses a node-mediated decrypt/key-release request before local value decryption. The network's key custody, authorization and any verified TEE policy are additional trust assumptions. |
+
+A storage-only node sees encrypted values, not their contents. This is not a
+claim that a key-release service, an authorized client or hosted MCP cannot
+obtain plaintext. Metadata, paths and access patterns may remain visible.
+See [Security and trust](/concepts/security-and-trust).
+
+In wallet-derived mode, unlock also publishes discovery metadata so other
+principals can share data with you.
 
 The important split is:
 
@@ -28,7 +39,7 @@ Do not store sensitive data in the public space.
 - client-side encrypted KV storage
 - per-entry encryption and decryption
 - sharing encrypted values with another principal
-- keeping ciphertext usable across sessions while leaving plaintext local
+- keeping ciphertext usable across sessions, subject to the chosen key-custody mode
 
 ## Source note
 
