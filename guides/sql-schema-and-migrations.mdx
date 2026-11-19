@@ -31,11 +31,30 @@ Use stable migration ids and run them before serving user traffic.
 ## Request the schema capability
 
 Schema changes need the `tinycloud.sql/schema` action for the same database
-path used at runtime.
+path used at runtime. Declare it in the
+[app manifest](/reference/protocol/app-manifests#declare-what-your-app-uses).
 
 If you use the `tc.sql` shortcut, the database name is `default`.
 
 ```ts
+import { TinyCloudNode } from "@tinycloud/node-sdk";
+
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  host: "https://node.tinycloud.xyz",
+  autoCreateSpace: true,
+  manifest: {
+    app_id: "com.example.notes",
+    name: "Notes",
+    space: "notes",
+    prefix: "",
+    defaults: false,
+    permissions: [
+      { service: "tinycloud.sql", path: "default", actions: ["schema"] },
+    ],
+  },
+});
+
 await tc.signIn();
 
 const sql = "CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, body TEXT NOT NULL)";
