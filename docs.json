@@ -51,6 +51,7 @@
               "guides/access-and-explore-my-tinycloud",
               "guides/agent-skills",
               "cli/mcp",
+              "guides/assistant-connector",
               "concepts/security-and-trust",
               "start/browser-app",
               "start/backend-service",

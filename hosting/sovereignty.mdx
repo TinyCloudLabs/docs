@@ -29,7 +29,7 @@ Sovereignty in TinyCloud is three abilities:
 2. **Replicate your data** to that node.
 3. **Use your own Ethereum key** as your identity.
 
-This guide gives working steps for parts 1 and 3. Part 2 is covered by the offline backup and restore below; node-to-node replication is under [What's next](#whats-next).
+This guide gives working steps for parts 1 and 3. Part 2 is covered by the offline backup and restore below.
 
 ## Run a node
 
@@ -137,31 +137,4 @@ If you lose your Ethereum key, nothing in the node backup recovers it. It is not
 
 Today, on a node you run, your data is in the `data` directory under your `NODE_HOME`, on your own disk. You delete it the way you delete any files on your own machine.
 
-The plan for deletion across hosts is that you revoke a host, the host deletes the data it holds for you, and the revocation spreads to your other hosts and through the SDK. This is not built yet; see [What's next](#whats-next). Even then, a protocol cannot reach into someone else's hardware: the owner of a machine decides whether the bytes are really gone.
-
-## Replicate to an always-on host (planned)
-
-None of this section runs today. The offline backup above is the only copy mechanism in this guide, and it is a snapshot, not continuous replication.
-
-Your laptop goes on and off, so you will want another host that is always online and doesn't depend on TinyCloud or on one machine. The design:
-
-- Hosts will be symmetric, with no host as "home". Your laptop, your own VPS, a friend's node and TinyCloud's node will replicate host to host, then host to edge, so a nearby friend's copy can be faster to reach than a distant one.
-- A small host will keep the most recent data. The biggest host will keep everything and ask you to compact when it runs out of space.
-- Two writes at once will resolve as CRDTs. If both come from your key, the latest write wins, and history lets you revert.
-- Hosting a friend will need both sides to agree: the operator allows you and sets limits, and you delegate hosting to the node's key. Either side can end it, and the friend can always evict you, because they hold the hardware.
-
-## What's next
-
-These are planned. None has steps in this guide yet.
-
-- `tc node install`, `start`, `stop`, `status` and `register`, with the Rust node bundled into the JS CLI.
-- A tray app in the shape of Tailscale's or Dropbox's menu-bar app, with update prompts you can defer.
-- Encryption at rest on by default, and a data directory kept out of Spotlight and indexing.
-- Publishing your node to the registry with your Ethereum key, an on-chain entry that wins, and the SDK choosing your closest host without ever turning you into a new hosted user.
-- Plain Ethereum wallets signing every request end to end, including browser, hardware and contract wallets.
-- Host-to-host replication, small hosts holding recent data, and a biggest host that asks you to compact.
-- Hosting others, with an operator allowlist, per-person and machine limits, and eviction.
-- Moving your hosted spaces to your node, switching off TinyCloud hosting and having it delete your data.
-- Deletion by revoking a host, with the revocation spreading to your other hosts and through the SDK.
-- Warnings before a node key is lost, and MPC key shares split across your hosts.
-- Networking for a node whose address moves, compatible with Tailscale.
+A protocol cannot reach into someone else's hardware: the owner of a machine decides whether the bytes are really gone.
