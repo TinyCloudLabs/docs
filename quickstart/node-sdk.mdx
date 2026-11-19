@@ -47,8 +47,17 @@ async function main() {
   const tc = new TinyCloudNode({
     privateKey,
     host: 'https://node.tinycloud.xyz',
-    prefix: 'tinycloud-quickstart',
     autoCreateSpace: true,
+    manifest: {
+      app_id: 'com.example.tinycloud-quickstart',
+      name: 'TinyCloud quickstart',
+      space: 'tinycloud-quickstart',
+      prefix: '',
+      defaults: false,
+      permissions: [
+        { service: 'tinycloud.kv', path: 'first-record', actions: ['get', 'put'] },
+      ],
+    },
   });
 
   await tc.signIn();
@@ -74,6 +83,8 @@ main().catch((error) => {
   process.exitCode = 1;
 });
 ```
+
+The `manifest` declares the permissions the script uses: read and write on the `first-record` key in the `tinycloud-quickstart` space. See [Declare what your app uses](/reference/protocol/app-manifests#declare-what-your-app-uses).
 
 ## Run and verify
 
