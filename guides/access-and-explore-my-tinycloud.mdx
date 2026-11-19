@@ -22,7 +22,7 @@ In a client that supports Streamable HTTP MCP and OAuth (for example Claude
 app or a ChatGPT custom connection), add `https://mcp.tinycloud.xyz/mcp`. Call
 `tinycloud_connect`, approve its one-time OpenKey link, and call it again
 before continuing with account discovery below. Hosted mode creates and
-maintains the agent's profile for you and exposes 20 tools.
+maintains the agent's profile for you and exposes 24 tools.
 
 For personal records, just ask “Log my weight: 80.5 kg today.” Approve connect
 and the separate records request once, then Claude uses `tinycloud_apps_context`,
@@ -51,7 +51,7 @@ values. Read-only results have a 100,000-character cap; write results are never
 truncated by it.
 
 For a local MCP client, install the CLI and MCP packages with Node.js 22.20 or
-later and sign in once with `tinycloud onboard`. The local stdio surface has 17
+later and sign in once with `tinycloud onboard`. The local stdio surface has 21
 tools and needs a TinyCloud node running 1.6.0 or newer.
 
 ```bash
@@ -75,7 +75,7 @@ profile as described in [TinyCloud MCP](/cli/mcp). The data surface is:
 | `tinycloud_sql_query` | Run one bounded `SELECT` against one selected SQLite database |
 | `tinycloud_sql_execute` | Run one positional-parameterized `INSERT`, `UPDATE`, or `DELETE` |
 
-The remaining seven local tools manage the selected session and protected secret flow:
+Seven more local tools manage the selected session and protected secret flow:
 
 | Tool | Purpose |
 |---|---|
@@ -86,6 +86,15 @@ The remaining seven local tools manage the selected session and protected secret
 | `tinycloud_auth_import` | Validate and import a request-bound delegation (local only) |
 | `tinycloud_secrets_get` | Read one specifically delegated secret |
 | `tinycloud_secrets_status` | Inspect secret readiness without reading values (local only) |
+
+The last four read at a wider scope or read an app's own description of its data:
+
+| Tool | Purpose |
+|---|---|
+| `tinycloud_auth_read_scope` | Approve a reusable read scope for selected KV prefixes or databases in one space |
+| `tinycloud_read` | Read complete KV bytes or SQL result JSON in bounded pages |
+| `tinycloud_knowledge_list` | List installed apps' knowledge bundles |
+| `tinycloud_knowledge_read` | Read an app's knowledge index or one concept file |
 
 Call `tinycloud_account_spaces_list` first. Compare its space IDs with
 `tinycloud_account_applications_list`, then choose a space and call

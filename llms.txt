@@ -58,8 +58,8 @@ clients supporting Streamable HTTP MCP and OAuth can use hosted MCP at
 
 TinyCloud MCP supports two transports. Remote MCP clients (for example Claude
 app and ChatGPT custom connections) use OpenKey OAuth.
-Hosted mode exposes 20 tools: it adds `tinycloud_connect` and four apps tools
-to the 17-tool local surface, omitting local-only `tinycloud_auth_import` and
+Hosted mode exposes 24 tools: it adds `tinycloud_connect` and four apps tools
+to the 21-tool local surface, omitting local-only `tinycloud_auth_import` and
 `tinycloud_secrets_status`. Local clients install `@tinycloud/mcp` alongside
 `@tinycloud/cli` and run its stdio server; MCP is not a `tc` subcommand.
 
@@ -241,7 +241,7 @@ Complete readable pages:
 ## Operate
 
 - `/cli/overview`
-- `https://docs.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 20 tools and local stdio MCP with 17 tools
+- `https://docs.tinycloud.xyz/cli/mcp` - Hosted Streamable HTTP MCP with 24 tools and local stdio MCP with 21 tools
 - `/cli/account` - Read-only live account space and application discovery commands
 - `/cli/authentication`
 - `/cli/storage`
