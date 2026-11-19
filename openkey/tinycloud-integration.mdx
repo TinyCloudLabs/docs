@@ -29,6 +29,16 @@ const authResult = await openkey.connect();
 
 const tcw = new TinyCloudWeb({
   provider: new OpenKeyProvider(openkey, authResult),
+  manifest: {
+    app_id: "com.example.my-tinycloud-app",
+    name: "My TinyCloud App",
+    space: "default",
+    prefix: "",
+    defaults: false,
+    permissions: [
+      { service: "tinycloud.kv", path: "hello", actions: ["put"] },
+    ],
+  },
 });
 
 await tcw.signIn();
@@ -51,6 +61,7 @@ accepted an ethers provider; 3.0 needs the raw EIP-1193 object.
 
 - Keep the OpenKey host separate from the TinyCloud host
 - Pass the provider as `provider`; `providers.web3.driver` still works and takes the same raw EIP-1193 object
+- Pass a `manifest` that declares the permissions your app uses; see [Declare what your app uses](/reference/protocol/app-manifests#declare-what-your-app-uses)
 - Treat this as a sign-in flow, not an OAuth flow
 
 <Note>

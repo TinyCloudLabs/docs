@@ -52,7 +52,16 @@ button.addEventListener('click', async () => {
     const tc = new TinyCloudWeb({
       provider,
       tinycloudHosts: ['https://node.tinycloud.xyz'],
-      spacePrefix: 'tinycloud-quickstart',
+      manifest: {
+        app_id: 'com.example.tinycloud-quickstart',
+        name: 'TinyCloud quickstart',
+        space: 'tinycloud-quickstart',
+        prefix: '',
+        defaults: false,
+        permissions: [
+          { service: 'tinycloud.kv', path: 'first-record', actions: ['get', 'put'] },
+        ],
+      },
     });
 
     await tc.signIn();
@@ -98,7 +107,7 @@ The exact chain, address, and timestamp will differ. If the wallet never opens, 
 
 ## What happened
 
-`TinyCloudWeb` used the injected provider to request a SIWE signature. `signIn()` created or restored the app session and ensured the `tinycloud-quickstart` space was hosted. The KV result was only displayed after the same key was read back successfully.
+`TinyCloudWeb` used the injected provider to request a SIWE signature. `signIn()` created or restored the app session and ensured the `tinycloud-quickstart` space was hosted. The `manifest` declares the permissions the app uses: read and write on the `first-record` key in that space. See [Declare what your app uses](/reference/protocol/app-manifests#declare-what-your-app-uses). The KV result was only displayed after the same key was read back successfully.
 
 ## Next steps
 

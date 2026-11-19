@@ -15,7 +15,9 @@ is running in session-only mode.
 
 ## Owner DID
 
-After `signIn()` with a wallet, `tc.did` returns the owner DID.
+After `signIn()` with a wallet, `tc.did` returns the owner DID. Here `tc` is a
+client created with your app's
+[manifest](/reference/protocol/app-manifests#declare-what-your-app-uses).
 
 ```typescript
 await tc.signIn();

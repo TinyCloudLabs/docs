@@ -25,15 +25,26 @@ if (!privateKey) throw new Error('WALLET_PRIVATE_KEY is required');
 const tc = new TinyCloudNode({
   privateKey,
   host: 'https://node.tinycloud.xyz',
-  prefix: 'my-app',
   autoCreateSpace: true,
   sessionExpirationMs: 24 * 60 * 60 * 1000,
+  manifest: {
+    app_id: 'com.example.my-app',
+    name: 'My App',
+    space: 'my-app',
+    prefix: '',
+    defaults: false,
+    permissions: [
+      { service: 'tinycloud.kv', path: 'notes/', actions: ['get', 'put'] },
+    ],
+  },
 });
 
 await tc.signIn();
 ```
 
 Keep the private key in a secret manager or local `.env` file excluded from Git. `sessionExpirationMs` applies to the newly issued session; changing it does not extend an existing session.
+
+The `manifest` declares the permissions the backend uses. Replace `notes/` with the paths your code reads and writes; see [Declare what your app uses](/reference/protocol/app-manifests#declare-what-your-app-uses).
 
 ## Persist and restore explicitly
 
