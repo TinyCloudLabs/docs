@@ -5,7 +5,7 @@ icon: "bot"
 sidebarTitle: "MCP Server"
 ---
 
-The TinyCloud MCP server exposes 20 hosted tools or 17 local stdio tools to
+The TinyCloud MCP server exposes 24 hosted tools or 21 local stdio tools to
 Model Context Protocol clients. If your agent can install and run the CLI, use
 the CLI instead: start at
 [agents.tinycloud.xyz/onboarding](https://agents.tinycloud.xyz/onboarding).
@@ -187,18 +187,22 @@ process or a later one.
 | `tinycloud_auth_status` | Inspect authentication state |
 | `tinycloud_auth_capabilities` | Inspect validated active capabilities |
 | `tinycloud_auth_request` | Create or recover an exact permission request |
+| `tinycloud_auth_read_scope` | Approve a reusable read scope for selected KV prefixes or databases in one space |
 | `tinycloud_auth_import` | Validate and import a request-bound delegation (local only) |
 | `tinycloud_account_spaces_list` | List the canonical account space registry |
 | `tinycloud_account_applications_list` | List registered apps and manifests |
 | `tinycloud_kv_list` | List keys in one selected space or prefix |
 | `tinycloud_kv_get` | Read one selected KV key |
 | `tinycloud_kv_head` | Read metadata and the ETag for one selected KV key |
+| `tinycloud_read` | Read complete KV bytes or SQL result JSON in bounded pages |
 | `tinycloud_kv_put` | Create, conditionally replace, or explicitly upsert one selected KV key |
 | `tinycloud_kv_delete` | Delete one selected KV key, optionally only when its ETag matches |
 | `tinycloud_sql_schema_inspect` | Inspect tables, views, indexes, and triggers in one SQLite database |
 | `tinycloud_sql_query` | Run one bounded read-only query against one SQLite database |
 | `tinycloud_sql_execute` | Run one positional-parameterized `INSERT`, `UPDATE`, or `DELETE` |
 | `tinycloud_secrets_get` | Read and decrypt one delegated secret |
+| `tinycloud_knowledge_list` | List installed apps' knowledge bundles |
+| `tinycloud_knowledge_read` | Read an app's knowledge index or one concept file |
 | `tinycloud_secrets_status` | Inspect delegated secret readiness without reading values (local only) |
 
 These tools use the same versioned operation contracts as the CLI projections.
