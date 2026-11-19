@@ -18,7 +18,16 @@ if (!provider) throw new Error('A browser wallet is required');
 const web = new TinyCloudWeb({
   provider,
   tinycloudHosts: ['https://node.tinycloud.xyz'],
-  spacePrefix: 'my-app',
+  manifest: {
+    app_id: 'com.example.my-app',
+    name: 'My App',
+    space: 'my-app',
+    prefix: '',
+    defaults: false,
+    permissions: [
+      { service: 'tinycloud.kv', path: 'notes/', actions: ['get', 'put'] },
+    ],
+  },
 });
 
 await web.signIn();
@@ -31,13 +40,24 @@ import { TinyCloudNode } from '@tinycloud/node-sdk';
 const node = new TinyCloudNode({
   privateKey: process.env.WALLET_PRIVATE_KEY,
   host: 'https://node.tinycloud.xyz',
-  prefix: 'my-app',
   autoCreateSpace: true,
+  manifest: {
+    app_id: 'com.example.my-app',
+    name: 'My App',
+    space: 'my-app',
+    prefix: '',
+    defaults: false,
+    permissions: [
+      { service: 'tinycloud.kv', path: 'notes/', actions: ['get', 'put'] },
+    ],
+  },
 });
 
 await node.signIn();
 console.log(node.spaceId);
 ```
+
+The manifest's `space` is the space sign-in provisions, and `permissions` lists what the app will do there. See [Declare what your app uses](/reference/protocol/app-manifests#declare-what-your-app-uses).
 
 In the Web SDK, `autoCreateSpace` defaults to `true`. In the Node SDK, it defaults to `false`, so backends that own their own space should opt in explicitly.
 
@@ -55,6 +75,16 @@ import { TinyCloudNode } from '@tinycloud/node-sdk';
 const node = new TinyCloudNode({
   privateKey: process.env.WALLET_PRIVATE_KEY,
   host: 'https://node.tinycloud.xyz',
+  manifest: {
+    app_id: 'com.example.my-app',
+    name: 'My App',
+    space: 'my-app',
+    prefix: '',
+    defaults: false,
+    permissions: [
+      { service: 'tinycloud.kv', path: 'notes/', actions: ['get', 'put'] },
+    ],
+  },
 });
 
 await node.signIn();

@@ -17,16 +17,37 @@ For both trust boundaries and the public/primary space split, see
 ```typescript
 import { PrivateKeySigner, TinyCloudNode } from "@tinycloud/node-sdk";
 
+const signer = new PrivateKeySigner(process.env.WALLET_PRIVATE_KEY!);
+const ownerDid = `did:pkh:eip155:1:${await signer.getAddress()}`;
+
 const tc = new TinyCloudNode({
   privateKey: process.env.WALLET_PRIVATE_KEY,
   host: "https://node.tinycloud.xyz",
-  prefix: "my-app",
+  manifest: {
+    app_id: "com.example.my-app",
+    name: "My App",
+    space: "my-app",
+    prefix: "",
+    defaults: false,
+    permissions: [
+      { service: "tinycloud.vault", path: "medical/", actions: ["read", "write"] },
+      {
+        service: "tinycloud.encryption",
+        path: `urn:tinycloud:encryption:${ownerDid}:default`,
+        actions: ["decrypt"],
+      },
+    ],
+  },
 });
 
 await tc.signIn();
-const signer = new PrivateKeySigner(process.env.WALLET_PRIVATE_KEY);
 await tc.vault.unlock(signer);
 ```
+
+The manifest declares the permissions the unlock, store and read examples use:
+reading and writing vault entries under `medical/`, and decrypting with your
+default encryption network, which `vault.get` needs. See
+[Declare what your app uses](/reference/protocol/app-manifests#declare-what-your-app-uses).
 
 In wallet-derived mode, unlocking derives encryption keys locally. The same
 wallet signing material produces the same vault keys again later, so the

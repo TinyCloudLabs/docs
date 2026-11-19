@@ -30,7 +30,7 @@ bun add @tinycloud/node-sdk @tinycloud/vfs
 
 ## Owner Usage
 
-Use `createTinyCloudVfsFromNode(node)` when the process owns the TinyCloud session.
+Use `createTinyCloudVfsFromNode(node)` when the process owns the TinyCloud session. The mount covers the whole space, so the owner's manifest declares KV access to all of the `default` space.
 
 <CodeGroup>
 ```typescript
@@ -42,6 +42,16 @@ const owner = new TinyCloudNode({
   privateKey: process.env.TINYCLOUD_PRIVATE_KEY!,
   host: "https://node.tinycloud.xyz",
   autoCreateSpace: true,
+  manifest: {
+    app_id: "com.example.vfs-owner",
+    name: "VFS owner",
+    space: "default",
+    prefix: "",
+    defaults: false,
+    permissions: [
+      { service: "tinycloud.kv", path: "", actions: ["get", "put", "del", "list", "metadata"] },
+    ],
+  },
 });
 
 await owner.signIn();
@@ -61,7 +71,7 @@ try {
 
 ## Delegated Usage
 
-Use `await createTinyCloudDelegatedVfs({ node, delegation })` when you want to mount a path that was granted through delegation.
+Use `await createTinyCloudDelegatedVfs({ node, delegation })` when you want to mount a path that was granted through delegation. Alice's manifest declares the `shared/` prefix she delegates. Bob works only through the delegation, so his manifest declares no permissions of its own.
 
 <CodeGroup>
 ```typescript
@@ -73,11 +83,27 @@ const alice = new TinyCloudNode({
   privateKey: process.env.ALICE_PRIVATE_KEY!,
   host: "https://node.tinycloud.xyz",
   autoCreateSpace: true,
+  manifest: {
+    app_id: "com.example.vfs-share",
+    name: "VFS share",
+    space: "default",
+    prefix: "",
+    defaults: false,
+    permissions: [
+      { service: "tinycloud.kv", path: "shared/", actions: ["get", "put", "del", "list", "metadata"] },
+    ],
+  },
 });
 const bob = new TinyCloudNode({
   privateKey: process.env.BOB_PRIVATE_KEY!,
   host: "https://node.tinycloud.xyz",
   autoCreateSpace: true,
+  manifest: {
+    app_id: "com.example.vfs-share",
+    name: "VFS share",
+    defaults: false,
+    permissions: [],
+  },
 });
 
 await alice.signIn();

@@ -21,6 +21,38 @@ Both modes scope to:
 - optional `pathPrefix`
 - optional `abilities`
 
+## Declare the hook permissions
+
+Each hook call needs a `tinycloud.hooks` permission on its scope, written as
+`<service>/<pathPrefix>`. The examples on this page use this client, whose
+[manifest](/reference/protocol/app-manifests#declare-what-your-app-uses)
+declares those scopes:
+
+```typescript
+import { TinyCloudNode } from "@tinycloud/node-sdk";
+
+const tc = new TinyCloudNode({
+  privateKey: process.env.WALLET_PRIVATE_KEY,
+  host: "https://node.tinycloud.xyz",
+  autoCreateSpace: true,
+  manifest: {
+    app_id: "com.example.notes",
+    name: "Notes",
+    space: "notes",
+    prefix: "",
+    defaults: false,
+    permissions: [
+      { service: "tinycloud.hooks", path: "sql/main.db", actions: ["subscribe"] },
+      {
+        service: "tinycloud.hooks",
+        path: "kv/documents",
+        actions: ["register", "list", "unregister"],
+      },
+    ],
+  },
+});
+```
+
 ## Subscribe to live writes
 
 ```typescript

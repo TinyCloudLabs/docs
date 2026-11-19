@@ -7,6 +7,40 @@ icon: "file-text"
 This page records the manifest fields the TinyCloud JS SDK accepts and the
 rules it applies when turning a manifest into a sign-in capability request.
 
+## Declare what your app uses
+
+Pass `manifest` when you create the client, and list the permissions your
+app's code uses:
+
+```typescript
+import { TinyCloudWeb } from '@tinycloud/web-sdk';
+
+const tc = new TinyCloudWeb({
+  provider,
+  manifest: {
+    app_id: 'com.example.my-app',
+    name: 'My App',
+    space: 'my-app',
+    prefix: '',
+    defaults: false,
+    permissions: [
+      { service: 'tinycloud.kv', path: 'notes/', actions: ['get', 'put'] },
+    ],
+  },
+});
+
+await tc.signIn();
+await tc.kv.put('notes/today', 'Hello');
+```
+
+- `space` names the space the app uses.
+- `prefix: ''` keeps paths as written, so `notes/today` falls under `notes/`.
+- `defaults: false` leaves out the standard tier, so the manifest asks only
+  for the entries in `permissions`.
+
+`TinyCloudNode` takes the same `manifest` option. Sign-in also adds the
+entries listed under [Composition rules](#composition-rules).
+
 ## Manifest v1
 
 `manifest_version` is optional for v1. If it is omitted, the SDK treats the
