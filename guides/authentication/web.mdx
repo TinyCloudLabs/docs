@@ -18,14 +18,25 @@ if (!provider) throw new Error('A browser wallet is required');
 const tc = new TinyCloudWeb({
   provider,
   tinycloudHosts: ['https://node.tinycloud.xyz'],
-  spacePrefix: 'my-app',
   persistSession: true,
   sessionStorageKeyPrefix: 'my-app:production:',
   sessionExpirationMs: 24 * 60 * 60 * 1000,
+  manifest: {
+    app_id: 'com.example.my-app',
+    name: 'My App',
+    space: 'my-app',
+    prefix: '',
+    defaults: false,
+    permissions: [
+      { service: 'tinycloud.kv', path: 'profile', actions: ['get'] },
+    ],
+  },
 });
 ```
 
 The injected provider is the signer used for SIWE. Without `provider`, `providers.web3.driver`, or another supported signing strategy, this client can restore compatible session data but cannot start a new wallet sign-in.
+
+The `manifest` declares the permissions the app uses; the examples on this page only read the `profile` key. See [Declare what your app uses](/reference/protocol/app-manifests#declare-what-your-app-uses).
 
 `persistSession` defaults to `true` and uses browser `localStorage`. Use a stable, environment-specific `sessionStorageKeyPrefix` so development and production sessions do not collide. Set `persistSession: false` when the browser must not retain session data.
 

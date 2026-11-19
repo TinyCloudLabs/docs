@@ -229,6 +229,17 @@ For a node-sdk client, enable the option and provide storage explicitly:
 import { TinyCloudNode, sqliteReplicaStorage } from "@tinycloud/node-sdk";
 
 const node = new TinyCloudNode({
+  // ...your usual config
+  manifest: {
+    app_id: "com.example.notes",
+    name: "Notes",
+    space: "notes",
+    prefix: "",
+    defaults: false,
+    permissions: [
+      { service: "tinycloud.kv", path: "notes/", actions: ["get"] },
+    ],
+  },
   replication: {
     enabled: true,
     prefixes: ["notes/"],
@@ -238,6 +249,8 @@ const node = new TinyCloudNode({
 ```
 
 `enabled` requires a non-empty `prefixes` array and `storage`; overlapping prefixes are rejected. The Node SQLite adapter requires Node.js 22.13 or newer (or Bun). `sqliteReplicaStorage({ dir, guard })` accepts an optional `guard` for serialized storage mutations. `node.replication` exposes `status()`, `sync()`, `purge()` and `clearPending()`.
+
+Declare `get` on each replicated prefix in the [manifest](/reference/protocol/app-manifests#declare-what-your-app-uses); sign-in then adds `sync` for that prefix.
 
 There are **no default prefixes**. A replication prefix is a folder: non-empty,
 slash-terminated, with no leading slash or empty path segments (for example
@@ -366,6 +379,16 @@ registerBrowserReplica(browserReplicaPlugin);
 
 const tcw = new TinyCloudWeb({
   // ...your usual config
+  manifest: {
+    app_id: "com.example.notes",
+    name: "Notes",
+    space: "notes",
+    prefix: "",
+    defaults: false,
+    permissions: [
+      { service: "tinycloud.kv", path: "notes/", actions: ["get"] },
+    ],
+  },
   replication: {
     enabled: true,
     prefixes: ["notes/"], // folders ending in "/"
