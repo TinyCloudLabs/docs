@@ -1,10 +1,15 @@
 ---
 title: "TinyCloud Integration"
-description: "Use OpenKey as the signer for TinyCloud sign-in"
+description: "Sign users in to TinyCloud with OpenKey passkeys"
 icon: "cloud"
 ---
 
-Use OpenKey here when you want TinyCloud to keep its SIWE flow but replace a browser wallet with passkey-based signing.
+Use OpenKey when you want users to sign in to TinyCloud with a passkey instead
+of a browser wallet extension. `TinyCloudWeb` sends OpenKey the sign-in
+request, the user reviews it in OpenKey and approves it with a passkey, and the
+SDK checks the signed result before it creates the session.
+
+This page uses `@tinycloud/web-sdk` 3.13.0 and `@openkey/sdk` 0.12.2.
 
 ## What stays the same
 
@@ -14,56 +19,136 @@ Use OpenKey here when you want TinyCloud to keep its SIWE flow but replace a bro
 
 ## What OpenKey provides
 
-- A browser-friendly signer
 - Passkey authentication
+- A review screen where the user sees the permissions your app asks for
 - A path that does not require MetaMask or another wallet extension
 
+## Install
+
+```bash
+npm install @tinycloud/web-sdk@3.13.0 @openkey/sdk@0.12.2
+```
+
 ## Working example
+
+This example is a complete `src/main.ts` for a Vite `vanilla-ts` app. It
+connects an OpenKey key, signs in to TinyCloud, then writes and reads one key.
 
 ```typescript
 import { OpenKey, OpenKeyProvider } from "@openkey/sdk";
 import { TinyCloudWeb } from "@tinycloud/web-sdk";
 
-const openkey = new OpenKey({ host: "https://openkey.so", appName: "My TinyCloud App" });
-const authResult = await openkey.connect();
+document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
+  <button id="connect">Connect OpenKey</button>
+  <button id="sign-in" disabled>Sign in to TinyCloud</button>
+  <pre id="result">Not connected</pre>
+`;
 
-const tcw = new TinyCloudWeb({
-  provider: new OpenKeyProvider(openkey, authResult),
-  manifest: {
-    app_id: "com.example.my-tinycloud-app",
-    name: "My TinyCloud App",
-    space: "default",
-    prefix: "",
-    defaults: false,
-    permissions: [
-      { service: "tinycloud.kv", path: "hello", actions: ["put"] },
-    ],
-  },
+const connectButton = document.querySelector<HTMLButtonElement>("#connect")!;
+const signInButton = document.querySelector<HTMLButtonElement>("#sign-in")!;
+const result = document.querySelector<HTMLPreElement>("#result")!;
+
+const openkey = new OpenKey({
+  host: "https://openkey.so",
+  appName: "My TinyCloud App",
+});
+let tcw: TinyCloudWeb | undefined;
+
+connectButton.addEventListener("click", async () => {
+  try {
+    const account = await openkey.connect();
+    tcw = await TinyCloudWeb.create({
+      provider: new OpenKeyProvider(openkey, account),
+      openkey: { client: openkey, mode: "popup" },
+      manifest: {
+        app_id: "com.example.my-tinycloud-app",
+        name: "My TinyCloud App",
+        space: "default",
+        prefix: "",
+        defaults: false,
+        permissions: [
+          { service: "tinycloud.kv", path: "hello", actions: ["get", "put"] },
+        ],
+      },
+    });
+    await tcw.prepareSignIn();
+    result.textContent = `Connected: ${account.address}`;
+    signInButton.disabled = false;
+  } catch (error) {
+    result.textContent = `Could not prepare sign-in: ${error}`;
+  }
 });
 
-await tcw.signIn();
-await tcw.kv.put("hello", "world");
+signInButton.addEventListener("click", async () => {
+  if (!tcw) return;
+  signInButton.disabled = true;
+  try {
+    await tcw.signIn();
+    const put = await tcw.kv.put("hello", "world");
+    if (!put.ok) throw new Error(put.error.message);
+    const get = await tcw.kv.get("hello");
+    if (!get.ok) throw new Error(get.error.message);
+    result.textContent = `Signed in as ${tcw.address()}\nhello = ${get.data.data}`;
+  } catch (error) {
+    result.textContent = `Sign-in failed: ${error}`;
+    await tcw.prepareSignIn();
+    signInButton.disabled = false;
+  }
+});
 ```
 
-## Why this shape
+Run it with `npm run dev`, click **Connect OpenKey**, then click **Sign in to
+TinyCloud** and approve the request in the OpenKey window.
 
-`@tinycloud/web-sdk` 3.0 signs through a raw EIP-1193 provider: it calls
-`provider.request()` directly. `OpenKeyProvider` is an EIP-1193 provider that
-answers `eth_accounts`, `eth_requestAccounts`, `eth_chainId`, `personal_sign`,
-and `eth_signTypedData_v4` with the connected OpenKey key, so pass it as is.
+## How sign-in works
+
+1. `openkey.connect()` signs the user in to OpenKey and returns the key they
+   picked.
+2. `TinyCloudWeb.create()` gets the OpenKey client as `openkey.client`. The
+   `OpenKeyProvider` only tells TinyCloudWeb which account and chain are
+   signing in. With `@openkey/sdk` 0.12.2, TinyCloudWeb needs it for that;
+   without it, `prepareSignIn()` fails.
+3. `prepareSignIn()` builds the sign-in request before the user clicks.
+4. `signIn()` calls OpenKey's `authorizeTinyCloud` with `protocolVersion: 1`.
+   OpenKey shows the user the permissions in your manifest, and the user
+   approves with a passkey.
+5. The SDK checks the signed message OpenKey returns against the request it
+   prepared, then creates the session.
+
+Popup is the default `mode`; `"iframe"` and `"redirect"` are also accepted.
+Call `signIn()` from a click handler and without arguments: with an OpenKey
+client configured, it refuses SIWE overrides such as a `nonce`.
+
+A prepared request is used once and expires after five minutes. Call
+`prepareSignIn()` again after every sign-in attempt, including a canceled or
+failed one, and if the sign-in button stays on screen for more than five
+minutes. Preparing ahead lets the OpenKey popup open straight from the click,
+which Safari requires.
+
+## Users without a TinyCloud account
+
+An OpenKey user who has not set up a TinyCloud account yet cannot sign in to
+your app. `prepareSignIn()` rejects with an error whose `code` is
+`ACCOUNT_SETUP_REQUIRED` and whose `setupUrl` is `https://home.tinycloud.xyz/`.
+Send the user there, then let them try again.
+
+## Not the sign-in path
 
 <Warning>
-Do not wrap it in an ethers `Web3Provider` or `BrowserProvider`. Web SDK 2.x
-accepted an ethers provider; 3.0 needs the raw EIP-1193 object.
+Use `openkey.client` with `signIn()` for TinyCloud sign-in. These are not
+TinyCloud sign-in for an app:
+
+- Signing the SIWE message through `OpenKeyProvider` (`personal_sign`) or an
+  ethers provider that wraps it. TinyCloudWeb only reads the account from the
+  provider.
+- Raw `openkey.signMessage()`. It signs the exact bytes you pass and creates no
+  TinyCloud session.
+- OpenKey `/delegate` links. They are for the TinyCloud CLI, agents and MCP
+  connections; see [Approving CLI and agent requests](/openkey/index#approving-cli-and-agent-requests).
 </Warning>
 
 ## TinyCloud-specific advice
 
 - Keep the OpenKey host separate from the TinyCloud host
-- Pass the provider as `provider`; `providers.web3.driver` still works and takes the same raw EIP-1193 object
 - Pass a `manifest` that declares the permissions your app uses; see [Declare what your app uses](/reference/protocol/app-manifests#declare-what-your-app-uses)
 - Treat this as a sign-in flow, not an OAuth flow
-
-<Note>
-Verified against `@openkey/sdk` 0.10.2 and `@tinycloud/web-sdk` 3.0.0.
-</Note>
